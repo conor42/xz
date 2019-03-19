@@ -15,7 +15,7 @@
 #include "fast-lzma2.h"
 
 
-static
+static lzma_bool
 lzma_lzma_preset_orig(lzma_options_lzma *options, uint32_t level, uint32_t flags)
 {
 	static const uint8_t dict_pow2[]
@@ -58,7 +58,7 @@ lzma_lzma_preset(lzma_options_lzma *options, uint32_t preset)
 {
 	const uint32_t level = preset & LZMA_PRESET_LEVEL_MASK;
 	const uint32_t flags = preset & ~LZMA_PRESET_LEVEL_MASK;
-	const uint32_t supported_flags = LZMA_PRESET_EXTREME;
+	const uint32_t supported_flags = LZMA_PRESET_EXTREME | LZMA_PRESET_ORIG;
 
 	if (level > 9 || (flags & ~supported_flags))
 		return true;
@@ -83,27 +83,28 @@ lzma_lzma_preset(lzma_options_lzma *options, uint32_t preset)
 		options->nice_len = level <= 1 ? 128 : 273;
 		static const uint8_t depths[] = { 4, 8, 24, 48 };
 		options->depth = depths[level];
-	} else if (!(flags & LZMA_PRESET_EXTREME)) {
+	} else {
 		options->mf = LZMA_MF_RAD;
 		FL2_compressionParameters params;
 		if (FL2_isError(FL2_getLevelParameters(level, 0, &params)))
 			return true;
 		options->dict_size = params.dictionarySize;
-//		options->overlap_fraction = params.overlapFraction;
-		options->mode = params.strategy;
-		options->nice_len = params.fastLength;
-		options->depth = params.searchDepth;
-//		options->hc3_dict_size_log = params.chainLog;
-//		options->hc3_cycles = 1U << params.cyclesLog;
-//		options->divide_and_conquer = params.divideAndConquer;
-	} else {
-		options->mode = FL2_ultra;
-		options->nice_len = 273;
-		options->depth = 254;
-//		options->hc3_dict_size_log = FL2_CHAINLOG_MAX;
-//		options->hc3_cycles = 16;
-//		options->divide_and_conquer = 0;
+		if (!(flags & LZMA_PRESET_EXTREME)) {
+	//		options->overlap_fraction = params.overlapFraction;
+			options->mode = params.strategy;
+			options->nice_len = params.fastLength;
+			options->depth = params.searchDepth;
+	//		options->hc3_dict_size_log = params.chainLog;
+	//		options->hc3_cycles = 1U << params.cyclesLog;
+	//		options->divide_and_conquer = params.divideAndConquer;
+		} else {
+			options->mode = FL2_ultra;
+			options->nice_len = 273;
+			options->depth = 254;
+	//		options->hc3_dict_size_log = FL2_CHAINLOG_MAX;
+	//		options->hc3_cycles = 16;
+	//		options->divide_and_conquer = 0;
+		}
 	}
-
 	return false;
 }

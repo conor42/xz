@@ -61,6 +61,9 @@ extern void coder_set_preset(uint32_t new_preset);
 /// Enable extreme mode
 extern void coder_set_extreme(void);
 
+/// Enable orig mode
+extern void coder_set_orig(void);
+
 /// Add a filter to the custom filter chain
 extern void coder_add_filter(lzma_vli id, void *options);
 

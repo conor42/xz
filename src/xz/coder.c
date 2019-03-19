@@ -104,6 +104,15 @@ coder_set_extreme(void)
 
 
 extern void
+coder_set_orig(void)
+{
+	preset_number |= LZMA_PRESET_ORIG;
+	forget_filter_chain();
+	return;
+}
+
+
+extern void
 coder_add_filter(lzma_vli id, void *options)
 {
 	if (filters_count == LZMA_FILTERS_MAX)

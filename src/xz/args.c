@@ -185,6 +185,7 @@ parse_real(args_info *args, int argc, char **argv)
 		{ "extreme",      no_argument,       NULL,  'e' },
 		{ "fast",         no_argument,       NULL,  '0' },
 		{ "best",         no_argument,       NULL,  '9' },
+		{ "orig",	      no_argument,       NULL,  'o' },
 
 		// Filters
 		{ "lzma1",        optional_argument, NULL,  OPT_LZMA1 },
@@ -270,6 +271,11 @@ parse_real(args_info *args, int argc, char **argv)
 		// --extreme
 		case 'e':
 			coder_set_extreme();
+			break;
+
+		// --extreme
+		case 'o':
+			coder_set_orig();
 			break;
 
 		// --force
