@@ -15,6 +15,7 @@
 #include "lzma_encoder.h"
 #include "fastpos.h"
 #include "lzma2_encoder.h"
+#include "lzma2_fast_encoder.h"
 
 
 typedef struct {
@@ -359,6 +360,10 @@ extern lzma_ret
 lzma_lzma2_encoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 		const lzma_filter_info *filters)
 {
+	const lzma_options_lzma *const opt = filters[0].options;
+	if (opt->mf == LZMA_MF_RMF)
+		return lzma_flzma2_encoder_init(next, allocator, filters);
+
 	return lzma_lz_encoder_init(
 			next, allocator, filters, &lzma2_encoder_init);
 }
@@ -367,6 +372,10 @@ lzma_lzma2_encoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 extern uint64_t
 lzma_lzma2_encoder_memusage(const void *options)
 {
+	const lzma_options_lzma *const opt = options;
+	if (opt->mf == LZMA_MF_RMF)
+		return lzma_flzma2_encoder_memusage(options);
+
 	const uint64_t lzma_mem = lzma_lzma_encoder_memusage(options);
 	if (lzma_mem == UINT64_MAX)
 		return UINT64_MAX;

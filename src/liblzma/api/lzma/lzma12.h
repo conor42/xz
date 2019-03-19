@@ -98,7 +98,7 @@ typedef enum {
 		 *  - dict_size > 16 MiB: dict_size * 9.5 + 64 MiB
 		 */
 
-	LZMA_MF_BT4     = 0x14
+	LZMA_MF_BT4     = 0x14,
 		/**<
 		 * \brief       Binary Tree with 2-, 3-, and 4-byte hashing
 		 *
@@ -107,6 +107,17 @@ typedef enum {
 		 * Memory usage:
 		 *  - dict_size <= 32 MiB: dict_size * 11.5
 		 *  - dict_size > 32 MiB: dict_size * 10.5
+		 */
+
+	LZMA_MF_RMF     = 0x15
+		/**<
+		 * \brief       Match table built with radix search
+		 *
+		 * Minimum nice_len: 6
+		 *
+		 * Memory usage:
+		 *  - dict_size <= 64 MiB: dict_size * 5
+		 *  - dict_size > 64 MiB: dict_size * 6
 		 */
 } lzma_match_finder;
 
