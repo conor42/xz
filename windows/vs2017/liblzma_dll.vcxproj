@@ -299,6 +299,7 @@
     <ClCompile Include="..\..\src\liblzma\fast-lzma2\util.c" />
     <ClCompile Include="..\..\src\liblzma\lzma\fastpos_table.c" />
     <ClCompile Include="..\..\src\liblzma\lzma\lzma2_decoder.c" />
+    <ClCompile Include="..\..\src\liblzma\lzma\lzma2_fast_decoder.c" />
     <ClCompile Include="..\..\src\liblzma\lzma\lzma2_encoder.c" />
     <ClCompile Include="..\..\src\liblzma\lzma\lzma2_fast_encoder.c" />
     <ClCompile Include="..\..\src\liblzma\lzma\lzma_decoder.c" />
@@ -393,6 +394,7 @@
     <ClInclude Include="..\..\src\liblzma\fast-lzma2\util.h" />
     <ClInclude Include="..\..\src\liblzma\lzma\fastpos.h" />
     <ClInclude Include="..\..\src\liblzma\lzma\lzma2_decoder.h" />
+    <ClInclude Include="..\..\src\liblzma\lzma\lzma2_fast_decoder.h" />
     <ClInclude Include="..\..\src\liblzma\lzma\lzma2_encoder.h" />
     <ClInclude Include="..\..\src\liblzma\lzma\lzma2_fast_encoder.h" />
     <ClInclude Include="..\..\src\liblzma\lzma\lzma_common.h" />

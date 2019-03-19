@@ -15,6 +15,7 @@
 #include "fast-lzma2.h"
 #include "fl2_errors.h"
 
+
 typedef struct {
 	/// Fast LZMA2 encoder
 	FL2_CStream *fcs;
@@ -24,7 +25,7 @@ typedef struct {
 } flzma2_coder;
 
 
-static lzma_ret flzma2_translate_error(const size_t ret)
+extern lzma_ret flzma2_translate_error(const size_t ret)
 {
 	switch (FL2_getErrorCode(ret)) {
 

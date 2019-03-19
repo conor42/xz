@@ -1,9 +1,9 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-/// \file       lzma2_encoder.h
-/// \brief      LZMA2 encoder
+/// \file       lzma2_fast_encoder.h
+/// \brief      Fast LZMA2 encoder wrapper
 ///
-//  Authors:    Igor Pavlov
+//  Authors:    Conor McCarthy
 //              Lasse Collin
 //
 //  This file has been put into the public domain.
