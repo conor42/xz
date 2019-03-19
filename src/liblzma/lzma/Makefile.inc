@@ -45,5 +45,7 @@ endif
 if COND_DECODER_LZMA2
 liblzma_la_SOURCES += \
 	lzma/lzma2_decoder.c \
-	lzma/lzma2_decoder.h
+	lzma/lzma2_decoder.h \
+	lzma/lzma2_fast_decoder.c \
+	lzma/lzma2_fast_decoder.h
 endif
