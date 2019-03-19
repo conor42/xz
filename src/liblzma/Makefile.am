@@ -20,6 +20,7 @@ liblzma_la_CPPFLAGS = \
 	-I$(top_srcdir)/src/liblzma/lz \
 	-I$(top_srcdir)/src/liblzma/rangecoder \
 	-I$(top_srcdir)/src/liblzma/lzma \
+	-I$(top_srcdir)/src/liblzma/fast-lzma2 \
 	-I$(top_srcdir)/src/liblzma/delta \
 	-I$(top_srcdir)/src/liblzma/simple \
 	-I$(top_srcdir)/src/common \
@@ -48,6 +49,7 @@ endif
 if COND_FILTER_LZMA1
 include $(srcdir)/lzma/Makefile.inc
 include $(srcdir)/rangecoder/Makefile.inc
+include $(srcdir)/fast-lzma2/Makefile.inc
 endif
 
 if COND_FILTER_DELTA

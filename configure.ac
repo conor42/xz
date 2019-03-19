@@ -195,7 +195,7 @@ AM_CONDITIONAL(COND_DECODER_LZ, test "x$enable_decoder_lz" = xyes)
 # Match finders #
 #################
 
-m4_define([SUPPORTED_MATCH_FINDERS], [hc3,hc4,bt2,bt3,bt4])
+m4_define([SUPPORTED_MATCH_FINDERS], [hc3,hc4,bt2,bt3,bt4,rad])
 
 m4_foreach([NAME], [SUPPORTED_MATCH_FINDERS],
 [enable_match_finder_[]NAME=no
