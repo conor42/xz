@@ -16,6 +16,7 @@
 
 #include "common.h"
 
+extern lzma_ret flzma2_translate_error(const size_t ret);
 
 extern lzma_ret lzma_flzma2_encoder_init(
 		lzma_next_coder *next, const lzma_allocator *allocator,

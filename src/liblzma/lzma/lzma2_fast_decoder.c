@@ -11,11 +11,9 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-#include "lzma2_decoder.h"
+#include "lzma2_fast_encoder.h" // flzma2_translate_error
+#include "lzma2_fast_decoder.h"
 #include "fast-lzma2.h"
-
-
-extern lzma_ret flzma2_translate_error(const size_t ret);
 
 
 #define return_if_fl2_error(expr) \
@@ -50,7 +48,7 @@ flzma2_decode(void *coder_ptr,
     const uint8_t *restrict in, size_t *restrict in_pos,
     size_t in_size, uint8_t *restrict out,
     size_t *restrict out_pos, size_t out_size,
-    lzma_action action)
+    lzma_action action lzma_attribute((__unused__)))
 {
     flzma2_decoder *coder = coder_ptr;
 
