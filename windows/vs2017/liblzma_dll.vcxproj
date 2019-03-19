@@ -177,7 +177,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <PreprocessorDefinitions>WIN32;NO_XXHASH;FL2_XZ_BUILD;LZMA2_DEC_OPT;HAVE_CONFIG_H;DLL_EXPORT;NDEBUG;_WINDOWS;_USRDLL;LIBLZMADLL_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NO_XXHASH;FL2_XZ_BUILD;HAVE_CONFIG_H;DLL_EXPORT;NDEBUG;_WINDOWS;_USRDLL;LIBLZMADLL_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>

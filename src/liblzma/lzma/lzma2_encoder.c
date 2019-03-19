@@ -361,7 +361,7 @@ lzma_lzma2_encoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 		const lzma_filter_info *filters)
 {
 	const lzma_options_lzma *const opt = filters[0].options;
-	if (opt->mf == LZMA_MF_RMF)
+	if (opt->mf == LZMA_MF_RAD)
 		return lzma_flzma2_encoder_init(next, allocator, filters);
 
 	return lzma_lz_encoder_init(
@@ -373,7 +373,7 @@ extern uint64_t
 lzma_lzma2_encoder_memusage(const void *options)
 {
 	const lzma_options_lzma *const opt = options;
-	if (opt->mf == LZMA_MF_RMF)
+	if (opt->mf == LZMA_MF_RAD)
 		return lzma_flzma2_encoder_memusage(options);
 
 	const uint64_t lzma_mem = lzma_lzma_encoder_memusage(options);

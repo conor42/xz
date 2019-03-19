@@ -21,10 +21,10 @@ typedef struct {
 
 	/// Next coder in the chain
 	lzma_next_coder next;
-} lzma2_coder;
+} flzma2_coder;
 
 
-extern lzma_ret lzma2_translate_error(const size_t ret)
+extern lzma_ret flzma2_translate_error(const size_t ret)
 {
 	switch (FL2_getErrorCode(ret)) {
 
@@ -60,19 +60,19 @@ extern lzma_ret lzma2_translate_error(const size_t ret)
 do { \
 	const size_t ret_ = (expr); \
 	if (FL2_isError(ret_)) \
-		return lzma2_translate_error(ret_); \
+		return flzma2_translate_error(ret_); \
 } while (0)
 
 
 static lzma_ret
-lzma2_encode(void *coder_ptr,
+flzma2_encode(void *coder_ptr,
 	const lzma_allocator *allocator lzma_attribute((__unused__)),
 	const uint8_t *restrict in, size_t *restrict in_pos,
 	size_t in_size, uint8_t *restrict out,
 	size_t *restrict out_pos, size_t out_size,
 	lzma_action action)
 {
-	lzma2_coder *restrict coder = coder_ptr;
+	flzma2_coder *restrict coder = coder_ptr;
 
 	FL2_outBuffer outbuf = { out, out_size, *out_pos };
 	FL2_inBuffer inbuf = { in, in_size, *in_pos };
@@ -89,7 +89,7 @@ lzma2_encode(void *coder_ptr,
 	case LZMA_SYNC_FLUSH:
 		res = FL2_compressStream(coder->fcs, &outbuf, &inbuf);
 		if (FL2_isError(res))
-			return lzma2_translate_error(res);
+			return flzma2_translate_error(res);
 
 		// fall through
 
@@ -100,7 +100,7 @@ lzma2_encode(void *coder_ptr,
 			res = FL2_flushStream(coder->fcs, &outbuf);
 
 		if (FL2_isError(res))
-			return lzma2_translate_error(res);
+			return flzma2_translate_error(res);
 
 		ret = (res != 0) ? LZMA_OK : LZMA_STREAM_END;
 		break;
@@ -118,7 +118,7 @@ lzma2_encode(void *coder_ptr,
 	}
 
 	if (FL2_isError(res))
-		return lzma2_translate_error(res);
+		return flzma2_translate_error(res);
 
 	*in_pos = inbuf.pos;
 	*out_pos = outbuf.pos;
@@ -126,16 +126,16 @@ lzma2_encode(void *coder_ptr,
 }
 
 static void
-lzma2_encoder_end(void *coder_ptr, const lzma_allocator *allocator)
+flzma2_encoder_end(void *coder_ptr, const lzma_allocator *allocator)
 {
-	lzma2_coder *coder = coder_ptr;
+	flzma2_coder *coder = coder_ptr;
 	FL2_freeCStream(coder->fcs);
 	lzma_free(coder, allocator);
 }
 
 
 static lzma_ret
-lzma2_set_options(lzma2_coder *coder, const lzma_options_lzma *options)
+flzma2_set_options(flzma2_coder *coder, const lzma_options_lzma *options)
 {
 	if (coder == NULL)
 		return LZMA_PROG_ERROR;
@@ -160,11 +160,11 @@ lzma2_set_options(lzma2_coder *coder, const lzma_options_lzma *options)
 
 
 static lzma_ret
-lzma2_encoder_options_update(void *coder_ptr, const lzma_allocator *allocator,
+flzma2_encoder_options_update(void *coder_ptr, const lzma_allocator *allocator,
 	const lzma_filter *filters lzma_attribute((__unused__)),
 	const lzma_filter *reversed_filters)
 {
-	lzma2_coder *coder = coder_ptr;
+	flzma2_coder *coder = coder_ptr;
 
 	// New options can be set only when there is no incomplete chunk.
 	// This is the case at the beginning of the raw stream and right
@@ -199,18 +199,18 @@ lzma_flzma2_encoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 
 	const lzma_options_lzma *options = filters[0].options;
 
-	lzma2_coder *coder = next->coder;
+	flzma2_coder *coder = next->coder;
 	if (coder == NULL) {
-		coder = lzma_alloc(sizeof(lzma2_coder), allocator);
+		coder = lzma_alloc(sizeof(flzma2_coder), allocator);
 		if (coder == NULL)
 			return LZMA_MEM_ERROR;
 
 		coder->fcs = NULL;
 
 		next->coder = coder;
-		next->code = &lzma2_encode;
-		next->end = &lzma2_encoder_end;
-		next->update = &lzma2_encoder_options_update;
+		next->code = &flzma2_encode;
+		next->end = &flzma2_encoder_end;
+		next->update = &flzma2_encoder_options_update;
 
 		coder->next = LZMA_NEXT_CODER_INIT;
 	}
@@ -221,9 +221,10 @@ lzma_flzma2_encoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 			return LZMA_MEM_ERROR;
 	}
 
-	return_if_error(lzma2_set_options(coder, options));
+	return_if_error(flzma2_set_options(coder, options));
 
 	return_if_fl2_error(FL2_CStream_setParameter(coder->fcs, FL2_p_omitProperties, 1));
+	return_if_fl2_error(FL2_CStream_setParameter(coder->fcs, FL2_p_resetInterval, 0));
 
 	return_if_fl2_error(FL2_initCStream(coder->fcs, 0));
 

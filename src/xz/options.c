@@ -328,6 +328,7 @@ options_lzma(const char *str)
 		{ "bt2", LZMA_MF_BT2 },
 		{ "bt3", LZMA_MF_BT3 },
 		{ "bt4", LZMA_MF_BT4 },
+		{ "rad", LZMA_MF_RAD },
 		{ NULL,  0 }
 	};
 
