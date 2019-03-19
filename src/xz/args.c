@@ -146,7 +146,7 @@ parse_real(args_info *args, int argc, char **argv)
 	};
 
 	static const char short_opts[]
-			= "cC:defF:hHlkM:qQrS:tT:vVz0123456789";
+			= "cC:defF:hHlkM:oqQrS:tT:vVz0123456789";
 
 	static const struct option long_opts[] = {
 		// Operation mode
