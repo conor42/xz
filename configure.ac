@@ -789,6 +789,8 @@ if test "$GCC" = yes ; then
 	#   * -Wcast-align breaks optimized CRC32 and CRC64 implementation
 	#     on some architectures (not on x86), where this warning is bogus,
 	#     because we take care of correct alignment.
+	#   * -Waggregate-return breaks util time functions and the match
+	#     finder parameter function in fast-lzma2.
 	#   * -Winline, -Wdisabled-optimization, -Wunsafe-loop-optimizations
 	#     don't seem so useful here; at least the last one gives some
 	#     warnings which are not bugs.
@@ -807,7 +809,6 @@ if test "$GCC" = yes ; then
 			-Wbad-function-cast \
 			-Wwrite-strings \
 			-Wlogical-op \
-			-Waggregate-return \
 			-Wstrict-prototypes \
 			-Wold-style-definition \
 			-Wmissing-prototypes \

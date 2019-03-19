@@ -43,7 +43,6 @@
 /*
  * Preset flags
  *
- * Currently only one flag is defined.
  */
 
 /**
@@ -58,6 +57,14 @@
  * a little but only at the lowest preset levels (0-3).
  */
 #define LZMA_PRESET_EXTREME       (UINT32_C(1) << 31)
+
+ /**
+  * \brief       Original match finder preset
+  *
+  * This flag forces the preset to use a HC or BT (depending on the level)
+  * match finder instead of the radix match finder. 
+  */
+#define LZMA_PRESET_ORIG          (UINT32_C(1) << 30)
 
 
 /**

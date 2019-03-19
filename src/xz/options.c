@@ -260,15 +260,12 @@ set_lzma(void *options, unsigned key, uint64_t value, const char *valuestr)
 
 		uint32_t preset = valuestr[0] - '0';
 
-		// Currently only "e" is supported as a modifier,
-		// so keep this simple for now.
-		if (valuestr[1] != '\0') {
-			if (valuestr[1] == 'e')
+		for(unsigned i = 1; valuestr[i] != '\0'; ++i) {
+			if (valuestr[i] == 'e')
 				preset |= LZMA_PRESET_EXTREME;
+			else if (valuestr[i] == 'o')
+				preset |= LZMA_PRESET_ORIG;
 			else
-				error_lzma_preset(valuestr);
-
-			if (valuestr[2] != '\0')
 				error_lzma_preset(valuestr);
 		}
 
