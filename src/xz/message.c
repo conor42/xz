@@ -969,6 +969,10 @@ message_filters_to_str(char buf[FILTERS_STR_SIZE],
 					mf = "bt4";
 					break;
 
+				case LZMA_MF_RAD:
+					mf = "rad";
+					break;
+
 				default:
 					mf = "UNKNOWN";
 					break;
