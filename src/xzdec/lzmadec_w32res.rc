@@ -6,7 +6,7 @@
  */
 
 #define MY_TYPE VFT_APP
-#define MY_NAME "lzmadec"
+#define MY_NAME "flzmadec"
 #define MY_SUFFIX ".exe"
-#define MY_DESC "lzmadec decompression tool for .lzma files"
+#define MY_DESC "flzmadec decompression tool for .lzma files"
 #include "common_w32res.rc"

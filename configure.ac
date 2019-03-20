@@ -17,8 +17,8 @@
 
 AC_PREREQ([2.64])
 
-AC_INIT([XZ Utils], m4_esyscmd([/bin/sh build-aux/version.sh]),
-	[lasse.collin@tukaani.org], [xz], [https://tukaani.org/xz/])
+AC_INIT([FXZ Utils], m4_esyscmd([/bin/sh build-aux/version.sh]),
+	[conor.mccarthy.444@gmail.com], [fxz], [https://github.com/conor42/fxz])
 AC_CONFIG_SRCDIR([src/liblzma/common/common.h])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
@@ -398,7 +398,7 @@ fi
 #########################
 
 # We use 128 MiB as default, because it will allow decompressing files
-# created with "xz -9". It would be slightly safer to guess a lower value,
+# created with "fxz -9". It would be slightly safer to guess a lower value,
 # but most systems, on which we don't have any way to determine the amount
 # of RAM, will probably have at least 128 MiB of RAM.
 AC_MSG_CHECKING([how much RAM to assume if the real amount is unknown])
@@ -422,40 +422,40 @@ AC_DEFINE_UNQUOTED([ASSUME_RAM], [$enable_assume_ram],
 # Components to install #
 #########################
 
-AC_ARG_ENABLE([xz], [AS_HELP_STRING([--disable-xz],
-		[do not build the xz tool])],
-	[], [enable_xz=yes])
-AM_CONDITIONAL([COND_XZ], [test x$enable_xz != xno])
+AC_ARG_ENABLE([fxz], [AS_HELP_STRING([--disable-fxz],
+		[do not build the fxz tool])],
+	[], [enable_fxz=yes])
+AM_CONDITIONAL([COND_XZ], [test x$enable_fxz != xno])
 
-AC_ARG_ENABLE([xzdec], [AS_HELP_STRING([--disable-xzdec],
-		[do not build xzdec])],
-	[], [enable_xzdec=yes])
-test "x$enable_decoders" = xno && enable_xzdec=no
-AM_CONDITIONAL([COND_XZDEC], [test x$enable_xzdec != xno])
+AC_ARG_ENABLE([fxzdec], [AS_HELP_STRING([--disable-fxzdec],
+		[do not build fxzdec])],
+	[], [enable_fxzdec=yes])
+test "x$enable_decoders" = xno && enable_fxzdec=no
+AM_CONDITIONAL([COND_XZDEC], [test x$enable_fxzdec != xno])
 
-AC_ARG_ENABLE([lzmadec], [AS_HELP_STRING([--disable-lzmadec],
-		[do not build lzmadec
+AC_ARG_ENABLE([flzmadec], [AS_HELP_STRING([--disable-flzmadec],
+		[do not build flzmadec
 		(it exists primarily for LZMA Utils compatibility)])],
-	[], [enable_lzmadec=yes])
-test "x$enable_decoder_lzma1" = xno && enable_lzmadec=no
-AM_CONDITIONAL([COND_LZMADEC], [test x$enable_lzmadec != xno])
+	[], [enable_flzmadec=no])
+test "x$enable_decoder_lzma1" = xno && enable_flzmadec=no
+AM_CONDITIONAL([COND_LZMADEC], [test x$enable_flzmadec != xno])
 
-AC_ARG_ENABLE([lzmainfo], [AS_HELP_STRING([--disable-lzmainfo],
-		[do not build lzmainfo
+AC_ARG_ENABLE([flzmainfo], [AS_HELP_STRING([--disable-flzmainfo],
+		[do not build flzmainfo
 		(it exists primarily for LZMA Utils compatibility)])],
-	[], [enable_lzmainfo=yes])
-test "x$enable_decoder_lzma1" = xno && enable_lzmainfo=no
-AM_CONDITIONAL([COND_LZMAINFO], [test x$enable_lzmainfo != xno])
+	[], [enable_flzmainfo=no])
+test "x$enable_decoder_lzma1" = xno && enable_flzmainfo=no
+AM_CONDITIONAL([COND_LZMAINFO], [test x$enable_flzmainfo != xno])
 
-AC_ARG_ENABLE([lzma-links], [AS_HELP_STRING([--disable-lzma-links],
+AC_ARG_ENABLE([flzma-links], [AS_HELP_STRING([--disable-flzma-links],
 		[do not create symlinks for LZMA Utils compatibility])],
-	[], [enable_lzma_links=yes])
-AM_CONDITIONAL([COND_LZMALINKS], [test x$enable_lzma_links != xno])
+	[], [enable_flzma_links=no])
+AM_CONDITIONAL([COND_LZMALINKS], [test x$enable_flzma_links != xno])
 
 AC_ARG_ENABLE([scripts], [AS_HELP_STRING([--disable-scripts],
-		[do not install the scripts xzdiff, xzgrep, xzless, xzmore,
+		[do not install the scripts fxzdiff, fxzgrep, fxzless, fxzmore,
 		and their symlinks])],
-	[], [enable_scripts=yes])
+	[], [enable_scripts=no])
 AM_CONDITIONAL([COND_SCRIPTS], [test x$enable_scripts != xno])
 
 AC_ARG_ENABLE([doc], [AS_HELP_STRING([--disable-doc],
@@ -564,7 +564,7 @@ case $enable_threads in
 
 		# These are nice to have but not mandatory.
 		#
-		# FIXME: xz uses clock_gettime if it is available and can do
+		# FIXME: fxz uses clock_gettime if it is available and can do
 		# it even when threading is disabled. Moving this outside
 		# of pthread detection may be undesirable because then
 		# liblzma may get linked against librt even when librt isn't
@@ -853,8 +853,8 @@ AM_CONDITIONAL([COND_GNULIB], test -n "$LIBOBJS")
 AC_SUBST([AM_CFLAGS])
 
 # This is needed for src/scripts.
-xz=`echo xz | sed "$program_transform_name"`
-AC_SUBST([xz])
+fxz=`echo fxz | sed "$program_transform_name"`
+AC_SUBST([fxz])
 
 AC_CONFIG_FILES([
 	Doxyfile
@@ -871,10 +871,10 @@ AC_CONFIG_FILES([
 	tests/Makefile
 	debug/Makefile
 ])
-AC_CONFIG_FILES([src/scripts/xzdiff], [chmod +x src/scripts/xzdiff])
-AC_CONFIG_FILES([src/scripts/xzgrep], [chmod +x src/scripts/xzgrep])
-AC_CONFIG_FILES([src/scripts/xzmore], [chmod +x src/scripts/xzmore])
-AC_CONFIG_FILES([src/scripts/xzless], [chmod +x src/scripts/xzless])
+AC_CONFIG_FILES([src/scripts/fxzdiff], [chmod +x src/scripts/fxzdiff])
+AC_CONFIG_FILES([src/scripts/fxzgrep], [chmod +x src/scripts/fxzgrep])
+AC_CONFIG_FILES([src/scripts/fxzmore], [chmod +x src/scripts/fxzmore])
+AC_CONFIG_FILES([src/scripts/fxzless], [chmod +x src/scripts/fxzless])
 
 AC_OUTPUT
 

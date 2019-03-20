@@ -5,78 +5,78 @@
 ## You can do whatever you want with this file.
 ##
 
-# Windows resource compiler support. It's fine to use xz_CPPFLAGS
-# also for lzmadec.
+# Windows resource compiler support. It's fine to use fxz_CPPFLAGS
+# also for flzmadec.
 .rc.o:
 	$(RC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
-		$(xzdec_CPPFLAGS) $(CPPFLAGS) $(RCFLAGS) -i $< -o $@
+		$(fxzdec_CPPFLAGS) $(CPPFLAGS) $(RCFLAGS) -i $< -o $@
 
 
-xzdec_SOURCES = \
+fxzdec_SOURCES = \
 	xzdec.c \
 	../common/tuklib_progname.c \
 	../common/tuklib_exit.c
 
 if COND_W32
-xzdec_SOURCES += xzdec_w32res.rc
+fxzdec_SOURCES += xzdec_w32res.rc
 endif
 
-xzdec_CPPFLAGS = \
+fxzdec_CPPFLAGS = \
 	-DTUKLIB_GETTEXT=0 \
 	-I$(top_srcdir)/src/common \
 	-I$(top_srcdir)/src/liblzma/api \
 	-I$(top_builddir)/lib
-xzdec_LDADD = $(top_builddir)/src/liblzma/liblzma.la
+fxzdec_LDADD = $(top_builddir)/src/liblzma/liblzma.la
 
 if COND_GNULIB
-xzdec_LDADD += $(top_builddir)/lib/libgnu.a
+fxzdec_LDADD += $(top_builddir)/lib/libgnu.a
 endif
 
-xzdec_LDADD += $(LTLIBINTL)
+fxzdec_LDADD += $(LTLIBINTL)
 
 
-lzmadec_SOURCES = \
+flzmadec_SOURCES = \
 	xzdec.c \
 	../common/tuklib_progname.c \
 	../common/tuklib_exit.c
 
 if COND_W32
-lzmadec_SOURCES += lzmadec_w32res.rc
+flzmadec_SOURCES += lzmadec_w32res.rc
 endif
 
-lzmadec_CPPFLAGS = $(xzdec_CPPFLAGS) -DLZMADEC
-lzmadec_LDFLAGS = $(xzdec_LDFLAGS)
-lzmadec_LDADD = $(xzdec_LDADD)
+flzmadec_CPPFLAGS = $(fxzdec_CPPFLAGS) -DLZMADEC
+flzmadec_LDFLAGS = $(fxzdec_LDFLAGS)
+flzmadec_LDADD = $(fxzdec_LDADD)
 
 
 bin_PROGRAMS =
 
 if COND_XZDEC
-bin_PROGRAMS += xzdec
-dist_man_MANS = xzdec.1
+bin_PROGRAMS += fxzdec
+dist_man_MANS = fxzdec.1
 endif
 
 if COND_LZMADEC
-bin_PROGRAMS += lzmadec
+bin_PROGRAMS += flzmadec
 
-# Create the symlink lzmadec.1->xzdec.1 only if xzdec.1 was installed.
+# Create the symlink flzmadec.1->fxzdec.1 only if fxzdec.1 was installed.
 # This is better than creating a dangling symlink, especially
 # because creating the link may fail due to the directory being missing.
 #
-# FIXME: The correct solution would be to install xzdec.1 as lzmadec.1
+# FIXME: The correct solution would be to install fxzdec.1 as flzmadec.1
 # but I don't know what is the sane way to do it and since this is a bit
 # unusual situation anyway, it's not that important.
 if COND_XZDEC
 install-data-hook:
 	cd $(DESTDIR)$(mandir)/man1 && \
-	target=`echo xzdec | sed '$(transform)'` && \
-	link=`echo lzmadec | sed '$(transform)'` && \
+	target=`echo fxzdec | sed '$(transform)'` && \
+	link=`echo flzmadec | sed '$(transform)'` && \
 	rm -f $$link.1 && \
 	$(LN_S) $$target.1 $$link.1
 
 uninstall-hook:
 	cd $(DESTDIR)$(mandir)/man1 && \
-	link=`echo lzmadec | sed '$(transform)'` && \
+	link=`echo flzmadec | sed '$(transform)'` && \
 	rm -f $$link.1
 endif
 endif

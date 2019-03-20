@@ -5,23 +5,23 @@
 ## You can do whatever you want with this file.
 ##
 
-nodist_bin_SCRIPTS = xzdiff xzgrep xzmore xzless
-dist_man_MANS = xzdiff.1 xzgrep.1 xzmore.1 xzless.1
+nodist_bin_SCRIPTS = fxzdiff fxzgrep fxzmore fxzless
+dist_man_MANS = fxzdiff.1 fxzgrep.1 fxzmore.1 fxzless.1
 
 links = \
-	xzdiff-xzcmp \
-	xzgrep-xzegrep \
-	xzgrep-xzfgrep
+	fxzdiff-fxzcmp \
+	fxzgrep-fxzegrep \
+	fxzgrep-fxzfgrep
 
 if COND_LZMALINKS
 links += \
-	xzdiff-lzdiff \
-	xzdiff-lzcmp \
-	xzgrep-lzgrep \
-	xzgrep-lzegrep \
-	xzgrep-lzfgrep \
-	xzmore-lzmore \
-	xzless-lzless
+	fxzdiff-flzdiff \
+	fxzdiff-flzcmp \
+	fxzgrep-flzgrep \
+	fxzgrep-flzegrep \
+	fxzgrep-flzfgrep \
+	fxzmore-flzmore \
+	fxzless-flzless
 endif
 
 install-exec-hook:

@@ -5,9 +5,9 @@
 ## You can do whatever you want with this file.
 ##
 
-bin_PROGRAMS = xz
+bin_PROGRAMS = fxz
 
-xz_SOURCES = \
+fxz_SOURCES = \
 	args.c \
 	args.h \
 	coder.c \
@@ -38,51 +38,51 @@ xz_SOURCES = \
 	../common/tuklib_mbstr_fw.c
 
 if COND_MAIN_DECODER
-xz_SOURCES += \
+fxz_SOURCES += \
 	list.c \
 	list.h
 endif
 
 if COND_W32
-xz_SOURCES += xz_w32res.rc
+fxz_SOURCES += xz_w32res.rc
 endif
 
-xz_CPPFLAGS = \
+fxz_CPPFLAGS = \
 	-DLOCALEDIR=\"$(localedir)\" \
 	-I$(top_srcdir)/src/common \
 	-I$(top_srcdir)/src/liblzma/api \
 	-I$(top_builddir)/lib
 
-xz_LDADD = $(top_builddir)/src/liblzma/liblzma.la $(CAPSICUM_LIB)
+fxz_LDADD = $(top_builddir)/src/liblzma/liblzma.la $(CAPSICUM_LIB)
 
 if COND_GNULIB
-xz_LDADD += $(top_builddir)/lib/libgnu.a
+fxz_LDADD += $(top_builddir)/lib/libgnu.a
 endif
 
 # libgnu.a may need these libs, so this must be after libgnu.a.
-xz_LDADD += $(LTLIBINTL)
+fxz_LDADD += $(LTLIBINTL)
 
 
 # Windows resource compiler support
 .rc.o:
 	$(RC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
-		$(xz_CPPFLAGS) $(CPPFLAGS) $(RCFLAGS) -i $< -o $@
+		$(fxz_CPPFLAGS) $(CPPFLAGS) $(RCFLAGS) -i $< -o $@
 
 
-dist_man_MANS = xz.1
+dist_man_MANS = fxz.1
 
 
 ## Create symlinks for unxz and xzcat for convenience. Create symlinks also
 ## for lzma, unlzma, and lzcat for compatibility with LZMA Utils 4.32.x.
-xzlinks = unxz xzcat
+xzlinks = funxz fxzcat
 
 if COND_LZMALINKS
-xzlinks += lzma unlzma lzcat
+xzlinks += flzma funlzma flzcat
 endif
 
 install-exec-hook:
 	cd $(DESTDIR)$(bindir) && \
-	target=`echo xz | sed '$(transform)'`$(EXEEXT) && \
+	target=`echo fxz | sed '$(transform)'`$(EXEEXT) && \
 	for name in $(xzlinks); do \
 		link=`echo $$name | sed '$(transform)'`$(LN_EXEEXT) && \
 		rm -f $$link && \
@@ -91,7 +91,7 @@ install-exec-hook:
 
 install-data-hook:
 	cd $(DESTDIR)$(mandir)/man1 && \
-	target=`echo xz | sed '$(transform)'` && \
+	target=`echo fxz | sed '$(transform)'` && \
 	for name in $(xzlinks); do \
 		link=`echo $$name | sed '$(transform)'` && \
 		rm -f $$link.1 && \

@@ -131,10 +131,10 @@
 #define NDEBUG 1
 
 /* Define to the full name of this package. */
-#define PACKAGE_NAME "XZ Utils"
+#define PACKAGE_NAME "FXZ Utils"
 
 /* Define to the home page for this package. */
-#define PACKAGE_URL "https://tukaani.org/xz/"
+#define PACKAGE_URL "https://github.com/conor42/fxz"
 
 /* The size of `size_t', as computed by sizeof. */
 #ifdef _WIN64

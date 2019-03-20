@@ -6,7 +6,7 @@
  */
 
 #define MY_TYPE VFT_APP
-#define MY_NAME "lzmainfo"
+#define MY_NAME "flzmainfo"
 #define MY_SUFFIX ".exe"
-#define MY_DESC "lzmainfo shows information about .lzma files"
+#define MY_DESC "flzmainfo shows information about .lzma files"
 #include "common_w32res.rc"

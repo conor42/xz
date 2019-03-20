@@ -65,13 +65,13 @@ ACLOCAL_AMFLAGS = -I m4
 
 # List of man pages to conver to PDF and plain text in the dist-hook target.
 manfiles = \
-	src/xz/xz.1 \
-	src/xzdec/xzdec.1 \
-	src/lzmainfo/lzmainfo.1 \
-	src/scripts/xzdiff.1 \
-	src/scripts/xzgrep.1 \
-	src/scripts/xzless.1 \
-	src/scripts/xzmore.1
+	src/xz/fxz.1 \
+	src/xzdec/fxzdec.1 \
+	src/lzmainfo/flzmainfo.1 \
+	src/scripts/fxzdiff.1 \
+	src/scripts/fxzgrep.1 \
+	src/scripts/fxzless.1 \
+	src/scripts/fxzmore.1
 
 # Create ChangeLog from output of "git log --date=iso --stat".
 # Convert the man pages to PDF and plain text (ASCII only) formats.

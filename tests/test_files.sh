@@ -9,9 +9,9 @@
 #
 ###############################################################################
 
-# If both xz and xzdec were not build, skip this test.
-XZ=../src/xz/xz
-XZDEC=../src/xzdec/xzdec
+# If both fxz and fxzdec were not build, skip this test.
+XZ=../src/xz/fxz
+XZDEC=../src/xzdec/fxzdec
 test -x "$XZ" || XZ=
 test -x "$XZDEC" || XZDEC=
 if test -z "$XZ$XZDEC"; then

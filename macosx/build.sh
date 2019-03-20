@@ -32,7 +32,7 @@ uname -r | grep ^1 >/dev/null && LDFLAGS="$LDFLAGS -Wl,-no_compact_linkedit"
 
 CC="$GCC" \
 CFLAGS="-O2 -g $ARCHES1 -isysroot $SDK -mmacosx-version-min=$MDT" \
-../configure --disable-dependency-tracking --disable-xzdec --disable-lzmadec $GTT
+../configure --disable-dependency-tracking --disable-fxzdec --disable-flzmadec $GTT
 
 make
 
@@ -71,7 +71,7 @@ mv Root/usr/local/share/doc/xz/examples* liblzma/usr/local/share/doc/xz
 
 # Strip debugging symbols and make relocatable
 
-for bin in xz lzmainfo xzdec lzmadec; do
+for bin in fxz flzmainfo fxzdec flzmadec; do
     strip -S Root/usr/local/bin/$bin
     install_name_tool -change /usr/local/lib/liblzma.5.dylib @executable_path/../lib/liblzma.5.dylib Root/usr/local/bin/$bin
 done

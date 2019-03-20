@@ -1,6 +1,6 @@
 ###############################################################################
 #
-# Makefile to build XZ Utils using DJGPP
+# Makefile to build FXZ Utils using DJGPP
 #
 # Author: Lasse Collin
 #
@@ -40,7 +40,7 @@ ALL_CPPFLAGS += $(CPPFLAGS)
 ALL_CFLAGS += $(CFLAGS)
 
 .PHONY: all
-all: xz.exe
+all: fxz.exe
 
 SRCS_C = \
 	../lib/getopt.c \
@@ -138,8 +138,8 @@ $(OBJS_C): %.o: %.c
 $(OBJS_ASM): %.o: %.S
 	$(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) -c -o $@ $<
 
-# Make xz.exe not depend on an external DPMI server.
-xz.exe: $(OBJS)
+# Make fxz.exe not depend on an external DPMI server.
+fxz.exe: $(OBJS)
 	$(CC) $(ALL_CFLAGS) $(OBJS) $(LDFLAGS) -o $@
 	$(STRIP) --strip-all $@
 	exe2coff $@

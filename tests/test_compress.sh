@@ -9,8 +9,8 @@
 #
 ###############################################################################
 
-# If xz wasn't built, this test is skipped.
-if test -x ../src/xz/xz ; then
+# If fxz wasn't built, this test is skipped.
+if test -x ../src/xz/fxz ; then
 	:
 else
 	(exit 77)
@@ -25,7 +25,7 @@ if test $? != 42 ; then
 	exit 77
 fi
 
-test_xz() {
+test_fxz() {
 	if $XZ -c "$@" "$FILE" > tmp_compressed; then
 		:
 	else
@@ -74,10 +74,10 @@ test_xz() {
 	echo . | tr -d '\n\r'
 }
 
-XZ="../src/xz/xz --memlimit-compress=48MiB --memlimit-decompress=5MiB \
+XZ="../src/xz/fxz --memlimit-compress=48MiB --memlimit-decompress=5MiB \
 		--no-adjust --threads=1 --check=crc64"
-XZDEC="../src/xzdec/xzdec" # No memory usage limiter available
-test -x ../src/xzdec/xzdec || XZDEC=
+XZDEC="../src/xzdec/fxzdec" # No memory usage limiter available
+test -x ../src/xzdec/fxzdec || XZDEC=
 
 # Create the required input files.
 if ./create_compress_files ; then
@@ -102,11 +102,11 @@ do
 	echo "  $MSG" | tr -d '\n\r'
 
 	# Don't test with empty arguments; it breaks some ancient
-	# proprietary /bin/sh versions due to $@ used in test_xz().
-	test_xz -1
-	test_xz -2
-	test_xz -3
-	test_xz -4
+	# proprietary /bin/sh versions due to $@ used in test_fxz().
+	test_fxz -1
+	test_fxz -2
+	test_fxz -3
+	test_fxz -4
 
 	# Disabled until Subblock format is stable.
 #		--subblock \
@@ -129,10 +129,10 @@ do
 		--armthumb \
 		--sparc
 	do
-		test_xz $ARGS --lzma2=dict=64KiB,nice=32,mode=fast
+		test_fxz $ARGS --lzma2=dict=64KiB,nice=32,mode=fast
 
 		# Disabled until Subblock format is stable.
-		# test_xz --subblock $ARGS --lzma2=dict=64KiB,nice=32,mode=fast
+		# test_fxz --subblock $ARGS --lzma2=dict=64KiB,nice=32,mode=fast
 	done
 
 	echo

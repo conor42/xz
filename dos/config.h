@@ -120,13 +120,13 @@
 #define NDEBUG 1
 
 /* Define to the address where bug reports for this package should be sent. */
-#define PACKAGE_BUGREPORT "lasse.collin@tukaani.org"
+#define PACKAGE_BUGREPORT "conor.mccarthy.444@gmail.com"
 
 /* Define to the full name of this package. */
-#define PACKAGE_NAME "XZ Utils"
+#define PACKAGE_NAME "FXZ Utils"
 
 /* Define to the home page for this package. */
-#define PACKAGE_URL "https://tukaani.org/xz/"
+#define PACKAGE_URL "https://github.com/conor42/fxz"
 
 /* The size of `size_t', as computed by sizeof. */
 #define SIZEOF_SIZE_T 4

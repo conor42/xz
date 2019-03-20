@@ -10,9 +10,9 @@
 ###############################################################################
 
 # If scripts weren't built, this test is skipped.
-XZ=../src/xz/xz
-XZDIFF=../src/scripts/xzdiff
-XZGREP=../src/scripts/xzgrep
+XZ=../src/xz/fxz
+XZDIFF=../src/scripts/fxzdiff
+XZGREP=../src/scripts/fxzgrep
 
 for i in XZ XZDIFF XZGREP; do
 	eval test -x "\$$i" && continue
@@ -31,7 +31,7 @@ otherpostimage=$srcdir/files/good-1-lzma2-1.xz
 "$XZDIFF" "$preimage" "$samepostimage" >/dev/null
 status=$?
 if test "$status" != 0 ; then
-	echo "xzdiff with no changes exited with status $status != 0"
+	echo "fxzdiff with no changes exited with status $status != 0"
 	(exit 1)
 	exit 1
 fi
@@ -39,7 +39,7 @@ fi
 "$XZDIFF" "$preimage" "$otherpostimage" >/dev/null
 status=$?
 if test "$status" != 1 ; then
-	echo "xzdiff with changes exited with status $status != 1"
+	echo "fxzdiff with changes exited with status $status != 1"
 	(exit 1)
 	exit 1
 fi
@@ -47,7 +47,7 @@ fi
 "$XZDIFF" "$preimage" "$srcdir/files/missing.xz" >/dev/null 2>&1
 status=$?
 if test "$status" != 2 ; then
-	echo "xzdiff with missing operand exited with status $status != 2"
+	echo "fxzdiff with missing operand exited with status $status != 2"
 	(exit 1)
 	exit 1
 fi
@@ -58,7 +58,7 @@ cp "$srcdir/files/good-1-lzma2-1.xz" xzgrep_test_1.xz
 cp "$srcdir/files/good-2-lzma2.xz" xzgrep_test_2.xz
 for pattern in el Hello NOMATCH; do
 	for opts in "" "-l" "-h" "-H"; do
-		echo "=> xzgrep $opts $pattern <="
+		echo "=> fxzgrep $opts $pattern <="
 		"$XZGREP" $opts $pattern xzgrep_test_1.xz xzgrep_test_2.xz
 		echo retval $?
 	done
@@ -67,7 +67,7 @@ done > xzgrep_test_output 2>&1
 if cmp -s "$srcdir/xzgrep_expected_output" xzgrep_test_output ; then
 	:
 else
-	echo "unexpected output from xzgrep"
+	echo "unexpected output from fxzgrep"
 	(exit 1)
 	exit 1
 fi
