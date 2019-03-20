@@ -73,7 +73,7 @@ lzma_lzma_preset(lzma_options_lzma *options, uint32_t preset)
 	options->lp = LZMA_LP_DEFAULT;
 	options->pb = LZMA_PB_DEFAULT;
 
-	if (flags & LZMA_PRESET_ORIG)
+	if (level < 2 || (flags & LZMA_PRESET_ORIG))
 		return lzma_lzma_preset_orig(options, level, flags);
 
 	static const uint8_t dict_pow2[]
@@ -82,7 +82,7 @@ lzma_lzma_preset(lzma_options_lzma *options, uint32_t preset)
 
 	options->mf = LZMA_MF_RAD;
 	FL2_compressionParameters params;
-	if (FL2_isError(FL2_getLevelParameters(level + 1, 0, &params)))
+	if (FL2_isError(FL2_getLevelParameters(level, 0, &params)))
 		return true;
 	options->dict_size = params.dictionarySize;
 	if (!(flags & LZMA_PRESET_EXTREME)) {
