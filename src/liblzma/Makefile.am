@@ -27,10 +27,10 @@ libflzma_la_CPPFLAGS = \
 	-DTUKLIB_SYMBOL_PREFIX=lzma_
 libflzma_la_LDFLAGS = -no-undefined -version-info 8:99:3
 
-EXTRA_DIST += libflzma.map validate_map.sh
+EXTRA_DIST += liblzma.map validate_map.sh
 if COND_SYMVERS
 libflzma_la_LDFLAGS += \
-	-Wl,--version-script=$(top_srcdir)/src/liblzma/libflzma.map
+	-Wl,--version-script=$(top_srcdir)/src/liblzma/liblzma.map
 endif
 
 libflzma_la_SOURCES += ../common/tuklib_physmem.c
