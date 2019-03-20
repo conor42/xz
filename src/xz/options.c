@@ -316,6 +316,7 @@ options_lzma(const char *str)
 	static const name_id_map modes[] = {
 		{ "fast",   LZMA_MODE_FAST },
 		{ "normal", LZMA_MODE_NORMAL },
+		{ "ultra",  LZMA_MODE_ULTRA },
 		{ NULL,     0 }
 	};
 

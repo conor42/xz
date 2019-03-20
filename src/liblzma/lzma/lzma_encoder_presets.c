@@ -87,7 +87,7 @@ lzma_lzma_preset(lzma_options_lzma *options, uint32_t preset)
 	options->dict_size = params.dictionarySize;
 	if (!(flags & LZMA_PRESET_EXTREME)) {
 		options->overlap_fraction = params.overlapFraction;
-		options->mode = params.strategy;
+		options->mode = params.strategy + 1;
 		options->nice_len = params.fastLength;
 		options->depth = params.searchDepth;
 		options->near_dict_size_log = params.chainLog;
@@ -96,7 +96,7 @@ lzma_lzma_preset(lzma_options_lzma *options, uint32_t preset)
 	}
 	else {
 		options->overlap_fraction = 4;
-		options->mode = FL2_ultra;
+		options->mode = LZMA_MODE_ULTRA;
 		options->nice_len = 273;
 		options->depth = 254;
 		options->near_dict_size_log = FL2_CHAINLOG_MAX;

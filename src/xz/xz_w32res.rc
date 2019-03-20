@@ -6,7 +6,7 @@
  */
 
 #define MY_TYPE VFT_APP
-#define MY_NAME "xz"
+#define MY_NAME "fxz"
 #define MY_SUFFIX ".exe"
-#define MY_DESC "xz data compression tool for .xz and .lzma files"
+#define MY_DESC "fxz data compression tool for .xz and .lzma files"
 #include "common_w32res.rc"

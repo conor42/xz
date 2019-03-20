@@ -146,13 +146,17 @@ flzma2_set_options(flzma2_coder *coder, const lzma_options_lzma *options)
 	if (fcs == NULL)
 		return LZMA_PROG_ERROR;
 
+	uint32_t depth = options->depth;
+	if (depth == 0)
+		depth = 42 + (options->dict_size >> 25) * 4U;
+
 	return_if_fl2_error(FL2_CStream_setParameter(fcs, FL2_p_dictionarySize, options->dict_size));
 	return_if_fl2_error(FL2_CStream_setParameter(fcs, FL2_p_overlapFraction, options->overlap_fraction));
 	return_if_fl2_error(FL2_CStream_setParameter(fcs, FL2_p_hybridChainLog, options->near_dict_size_log));
-	return_if_fl2_error(FL2_CStream_setParameter(fcs, FL2_p_searchDepth, options->depth));
+	return_if_fl2_error(FL2_CStream_setParameter(fcs, FL2_p_searchDepth, depth));
 	return_if_fl2_error(FL2_CStream_setParameter(fcs, FL2_p_hybridCycles, options->near_depth));
 	return_if_fl2_error(FL2_CStream_setParameter(fcs, FL2_p_divideAndConquer, options->divide_and_conquer));
-	return_if_fl2_error(FL2_CStream_setParameter(fcs, FL2_p_strategy, options->mode));
+	return_if_fl2_error(FL2_CStream_setParameter(fcs, FL2_p_strategy, options->mode - 1));
 	return_if_fl2_error(FL2_CStream_setParameter(fcs, FL2_p_literalCtxBits, options->lc));
 	return_if_fl2_error(FL2_CStream_setParameter(fcs, FL2_p_literalPosBits, options->lp));
 	return_if_fl2_error(FL2_CStream_setParameter(fcs, FL2_p_posBits, options->pb));

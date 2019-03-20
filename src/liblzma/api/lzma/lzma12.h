@@ -155,13 +155,24 @@ typedef enum {
 		 * a hash chain match finder.
 		 */
 
-	LZMA_MODE_NORMAL = 2
+	LZMA_MODE_NORMAL = 2,
 		/**<
 		 * \brief       Normal compression
 		 *
 		 * This is usually notably slower than fast mode. Use this
 		 * together with binary tree match finders to expose the
-		 * full potential of the LZMA1 or LZMA2 encoder.
+		 * full potential of the original LZMA1 or LZMA2 encoder.
+		 * Also provides good speed vs ratio with the radix match
+		 * finder.
+		 */
+
+	LZMA_MODE_ULTRA = 3
+		/**<
+		 * \brief       Best compression (radix match finder only)
+		 *
+		 * Enables hybrid mode in the radix match finder. Notably
+		 * slower than normal mode. Makes optimal use of the fast
+		 * LZMA2 encoder at level 6 and above.
 		 */
 } lzma_mode;
 

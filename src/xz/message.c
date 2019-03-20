@@ -943,6 +943,10 @@ message_filters_to_str(char buf[FILTERS_STR_SIZE],
 					mode = "normal";
 					break;
 
+				case LZMA_MODE_ULTRA:
+					mode = "ultra";
+					break;
+
 				default:
 					mode = "UNKNOWN";
 					break;
@@ -1084,8 +1088,8 @@ message_version(void)
 		printf("XZ_VERSION=%" PRIu32 "\nLIBLZMA_VERSION=%" PRIu32 "\n",
 				LZMA_VERSION, lzma_version_number());
 	} else {
-		printf("xz (" PACKAGE_NAME ") " LZMA_VERSION_STRING "\n");
-		printf("liblzma %s\n", lzma_version_string());
+		printf("fxz (" PACKAGE_NAME ") " LZMA_VERSION_STRING "\n");
+		printf("libflzma %s\n", lzma_version_string());
 	}
 
 	tuklib_exit(E_SUCCESS, E_ERROR, verbosity != V_SILENT);
@@ -1199,14 +1203,14 @@ message_help(bool long_help)
 "\n"
 "  --lzma1[=OPTS]      LZMA1 or LZMA2; OPTS is a comma-separated list of zero or\n"
 "  --lzma2[=OPTS]      more of the following options (valid values; default):\n"
-"                        preset=PRE reset options to a preset (0-9[e])\n"
-"                        dict=NUM   dictionary size (4KiB - 1536MiB; 8MiB)\n"
+"                        preset=PRE reset options to a preset (0-9[eo])\n"
+"                        dict=NUM   dictionary size (4KiB - 1024MiB; 16MiB)\n"
 "                        lc=NUM     number of literal context bits (0-4; 3)\n"
 "                        lp=NUM     number of literal position bits (0-4; 0)\n"
 "                        pb=NUM     number of position bits (0-4; 2)\n"
 "                        mode=MODE  compression mode (fast, normal; normal)\n"
-"                        nice=NUM   nice length of a match (2-273; 64)\n"
-"                        mf=NAME    match finder (hc3, hc4, bt2, bt3, bt4; bt4)\n"
+"                        nice=NUM   nice length of a match (2-273; 48)\n"
+"                        mf=NAME    match finder (hc3, hc4, bt2, bt3, bt4, rad; rad)\n"
 "                        depth=NUM  maximum search depth; 0=automatic (default)"));
 #endif
 

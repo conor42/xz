@@ -96,9 +96,6 @@
 /* Define to 1 to enable hc4 match finder. */
 #define HAVE_MF_HC4 1
 
-/* Define to 1 to enable radix match finder. */
-#define HAVE_MF_RAD 1
-
 /* Define to 1 if stdbool.h conforms to C99. */
 #define HAVE_STDBOOL_H 1
 
