@@ -146,11 +146,11 @@ flzma2_set_options(flzma2_coder *coder, const lzma_options_lzma *options)
 		return LZMA_PROG_ERROR;
 
 	return_if_fl2_error(FL2_CStream_setParameter(fcs, FL2_p_dictionarySize, options->dict_size));
-//	return_if_fl2_error(FL2_CStream_setParameter(fcs, FL2_p_overlapFraction, options->overlap_fraction));
-//	return_if_fl2_error(FL2_CStream_setParameter(fcs, FL2_p_chainLog, options->hc3_dict_size_log));
+	return_if_fl2_error(FL2_CStream_setParameter(fcs, FL2_p_overlapFraction, options->overlap_fraction));
+	return_if_fl2_error(FL2_CStream_setParameter(fcs, FL2_p_hybridChainLog, options->near_dict_size_log));
 	return_if_fl2_error(FL2_CStream_setParameter(fcs, FL2_p_searchDepth, options->depth));
-//	return_if_fl2_error(FL2_CStream_setParameter(fcs, FL2_p_hybridCycles, options->hc3_cycles));
-//	return_if_fl2_error(FL2_CStream_setParameter(fcs, FL2_p_divideAndConquer, options->divide_and_conquer));
+	return_if_fl2_error(FL2_CStream_setParameter(fcs, FL2_p_hybridCycles, options->near_depth));
+	return_if_fl2_error(FL2_CStream_setParameter(fcs, FL2_p_divideAndConquer, options->divide_and_conquer));
 	return_if_fl2_error(FL2_CStream_setParameter(fcs, FL2_p_strategy, options->mode));
 	return_if_fl2_error(FL2_CStream_setParameter(fcs, FL2_p_literalCtxBits, options->lc));
 	return_if_fl2_error(FL2_CStream_setParameter(fcs, FL2_p_literalPosBits, options->lp));
@@ -217,7 +217,7 @@ lzma_flzma2_encoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 	}
 
 	if (coder->fcs == NULL) {
-		coder->fcs = FL2_createCStreamMt(0, 0);// options->threads, options->dual_buffer);
+		coder->fcs = FL2_createCStreamMt(options->threads, 0);// options->threads, options->dual_buffer);
 		if (coder->fcs == NULL)
 			return LZMA_MEM_ERROR;
 	}

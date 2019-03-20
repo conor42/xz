@@ -385,6 +385,12 @@ typedef struct {
 	 */
 	uint32_t depth;
 
+	uint32_t near_dict_size_log;
+	uint32_t near_depth;
+	uint32_t overlap_fraction;
+	uint32_t divide_and_conquer;
+	uint32_t threads;
+
 	/*
 	 * Reserved space to allow possible future extensions without
 	 * breaking the ABI. You should not touch these, because the names
@@ -395,11 +401,6 @@ typedef struct {
 	uint32_t reserved_int1;
 	uint32_t reserved_int2;
 	uint32_t reserved_int3;
-	uint32_t reserved_int4;
-	uint32_t reserved_int5;
-	uint32_t reserved_int6;
-	uint32_t reserved_int7;
-	uint32_t reserved_int8;
 	lzma_reserved_enum reserved_enum1;
 	lzma_reserved_enum reserved_enum2;
 	lzma_reserved_enum reserved_enum3;
