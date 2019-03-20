@@ -101,13 +101,13 @@ endif
 ## pkg-config
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = libflzma.pc
-EXTRA_DIST += libflzma.pc.in
+EXTRA_DIST += liblzma.pc.in
 
 pc_verbose = $(pc_verbose_@AM_V@)
 pc_verbose_ = $(pc_verbose_@AM_DEFAULT_V@)
 pc_verbose_0 = @echo "  PC      " $@;
 
-libflzma.pc: $(srcdir)/libflzma.pc.in
+libflzma.pc: $(srcdir)/liblzma.pc.in
 	$(AM_V_at)rm -f $@
 	$(pc_verbose)sed \
 		-e 's,@prefix[@],$(prefix),g' \
@@ -118,7 +118,7 @@ libflzma.pc: $(srcdir)/libflzma.pc.in
 		-e 's,@PACKAGE_VERSION[@],$(PACKAGE_VERSION),g' \
 		-e 's,@PTHREAD_CFLAGS[@],$(PTHREAD_CFLAGS),g' \
 		-e 's,@LIBS[@],$(LIBS),g' \
-		< $(srcdir)/libflzma.pc.in > $@ || { rm -f $@; exit 1; }
+		< $(srcdir)/liblzma.pc.in > $@ || { rm -f $@; exit 1; }
 
 clean-local:
 	rm -f libflzma.pc
