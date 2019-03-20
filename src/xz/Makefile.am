@@ -53,7 +53,7 @@ fxz_CPPFLAGS = \
 	-I$(top_srcdir)/src/liblzma/api \
 	-I$(top_builddir)/lib
 
-fxz_LDADD = $(top_builddir)/src/liblzma/liblzma.la $(CAPSICUM_LIB)
+fxz_LDADD = $(top_builddir)/src/liblzma/libflzma.la $(CAPSICUM_LIB)
 
 if COND_GNULIB
 fxz_LDADD += $(top_builddir)/lib/libgnu.a

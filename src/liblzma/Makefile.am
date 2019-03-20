@@ -11,9 +11,9 @@ EXTRA_DIST =
 CLEANFILES =
 doc_DATA =
 
-lib_LTLIBRARIES = liblzma.la
-liblzma_la_SOURCES =
-liblzma_la_CPPFLAGS = \
+lib_LTLIBRARIES = libflzma.la
+libflzma_la_SOURCES =
+libflzma_la_CPPFLAGS = \
 	-I$(top_srcdir)/src/liblzma/api \
 	-I$(top_srcdir)/src/liblzma/common \
 	-I$(top_srcdir)/src/liblzma/check \
@@ -25,18 +25,18 @@ liblzma_la_CPPFLAGS = \
 	-I$(top_srcdir)/src/liblzma/simple \
 	-I$(top_srcdir)/src/common \
 	-DTUKLIB_SYMBOL_PREFIX=lzma_
-liblzma_la_LDFLAGS = -no-undefined -version-info 8:99:3
+libflzma_la_LDFLAGS = -no-undefined -version-info 8:99:3
 
-EXTRA_DIST += liblzma.map validate_map.sh
+EXTRA_DIST += libflzma.map validate_map.sh
 if COND_SYMVERS
-liblzma_la_LDFLAGS += \
-	-Wl,--version-script=$(top_srcdir)/src/liblzma/liblzma.map
+libflzma_la_LDFLAGS += \
+	-Wl,--version-script=$(top_srcdir)/src/liblzma/libflzma.map
 endif
 
-liblzma_la_SOURCES += ../common/tuklib_physmem.c
+libflzma_la_SOURCES += ../common/tuklib_physmem.c
 
 if COND_THREADS
-liblzma_la_SOURCES += ../common/tuklib_cpucores.c
+libflzma_la_SOURCES += ../common/tuklib_cpucores.c
 endif
 
 include $(srcdir)/common/Makefile.inc
@@ -66,48 +66,48 @@ endif
 # Windows resource compiler support. libtool knows what to do with .rc
 # files, but Automake (<= 1.11 at least) doesn't know.
 #
-# We want the resource file only in shared liblzma. To avoid linking it into
-# static liblzma, we overwrite the static object file with an object file
+# We want the resource file only in shared libflzma. To avoid linking it into
+# static libflzma, we overwrite the static object file with an object file
 # compiled from empty input. Note that GNU-specific features are OK here,
 # because on Windows we are compiled with the GNU toolchain.
 .rc.lo:
 	$(LIBTOOL) --mode=compile $(RC) $(DEFS) $(DEFAULT_INCLUDES) \
-		$(INCLUDES) $(liblzma_la_CPPFLAGS) $(CPPFLAGS) $(RCFLAGS) \
+		$(INCLUDES) $(libflzma_la_CPPFLAGS) $(CPPFLAGS) $(RCFLAGS) \
 		-i $< -o $@
 	echo > empty.c
 	$(COMPILE) -c empty.c -o $(*D)/$(*F).o
 
 # Remove ordinals from the generated .def file. People must link by name,
 # not by ordinal, because no one is going to track the ordinal numbers.
-liblzma.def: liblzma.la liblzma.def.in
-	sed 's/ \+@ *[0-9]\+//' liblzma.def.in > liblzma.def
+libflzma.def: libflzma.la libflzma.def.in
+	sed 's/ \+@ *[0-9]\+//' libflzma.def.in > libflzma.def
 
-# Creating liblzma.def.in is a side effect of linking the library.
-liblzma.def.in: liblzma.la
+# Creating libflzma.def.in is a side effect of linking the library.
+libflzma.def.in: libflzma.la
 
 if COND_W32
-CLEANFILES += liblzma.def liblzma.def.in empty.c
-liblzma_la_SOURCES += liblzma_w32res.rc
-liblzma_la_LDFLAGS += -Xlinker --output-def -Xlinker liblzma.def.in
+CLEANFILES += libflzma.def libflzma.def.in empty.c
+libflzma_la_SOURCES += liblzma_w32res.rc
+libflzma_la_LDFLAGS += -Xlinker --output-def -Xlinker libflzma.def.in
 
-## liblzma.def.in is created only when building shared liblzma, so don't
-## try to create liblzma.def when not building shared liblzma.
+## libflzma.def.in is created only when building shared libflzma, so don't
+## try to create libflzma.def when not building shared libflzma.
 if COND_SHARED
-doc_DATA += liblzma.def
+doc_DATA += libflzma.def
 endif
 endif
 
 
 ## pkg-config
 pkgconfigdir = $(libdir)/pkgconfig
-pkgconfig_DATA = liblzma.pc
-EXTRA_DIST += liblzma.pc.in
+pkgconfig_DATA = libflzma.pc
+EXTRA_DIST += libflzma.pc.in
 
 pc_verbose = $(pc_verbose_@AM_V@)
 pc_verbose_ = $(pc_verbose_@AM_DEFAULT_V@)
 pc_verbose_0 = @echo "  PC      " $@;
 
-liblzma.pc: $(srcdir)/liblzma.pc.in
+libflzma.pc: $(srcdir)/libflzma.pc.in
 	$(AM_V_at)rm -f $@
 	$(pc_verbose)sed \
 		-e 's,@prefix[@],$(prefix),g' \
@@ -118,7 +118,7 @@ liblzma.pc: $(srcdir)/liblzma.pc.in
 		-e 's,@PACKAGE_VERSION[@],$(PACKAGE_VERSION),g' \
 		-e 's,@PTHREAD_CFLAGS[@],$(PTHREAD_CFLAGS),g' \
 		-e 's,@LIBS[@],$(LIBS),g' \
-		< $(srcdir)/liblzma.pc.in > $@ || { rm -f $@; exit 1; }
+		< $(srcdir)/libflzma.pc.in > $@ || { rm -f $@; exit 1; }
 
 clean-local:
-	rm -f liblzma.pc
+	rm -f libflzma.pc

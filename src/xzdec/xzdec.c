@@ -85,7 +85,7 @@ static void lzma_attribute((__noreturn__))
 version(void)
 {
 	printf(TOOL_FORMAT "dec (" PACKAGE_NAME ") " LZMA_VERSION_STRING "\n"
-			"liblzma %s\n", lzma_version_string());
+			"libflzma %s\n", lzma_version_string());
 
 	tuklib_exit(EXIT_SUCCESS, EXIT_FAILURE, display_errors);
 }

@@ -331,7 +331,7 @@ AM_CONDITIONAL(COND_ASM_X86_64, test "x$enable_assembler" = xx86_64)
 
 AC_MSG_CHECKING([if small size is preferred over speed])
 AC_ARG_ENABLE([small], AS_HELP_STRING([--enable-small],
-		[Make liblzma smaller and a little slower.
+		[Make libflzma smaller and a little slower.
 		This is disabled by default to optimize for speed.]),
 	[], [enable_small=no])
 if test "x$enable_small" = xyes; then
@@ -352,7 +352,7 @@ AC_MSG_CHECKING([if threading support is wanted])
 AC_ARG_ENABLE([threads], AS_HELP_STRING([--enable-threads=METHOD],
 		[Supported METHODS are `yes', `no', `posix', `win95', and
 		`vista'. The default is `yes'. Using `no' together with
-		--enable-small makes liblzma thread unsafe.]),
+		--enable-small makes libflzma thread unsafe.]),
 	[], [enable_threads=yes])
 
 if test "x$enable_threads" = xyes; then
@@ -471,7 +471,7 @@ AM_CONDITIONAL([COND_DOC], [test x$enable_doc != xno])
 
 AC_MSG_CHECKING([if library symbol versioning should be used])
 AC_ARG_ENABLE([symbol-versions], [AS_HELP_STRING([--enable-symbol-versions],
-		[Use symbol versioning for liblzma. Enabled by default on
+		[Use symbol versioning for libflzma. Enabled by default on
 		GNU/Linux, other GNU-based systems, and FreeBSD.])],
 	[], [enable_symbol_versions=auto])
 if test "x$enable_symbol_versions" = xauto; then
@@ -567,8 +567,8 @@ case $enable_threads in
 		# FIXME: fxz uses clock_gettime if it is available and can do
 		# it even when threading is disabled. Moving this outside
 		# of pthread detection may be undesirable because then
-		# liblzma may get linked against librt even when librt isn't
-		# needed by liblzma.
+		# libflzma may get linked against librt even when librt isn't
+		# needed by libflzma.
 		OLD_CFLAGS=$CFLAGS
 		CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
 		AC_SEARCH_LIBS([clock_gettime], [rt])
@@ -896,6 +896,6 @@ fi
 if test "x$enable_threads$enable_small" = xnoyes; then
 	echo
 	echo "NOTE:"
-	echo "liblzma will be thread unsafe due the combination"
+	echo "libflzma will be thread unsafe due the combination"
 	echo "of --disable-threads --enable-small."
 fi

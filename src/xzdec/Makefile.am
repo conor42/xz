@@ -26,7 +26,7 @@ fxzdec_CPPFLAGS = \
 	-I$(top_srcdir)/src/common \
 	-I$(top_srcdir)/src/liblzma/api \
 	-I$(top_builddir)/lib
-fxzdec_LDADD = $(top_builddir)/src/liblzma/liblzma.la
+fxzdec_LDADD = $(top_builddir)/src/liblzma/libflzma.la
 
 if COND_GNULIB
 fxzdec_LDADD += $(top_builddir)/lib/libgnu.a
