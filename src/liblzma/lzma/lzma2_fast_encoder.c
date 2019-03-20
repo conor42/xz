@@ -25,7 +25,8 @@ typedef struct {
 } flzma2_coder;
 
 
-extern lzma_ret flzma2_translate_error(const size_t ret)
+extern lzma_ret
+flzma2_translate_error(const size_t ret)
 {
 	switch (FL2_getErrorCode(ret)) {
 

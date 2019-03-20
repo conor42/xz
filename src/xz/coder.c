@@ -82,7 +82,7 @@ forget_filter_chain(void)
 		free(filters[filters_count].options);
 		filters[filters_count].options = NULL;
 	}
-    use_rmf = false;
+	use_rmf = false;
 
 	return;
 }
@@ -208,19 +208,19 @@ coder_set_compression_settings(void)
 	// Print the selected filter chain.
 	message_filters_show(V_DEBUG, filters);
 
-    // Check for radix mf.
-    use_rmf = false;
-    for (size_t i = 0; i < filters_count; ++i)
-        if (filters[i].id == LZMA_FILTER_LZMA2) {
-            lzma_options_lzma *opt = filters[i].options;
-            if (opt->mf == LZMA_MF_RAD) {
-                use_rmf = true;
-                opt->threads = hardware_threads_get();
-            }
-            break;
-        }
+	// Check for radix mf.
+	use_rmf = false;
+	for (size_t i = 0; i < filters_count; ++i)
+		if (filters[i].id == LZMA_FILTER_LZMA2) {
+			lzma_options_lzma *opt = filters[i].options;
+			if (opt->mf == LZMA_MF_RAD) {
+				use_rmf = true;
+				opt->threads = hardware_threads_get();
+			}
+			break;
+		}
 
-    // The --flush-timeout option requires LZMA_SYNC_FLUSH support
+	// The --flush-timeout option requires LZMA_SYNC_FLUSH support
 	// from the filter chain. Currently threaded encoder doesn't support
 	// LZMA_SYNC_FLUSH so single-threaded mode must be used.
 	if (opt_mode == MODE_COMPRESS && opt_flush_timeout != 0) {
@@ -594,8 +594,8 @@ coder_init(file_pair *pair)
 /// to the next Block in opt_block_list, and break apart if needed.
 static void
 split_block(uint64_t *block_remaining,
-	    uint64_t *next_block_remaining,
-	    size_t *list_pos)
+		uint64_t *next_block_remaining,
+		size_t *list_pos)
 {
 	if (*next_block_remaining > 0) {
 		// The Block at *list_pos has previously been split up.
