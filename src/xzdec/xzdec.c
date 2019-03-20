@@ -74,7 +74,7 @@ help(void)
 "\n"
 "With no FILE, or when FILE is -, read standard input.\n"
 "\n"
-"Report bugs to <" PACKAGE_BUGREPORT "> (in English or Finnish).\n"
+"Report bugs to <" PACKAGE_BUGREPORT ">.\n"
 PACKAGE_NAME " home page: <" PACKAGE_URL ">\n", progname);
 
 	tuklib_exit(EXIT_SUCCESS, EXIT_FAILURE, display_errors);

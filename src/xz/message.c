@@ -1268,7 +1268,7 @@ message_help(bool long_help)
 	// for this package. Please add _another line_ saying
 	// "Report translation bugs to <...>\n" with the email or WWW
 	// address for translation bugs. Thanks.
-	printf(_("Report bugs to <%s> (in English or Finnish).\n"),
+	printf(_("Report bugs to <%s>.\n"),
 			PACKAGE_BUGREPORT);
 	printf(_("%s home page: <%s>\n"), PACKAGE_NAME, PACKAGE_URL);
 

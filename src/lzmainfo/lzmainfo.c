@@ -37,7 +37,7 @@ _("Usage: %s [--help] [--version] [FILE]...\n"
 "\nWith no FILE, or when FILE is -, read standard input.\n"));
 	printf("\n");
 
-	printf(_("Report bugs to <%s> (in English or Finnish).\n"),
+	printf(_("Report bugs to <%s>.\n"),
 			PACKAGE_BUGREPORT);
 	printf(_("%s home page: <%s>\n"), PACKAGE_NAME, PACKAGE_URL);
 
