@@ -5,6 +5,8 @@
 ## You can do whatever you want with this file.
 ##
 
+liblzma_la_CPPFLAGS += -DNO_XXHASH
+
 liblzma_la_SOURCES += \
     fast-lzma2/compiler.h \
     fast-lzma2/data_block.h \
@@ -41,6 +43,7 @@ liblzma_la_SOURCES += \
     fast-lzma2/radix_struct.c \
     fast-lzma2/range_enc.c \
     fast-lzma2/range_enc.h
+liblzma_la_CPPFLAGS += -DFL2_XZ_BUILD
 endif
 
 if COND_DECODER_LZMA2
