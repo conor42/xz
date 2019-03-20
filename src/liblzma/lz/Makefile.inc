@@ -6,7 +6,7 @@
 ##
 
 if COND_ENCODER_LZ
-liblzma_la_SOURCES += \
+libflzma_la_SOURCES += \
 	lz/lz_encoder.c \
 	lz/lz_encoder.h \
 	lz/lz_encoder_hash.h \
@@ -16,7 +16,7 @@ endif
 
 
 if COND_DECODER_LZ
-liblzma_la_SOURCES += \
+libflzma_la_SOURCES += \
 	lz/lz_decoder.c \
 	lz/lz_decoder.h
 endif

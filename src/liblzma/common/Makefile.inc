@@ -5,7 +5,7 @@
 ## You can do whatever you want with this file.
 ##
 
-liblzma_la_SOURCES += \
+libflzma_la_SOURCES += \
 	common/common.c \
 	common/common.h \
 	common/memcmplen.h \
@@ -22,11 +22,11 @@ liblzma_la_SOURCES += \
 	common/vli_size.c
 
 if COND_THREADS
-liblzma_la_SOURCES += common/hardware_cputhreads.c
+libflzma_la_SOURCES += common/hardware_cputhreads.c
 endif
 
 if COND_MAIN_ENCODER
-liblzma_la_SOURCES += \
+libflzma_la_SOURCES += \
 	common/alone_encoder.c \
 	common/block_buffer_encoder.c \
 	common/block_buffer_encoder.h \
@@ -48,7 +48,7 @@ liblzma_la_SOURCES += \
 	common/vli_encoder.c
 
 if COND_THREADS
-liblzma_la_SOURCES += \
+libflzma_la_SOURCES += \
 	common/outqueue.c \
 	common/outqueue.h \
 	common/stream_encoder_mt.c
@@ -56,7 +56,7 @@ endif
 endif
 
 if COND_MAIN_DECODER
-liblzma_la_SOURCES += \
+libflzma_la_SOURCES += \
 	common/alone_decoder.c \
 	common/alone_decoder.h \
 	common/auto_decoder.c \
