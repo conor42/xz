@@ -16,7 +16,7 @@
 #include "fast-lzma2.h"
 
 
-#define return_if_fl2_error(expr) \
+#define ret_translate_if_error(expr) \
 do { \
 	const size_t ret_ = (expr); \
 	if (FL2_isError(ret_)) \
@@ -57,7 +57,7 @@ flzma2_decode(void *coder_ptr,
 
 	size_t res = FL2_decompressStream(coder->fds, &outbuf, &inbuf);
 
-	return_if_fl2_error(res);
+	ret_translate_if_error(res);
 
 	*in_pos = inbuf.pos;
 	*out_pos = outbuf.pos;
@@ -111,7 +111,7 @@ lzma_flzma2_decoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 			return LZMA_MEM_ERROR;
 	}
 
-	return_if_fl2_error(FL2_initDStream_withProp(coder->fds, opt->prop));
+	ret_translate_if_error(FL2_initDStream_withProp(coder->fds, opt->prop));
 
 	// Initialize the next filter in the chain, if any.
 	return lzma_next_filter_init(&coder->next, allocator, filters + 1);

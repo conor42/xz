@@ -28,6 +28,9 @@ typedef struct {
 extern lzma_ret
 flzma2_translate_error(const size_t ret)
 {
+	if (FL2_isTimedOut(ret))
+		return LZMA_TIMED_OUT;
+
 	switch (FL2_getErrorCode(ret)) {
 
 	case FL2_error_no_error:
@@ -58,12 +61,59 @@ flzma2_translate_error(const size_t ret)
 	}
 }
 
+
 #define return_if_fl2_error(expr) \
+do { \
+	const size_t ret_ = (expr); \
+	if (FL2_isError(ret_)) \
+		return ret_; \
+} while (0)
+
+#define ret_translate_if_error(expr) \
 do { \
 	const size_t ret_ = (expr); \
 	if (FL2_isError(ret_)) \
 		return flzma2_translate_error(ret_); \
 } while (0)
+
+
+/// \brief      Tries to fill the input window (coder->fcs internal buffer)
+///
+/// If we are the last encoder in the chain, our input data is in in[].
+/// Otherwise we call the next filter in the chain to process in[] and
+/// write its output to coder->fcs. Copy any output the encoder generates.
+///
+static size_t
+fill_window(flzma2_coder *coder, const lzma_allocator *allocator,
+		const uint8_t *in, size_t *in_pos, size_t in_size,
+		FL2_outBuffer *output,
+		lzma_action action)
+{
+	FL2_dictBuffer dict;
+	return_if_fl2_error(FL2_getDictionaryBuffer(coder->fcs, &dict));
+
+	size_t write_pos = 0;
+
+	if (coder->next.code == NULL) {
+		// Not using a filter, simply memcpy() as much as possible.
+		lzma_bufcpy(in, in_pos, in_size, dict.dst,
+				&write_pos, dict.size);
+	} else {
+		coder->next.code(coder->next.coder, allocator,
+				in, in_pos, in_size,
+				dict.dst, &write_pos,
+				dict.size, action);
+	}
+
+	// Blocks for compression if dict is full
+	size_t res = FL2_updateDictionary(coder->fcs, write_pos);
+	return_if_fl2_error(res);
+
+	if(res != 0)
+		res = FL2_copyCStreamOutput(coder->fcs, output);
+
+	return res;
+}
 
 
 static lzma_ret
@@ -76,45 +126,66 @@ flzma2_encode(void *coder_ptr,
 {
 	flzma2_coder *restrict coder = coder_ptr;
 
-	FL2_outBuffer outbuf = { out, out_size, *out_pos };
-	FL2_inBuffer inbuf = { in, in_size, *in_pos };
-
-	size_t res = 0;
+	FL2_outBuffer output = { out, out_size, *out_pos };
 
 	lzma_ret ret = LZMA_OK;
 
+	size_t res = 0;
+
+	do {
+		res = fill_window(coder, allocator,
+				in, in_pos, in_size, &output, action);
+		return_if_fl2_error(res);
+	} while (res == 0 && *in_pos < in_size);
+
 	switch (action) {
 	case LZMA_RUN:
-		res = FL2_compressStream(coder->fcs, &outbuf, &inbuf);
 		break;
 
 	case LZMA_SYNC_FLUSH:
-		res = FL2_compressStream(coder->fcs, &outbuf, &inbuf);
-		if (FL2_isError(res))
-			return flzma2_translate_error(res);
-
-		// fall through
-
 	case LZMA_FULL_FLUSH:
 	case LZMA_FULL_BARRIER:
-		res = FL2_flushStream(coder->fcs, &outbuf);
-		if (action == LZMA_FULL_BARRIER && !FL2_isError(res))
-			res = FL2_flushStream(coder->fcs, &outbuf);
+		// Return LZMA_OK if output is full
+		if (res != 0)
+			break;
 
-		if (FL2_isError(res))
-			return flzma2_translate_error(res);
+		// The loop above will consume all input if the output never fills
+		assert(*in_pos == in_size);
 
-		ret = (res != 0) ? LZMA_OK : LZMA_STREAM_END;
+		res = FL2_flushStream(coder->fcs, &output);
+		ret_translate_if_error(res);
+
+		// Copy output if present and return LZMA_OK if output is full
+		if (res != 0 && FL2_copyCStreamOutput(coder->fcs, &output) != 0)
+			break;
+
+		ret = LZMA_STREAM_END;
+
+		if (action != LZMA_SYNC_FLUSH) {
+			// Not done unless there's room for the terminator byte
+			ret = LZMA_OK;
+			// End the stream if full flushing
+			res = FL2_endStream(coder->fcs, &output);
+
+			ret_translate_if_error(res);
+
+			if (res == 0) {
+				ret = LZMA_STREAM_END;
+				// Re-initialize for next block
+				FL2_initCStream(coder->fcs, 0);
+			}
+		}
+
 		break;
 
 	case LZMA_FINISH:
-		if (inbuf.pos < inbuf.size) {
-			return_if_fl2_error(FL2_compressStream(coder->fcs, &outbuf, &inbuf));
-		}
-		else {
-			res = FL2_endStream(coder->fcs, &outbuf);
-			return_if_fl2_error(res);
-			if (res == 0) ret = LZMA_STREAM_END;
+		if (res == 0 && *in_pos == in_size) {
+			res = FL2_endStream(coder->fcs, &output);
+
+			ret_translate_if_error(res);
+
+			if (res == 0)
+				ret = LZMA_STREAM_END;
 		}
 		break;
 	}
@@ -122,8 +193,7 @@ flzma2_encode(void *coder_ptr,
 	if (FL2_isError(res))
 		return flzma2_translate_error(res);
 
-	*in_pos = inbuf.pos;
-	*out_pos = outbuf.pos;
+	*out_pos = output.pos;
 	return ret;
 }
 
@@ -131,7 +201,11 @@ static void
 flzma2_encoder_end(void *coder_ptr, const lzma_allocator *allocator)
 {
 	flzma2_coder *coder = coder_ptr;
+
+	lzma_next_end(&coder->next, allocator);
+
 	FL2_freeCStream(coder->fcs);
+
 	lzma_free(coder, allocator);
 }
 
@@ -150,16 +224,16 @@ flzma2_set_options(flzma2_coder *coder, const lzma_options_lzma *options)
 	if (depth == 0)
 		depth = 42 + (options->dict_size >> 25) * 4U;
 
-	return_if_fl2_error(FL2_CStream_setParameter(fcs, FL2_p_dictionarySize, options->dict_size));
-	return_if_fl2_error(FL2_CStream_setParameter(fcs, FL2_p_overlapFraction, options->overlap_fraction));
-	return_if_fl2_error(FL2_CStream_setParameter(fcs, FL2_p_hybridChainLog, options->near_dict_size_log));
-	return_if_fl2_error(FL2_CStream_setParameter(fcs, FL2_p_searchDepth, depth));
-	return_if_fl2_error(FL2_CStream_setParameter(fcs, FL2_p_hybridCycles, options->near_depth));
-	return_if_fl2_error(FL2_CStream_setParameter(fcs, FL2_p_divideAndConquer, options->divide_and_conquer));
-	return_if_fl2_error(FL2_CStream_setParameter(fcs, FL2_p_strategy, options->mode - 1));
-	return_if_fl2_error(FL2_CStream_setParameter(fcs, FL2_p_literalCtxBits, options->lc));
-	return_if_fl2_error(FL2_CStream_setParameter(fcs, FL2_p_literalPosBits, options->lp));
-	return_if_fl2_error(FL2_CStream_setParameter(fcs, FL2_p_posBits, options->pb));
+	ret_translate_if_error(FL2_CStream_setParameter(fcs, FL2_p_dictionarySize, options->dict_size));
+	ret_translate_if_error(FL2_CStream_setParameter(fcs, FL2_p_overlapFraction, options->overlap_fraction));
+	ret_translate_if_error(FL2_CStream_setParameter(fcs, FL2_p_hybridChainLog, options->near_dict_size_log));
+	ret_translate_if_error(FL2_CStream_setParameter(fcs, FL2_p_searchDepth, depth));
+	ret_translate_if_error(FL2_CStream_setParameter(fcs, FL2_p_hybridCycles, options->near_depth));
+	ret_translate_if_error(FL2_CStream_setParameter(fcs, FL2_p_divideAndConquer, options->divide_and_conquer));
+	ret_translate_if_error(FL2_CStream_setParameter(fcs, FL2_p_strategy, options->mode - 1));
+	ret_translate_if_error(FL2_CStream_setParameter(fcs, FL2_p_literalCtxBits, options->lc));
+	ret_translate_if_error(FL2_CStream_setParameter(fcs, FL2_p_literalPosBits, options->lp));
+	ret_translate_if_error(FL2_CStream_setParameter(fcs, FL2_p_posBits, options->pb));
 
 	return LZMA_OK;
 }
@@ -185,9 +259,9 @@ flzma2_encoder_options_update(void *coder_ptr, const lzma_allocator *allocator,
 	if (opt->lc + opt->lp > LZMA_LCLP_MAX)
 		return LZMA_OPTIONS_ERROR;
 
-	return_if_fl2_error(FL2_CStream_setParameter(coder->fcs, FL2_p_literalCtxBits, opt->lc));
-	return_if_fl2_error(FL2_CStream_setParameter(coder->fcs, FL2_p_literalPosBits, opt->lp));
-	return_if_fl2_error(FL2_CStream_setParameter(coder->fcs, FL2_p_posBits, opt->pb));
+	ret_translate_if_error(FL2_CStream_setParameter(coder->fcs, FL2_p_literalCtxBits, opt->lc));
+	ret_translate_if_error(FL2_CStream_setParameter(coder->fcs, FL2_p_literalPosBits, opt->lp));
+	ret_translate_if_error(FL2_CStream_setParameter(coder->fcs, FL2_p_posBits, opt->pb));
 
 	return lzma_next_filter_update(
 		&coder->next, allocator, reversed_filters + 1);
@@ -222,19 +296,20 @@ lzma_flzma2_encoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 	}
 
 	if (coder->fcs == NULL) {
-		coder->fcs = FL2_createCStreamMt(options->threads, 0);// options->threads, options->dual_buffer);
+		coder->fcs = FL2_createCStreamMt(options->threads, 0);// options->dual_buffer);
 		if (coder->fcs == NULL)
 			return LZMA_MEM_ERROR;
 	}
 
 	return_if_error(flzma2_set_options(coder, options));
 
-	return_if_fl2_error(FL2_CStream_setParameter(coder->fcs, FL2_p_omitProperties, 1));
-	return_if_fl2_error(FL2_CStream_setParameter(coder->fcs, FL2_p_resetInterval, 0));
+	ret_translate_if_error(FL2_CStream_setParameter(coder->fcs, FL2_p_omitProperties, 1));
+	ret_translate_if_error(FL2_CStream_setParameter(coder->fcs, FL2_p_resetInterval, 0));
 
-	return_if_fl2_error(FL2_initCStream(coder->fcs, 0));
+	ret_translate_if_error(FL2_initCStream(coder->fcs, 0));
 
-	return LZMA_OK;
+	// Initialize the next filter in the chain, if any.
+	return lzma_next_filter_init(&coder->next, allocator, filters + 1);
 }
 
 
