@@ -10,10 +10,10 @@ exec_prefix=@exec_prefix@
 libdir=@libdir@
 includedir=@includedir@
 
-Name: liblzma
+Name: libflzma
 Description: General purpose data compression library
 URL: @PACKAGE_URL@
 Version: @PACKAGE_VERSION@
 Cflags: -I${includedir}
-Libs: -L${libdir} -llzma
+Libs: -L${libdir} -lflzma
 Libs.private: @PTHREAD_CFLAGS@ @LIBS@

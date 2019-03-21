@@ -7,7 +7,7 @@
 
 CC = c99
 CFLAGS = -g
-LDFLAGS = -llzma
+LDFLAGS = -lflzma
 
 PROGS = \
 	01_compress_easy \
