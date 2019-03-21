@@ -86,7 +86,7 @@ lzma_flzma2_decoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 	// LZMA2 can only be the last filter in the chain. This is enforced
 	// by the raw_decoder initialization.
 	assert(filters[1].init == NULL);
-
+ 
 	// Allocate the base structure if it isn't already allocated.
 	flzma2_decoder *coder = next->coder;
 	if (coder == NULL) {

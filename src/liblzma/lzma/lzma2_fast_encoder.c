@@ -20,6 +20,9 @@ typedef struct {
 	/// Fast LZMA2 encoder
 	FL2_CStream *fcs;
 
+	/// Flag to end reading from upstream filter
+	bool ending;
+
 	/// Next coder in the chain
 	lzma_next_coder next;
 } flzma2_coder;
@@ -83,6 +86,8 @@ do { \
 /// Otherwise we call the next filter in the chain to process in[] and
 /// write its output to coder->fcs. Copy any output the encoder generates.
 ///
+/// This function must not be called once it has returned LZMA_STREAM_END.
+///
 static size_t
 fill_window(flzma2_coder *coder, const lzma_allocator *allocator,
 		const uint8_t *in, size_t *in_pos, size_t in_size,
@@ -93,13 +98,17 @@ fill_window(flzma2_coder *coder, const lzma_allocator *allocator,
 	return_if_fl2_error(FL2_getDictionaryBuffer(coder->fcs, &dict));
 
 	size_t write_pos = 0;
-
+	lzma_ret ret;
 	if (coder->next.code == NULL) {
 		// Not using a filter, simply memcpy() as much as possible.
 		lzma_bufcpy(in, in_pos, in_size, dict.dst,
 				&write_pos, dict.size);
+
+		ret = action != LZMA_RUN && *in_pos == in_size
+			? LZMA_STREAM_END : LZMA_OK;
+
 	} else {
-		coder->next.code(coder->next.coder, allocator,
+		ret = coder->next.code(coder->next.coder, allocator,
 				in, in_pos, in_size,
 				dict.dst, &write_pos,
 				dict.size, action);
@@ -111,6 +120,8 @@ fill_window(flzma2_coder *coder, const lzma_allocator *allocator,
 
 	if(res != 0)
 		res = FL2_copyCStreamOutput(coder->fcs, output);
+
+	coder->ending = (ret == LZMA_STREAM_END);
 
 	return res;
 }
@@ -132,56 +143,50 @@ flzma2_encode(void *coder_ptr,
 
 	size_t res = 0;
 
-	do {
+	if (!coder->ending) {
 		res = fill_window(coder, allocator,
-				in, in_pos, in_size, &output, action);
+			in, in_pos, in_size, &output, action);
 		return_if_fl2_error(res);
-	} while (res == 0 && *in_pos < in_size);
+	}
 
 	switch (action) {
 	case LZMA_RUN:
 		break;
 
 	case LZMA_SYNC_FLUSH:
-	case LZMA_FULL_FLUSH:
-	case LZMA_FULL_BARRIER:
-		// Return LZMA_OK if output is full
-		if (res != 0)
+		// Return LZMA_OK if output is full or input not done
+		if (res != 0 || !coder->ending)
 			break;
-
-		// The loop above will consume all input if the output never fills
-		assert(*in_pos == in_size);
 
 		res = FL2_flushStream(coder->fcs, &output);
 		ret_translate_if_error(res);
 
-		// Copy output if present and return LZMA_OK if output is full
-		if (res != 0 && FL2_copyCStreamOutput(coder->fcs, &output) != 0)
+		if (res == 0)
+			ret = LZMA_STREAM_END;
+
+		break;
+
+	case LZMA_FULL_FLUSH:
+	case LZMA_FULL_BARRIER:
+		// Return LZMA_OK if output is full
+		if (!coder->ending)
 			break;
 
-		ret = LZMA_STREAM_END;
+		res = FL2_endStream(coder->fcs, &output);
+		ret_translate_if_error(res);
 
-		if (action != LZMA_SYNC_FLUSH) {
-			// Not done unless there's room for the terminator byte
-			ret = LZMA_OK;
-			// End the stream if full flushing
-			res = FL2_endStream(coder->fcs, &output);
-
-			ret_translate_if_error(res);
-
-			if (res == 0) {
-				ret = LZMA_STREAM_END;
-				// Re-initialize for next block
-				FL2_initCStream(coder->fcs, 0);
-			}
+		if (res == 0) {
+			ret = LZMA_STREAM_END;
+			// Re-initialize for next block
+			FL2_initCStream(coder->fcs, 0);
+			coder->ending = false;
 		}
 
 		break;
 
 	case LZMA_FINISH:
-		if (res == 0 && *in_pos == in_size) {
+		if (coder->ending) {
 			res = FL2_endStream(coder->fcs, &output);
-
 			ret_translate_if_error(res);
 
 			if (res == 0)
@@ -190,10 +195,8 @@ flzma2_encode(void *coder_ptr,
 		break;
 	}
 
-	if (FL2_isError(res))
-		return flzma2_translate_error(res);
-
 	*out_pos = output.pos;
+
 	return ret;
 }
 
@@ -307,6 +310,8 @@ lzma_flzma2_encoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 	ret_translate_if_error(FL2_CStream_setParameter(coder->fcs, FL2_p_resetInterval, 0));
 
 	ret_translate_if_error(FL2_initCStream(coder->fcs, 0));
+
+	coder->ending = false;
 
 	// Initialize the next filter in the chain, if any.
 	return lzma_next_filter_init(&coder->next, allocator, filters + 1);
