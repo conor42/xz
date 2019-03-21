@@ -129,10 +129,10 @@ do
 		--armthumb \
 		--sparc
 	do
-		test_fxz $ARGS --lzma2=dict=64KiB,nice=32,mode=fast
+		test_fxz $ARGS --lzma2=dict=1MiB,nice=32,mode=fast
 
 		# Disabled until Subblock format is stable.
-		# test_fxz --subblock $ARGS --lzma2=dict=64KiB,nice=32,mode=fast
+		# test_fxz --subblock $ARGS --lzma2=dict=1MiB,nice=32,mode=fast
 	done
 
 	echo
