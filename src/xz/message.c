@@ -1208,7 +1208,7 @@ message_help(bool long_help)
 "                        lc=NUM     number of literal context bits (0-4; 3)\n"
 "                        lp=NUM     number of literal position bits (0-4; 0)\n"
 "                        pb=NUM     number of position bits (0-4; 2)\n"
-"                        mode=MODE  compression mode (fast, normal; normal)\n"
+"                        mode=MODE  compression mode (fast, normal, ultra; ultra)\n"
 "                        nice=NUM   nice length of a match (2-273; 48)\n"
 "                        mf=NAME    match finder (hc3, hc4, bt2, bt3, bt4, rad; rad)\n"
 "                        depth=NUM  maximum search depth; 0=automatic (default)"));

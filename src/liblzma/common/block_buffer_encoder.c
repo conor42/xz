@@ -14,6 +14,7 @@
 #include "block_encoder.h"
 #include "filter_encoder.h"
 #include "lzma2_encoder.h"
+#include "fast-lzma2.h"
 #include "check.h"
 
 
@@ -48,7 +49,9 @@ lzma2_bound(uint64_t uncompressed_size)
 	if (COMPRESSED_SIZE_MAX - overhead < uncompressed_size)
 		return 0;
 
-	return uncompressed_size + overhead;
+    uint64_t fl2_bound = FL2_compressBound(uncompressed_size);
+
+	return my_max(uncompressed_size + overhead, fl2_bound);
 }
 
 
