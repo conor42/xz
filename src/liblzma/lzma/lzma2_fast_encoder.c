@@ -94,6 +94,8 @@ fill_window(flzma2_coder *coder, const lzma_allocator *allocator,
 		FL2_outBuffer *output,
 		lzma_action action)
 {
+	FL2_copyCStreamOutput(coder->fcs, &output);
+
 	FL2_dictBuffer dict;
 	return_if_fl2_error(FL2_getDictionaryBuffer(coder->fcs, &dict));
 
@@ -141,12 +143,12 @@ flzma2_encode(void *coder_ptr,
 
 	lzma_ret ret = LZMA_OK;
 
-	size_t pending_output = FL2_copyCStreamOutput(coder->fcs, &output);
+	size_t pending_output = 0;
 
 	if (!coder->ending) {
 		pending_output = fill_window(coder, allocator,
 			in, in_pos, in_size, &output, action);
-		return_if_fl2_error(pending_output);
+		ret_translate_if_error(pending_output);
 	}
 
 	switch (action) {
