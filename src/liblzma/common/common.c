@@ -381,7 +381,7 @@ lzma_get_progress(lzma_stream *strm,
 		strm->internal->next.get_progress(strm->internal->next.coder,
 				progress_in, progress_out);
 	}
-	if(*progress_in == ~0) {
+	if(*progress_in == (uint64_t)~0) {
 		*progress_in = strm->total_in;
 		*progress_out = strm->total_out;
 	}

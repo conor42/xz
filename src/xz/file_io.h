@@ -3,20 +3,18 @@
 /// \file       file_io.h
 /// \brief      I/O types and functions
 //
-//  Author:     Lasse Collin
+//  Authors:    Lasse Collin
+//              Conor McCarthy
 //
 //  This file has been put into the public domain.
 //  You can do whatever you want with this file.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-// Some systems have suboptimal BUFSIZ. Use a bit bigger value on them.
-// We also need that IO_BUFFER_SIZE is a multiple of 8 (sizeof(uint64_t))
-#if BUFSIZ <= 1024
-#	define IO_BUFFER_SIZE 8192
-#else
-#	define IO_BUFFER_SIZE (BUFSIZ & ~7U)
-#endif
+// FXZ does not make sense for small memory systems so use a large buffer.
+// Stack allocations > 16KiB may cause a problem so use 12KiB.
+// We need that IO_BUFFER_SIZE is a multiple of 8 (sizeof(uint64_t))
+#define IO_BUFFER_SIZE (12 * 1024)
 
 
 /// is_sparse() accesses the buffer as uint64_t for maximum speed.

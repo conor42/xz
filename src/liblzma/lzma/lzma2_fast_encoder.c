@@ -94,6 +94,7 @@ fill_window(flzma2_coder *coder, const lzma_allocator *allocator,
 		FL2_outBuffer *output,
 		lzma_action action)
 {
+	// Copy any output pending in the internal buffer
 	FL2_copyCStreamOutput(coder->fcs, output);
 
 	FL2_dictBuffer dict;
@@ -118,7 +119,7 @@ fill_window(flzma2_coder *coder, const lzma_allocator *allocator,
 
 	coder->ending = (ret == LZMA_STREAM_END);
 
-	// Blocks for compression if dict is full
+	// Will block for compression if dict is full
 	size_t pending_output = FL2_updateDictionary(coder->fcs, write_pos);
 	return_if_fl2_error(pending_output);
 
@@ -250,6 +251,7 @@ get_progress(void *coder_ptr, uint64_t *progress_in, uint64_t *progress_out)
 {
 	flzma2_coder *coder = coder_ptr;
 
+	// Not guaranteed that uint64_t will always be ull
 	unsigned long long out;
 	*progress_in = FL2_getCStreamProgress(coder->fcs, &out);
 	*progress_out = out;
@@ -263,9 +265,6 @@ flzma2_encoder_options_update(void *coder_ptr, const lzma_allocator *allocator,
 {
 	flzma2_coder *coder = coder_ptr;
 
-	// New options can be set only when there is no incomplete chunk.
-	// This is the case at the beginning of the raw stream and right
-	// after LZMA_SYNC_FLUSH.
 	if (reversed_filters->options == NULL)
 		return LZMA_PROG_ERROR;
 
@@ -282,8 +281,6 @@ flzma2_encoder_options_update(void *coder_ptr, const lzma_allocator *allocator,
 
 	return lzma_next_filter_update(
 		&coder->next, allocator, reversed_filters + 1);
-
-	return LZMA_OK;
 }
 
 
