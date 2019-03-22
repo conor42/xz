@@ -227,6 +227,16 @@ stream_encoder_end(void *coder_ptr, const lzma_allocator *allocator)
 }
 
 
+static void
+get_progress(void *coder_ptr, uint64_t *progress_in, uint64_t *progress_out)
+{
+	lzma_stream_coder *coder = coder_ptr;
+	if (coder->block_encoder.get_progress != NULL)
+		coder->block_encoder.get_progress(coder->block_encoder.coder,
+				progress_in, progress_out);
+}
+
+
 static lzma_ret
 stream_encoder_update(void *coder_ptr, const lzma_allocator *allocator,
 		const lzma_filter *filters,
@@ -287,6 +297,7 @@ stream_encoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 		next->coder = coder;
 		next->code = &stream_encode;
 		next->end = &stream_encoder_end;
+		next->get_progress = &get_progress;
 		next->update = &stream_encoder_update;
 
 		coder->filters[0].id = LZMA_VLI_UNKNOWN;

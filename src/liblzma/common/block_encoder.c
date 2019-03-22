@@ -145,6 +145,15 @@ block_encoder_end(void *coder_ptr, const lzma_allocator *allocator)
 }
 
 
+static void
+get_progress(void *coder_ptr, uint64_t *progress_in, uint64_t *progress_out)
+{
+	lzma_block_coder *coder = coder_ptr;
+	if (coder->next.get_progress != NULL)
+		coder->next.get_progress(coder->next.coder, progress_in, progress_out);
+}
+
+
 static lzma_ret
 block_encoder_update(void *coder_ptr, const lzma_allocator *allocator,
 		const lzma_filter *filters lzma_attribute((__unused__)),
@@ -192,6 +201,7 @@ lzma_block_encoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 		next->coder = coder;
 		next->code = &block_encode;
 		next->end = &block_encoder_end;
+		next->get_progress = &get_progress;
 		next->update = &block_encoder_update;
 		coder->next = LZMA_NEXT_CODER_INIT;
 	}
