@@ -376,12 +376,12 @@ extern LZMA_API(void)
 lzma_get_progress(lzma_stream *strm,
 		uint64_t *progress_in, uint64_t *progress_out)
 {
-	*progress_in = ~0;
+	*progress_in = UINT64_MAX;
 	if (strm->internal->next.get_progress != NULL) {
 		strm->internal->next.get_progress(strm->internal->next.coder,
 				progress_in, progress_out);
 	}
-	if(*progress_in == (uint64_t)~0) {
+	if(*progress_in == UINT64_MAX) {
 		*progress_in = strm->total_in;
 		*progress_out = strm->total_out;
 	}

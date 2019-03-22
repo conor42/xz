@@ -382,7 +382,7 @@ progress_speed(uint64_t uncompressed_pos, uint64_t elapsed)
 	// Use big enough buffer to hold e.g. a multibyte decimal point.
 	static char buf[16];
 	snprintf(buf, sizeof(buf), "%.*f %s",
-			speed > 9.9 ? 0 : 1, speed, unit[unit_index]);
+			speed > 19.9 ? 0 : 1, speed, unit[unit_index]);
 	return buf;
 }
 

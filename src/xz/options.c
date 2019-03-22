@@ -358,5 +358,12 @@ options_lzma(const char *str)
 		message_fatal(_("The selected match finder requires at "
 				"least nice=%" PRIu32), nice_len_min);
 
+	if(options->mf == LZMA_MF_RAD && options->depth > 254)
+		message_fatal(_("Value of the radix mf option `depth' must be "
+				"in the range [6, 254]"));
+
+	if (options->mf != LZMA_MF_RAD && options->mode == LZMA_MODE_ULTRA)
+		message_fatal(_("Mode `ultra' requires the radix mf"));
+
 	return options;
 }

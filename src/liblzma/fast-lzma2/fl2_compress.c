@@ -40,7 +40,7 @@ static const FL2_compressionParameters FL2_defaultCParameters[FL2_MAX_CLEVEL + 1
     { 1 MB, 1, 7, 0, 6, 32, 1, 4, FL2_fast }, /* 1 */
     { 2 MB, 2, 7, 0, 14, 32, 1, 4, FL2_fast }, /* 2 */
     { 2 MB, 2, 7, 0, 14, 40, 1, 4, FL2_opt }, /* 3 */
-    { 4 MB, 2, 7, 0, 26, 40, 1, 4, FL2_opt }, /* 4 */
+    { 8 MB, 2, 7, 0, 26, 40, 1, 4, FL2_opt }, /* 4 */
     { 16 MB, 2, 8, 0, 42, 48, 1, 4, FL2_opt }, /* 5 */
     { 16 MB, 2, 9, 1, 42, 48, 1, 4, FL2_ultra }, /* 6 */
     { 32 MB, 2, 10, 1, 50, 64, 1, 4, FL2_ultra }, /* 7 */
