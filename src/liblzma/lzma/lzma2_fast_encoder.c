@@ -245,6 +245,17 @@ flzma2_set_options(flzma2_coder *coder, const lzma_options_lzma *options)
 }
 
 
+static void
+get_progress(void *coder_ptr, uint64_t *progress_in, uint64_t *progress_out)
+{
+	flzma2_coder *coder = coder_ptr;
+
+	unsigned long long out;
+	*progress_in = FL2_getCStreamProgress(coder->fcs, &out);
+	*progress_out = out;
+}
+
+
 static lzma_ret
 flzma2_encoder_options_update(void *coder_ptr, const lzma_allocator *allocator,
 	const lzma_filter *filters lzma_attribute((__unused__)),
@@ -296,6 +307,7 @@ lzma_flzma2_encoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 		next->coder = coder;
 		next->code = &flzma2_encode;
 		next->end = &flzma2_encoder_end;
+		next->get_progress = &get_progress;
 		next->update = &flzma2_encoder_options_update;
 
 		coder->next = LZMA_NEXT_CODER_INIT;
