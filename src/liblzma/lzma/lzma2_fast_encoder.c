@@ -94,7 +94,7 @@ fill_window(flzma2_coder *coder, const lzma_allocator *allocator,
 		FL2_outBuffer *output,
 		lzma_action action)
 {
-	FL2_copyCStreamOutput(coder->fcs, &output);
+	FL2_copyCStreamOutput(coder->fcs, output);
 
 	FL2_dictBuffer dict;
 	return_if_fl2_error(FL2_getDictionaryBuffer(coder->fcs, &dict));
