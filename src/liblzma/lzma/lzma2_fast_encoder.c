@@ -114,16 +114,16 @@ fill_window(flzma2_coder *coder, const lzma_allocator *allocator,
 				dict.size, action);
 	}
 
-	// Blocks for compression if dict is full
-	size_t res = FL2_updateDictionary(coder->fcs, write_pos);
-	return_if_fl2_error(res);
-
-	if(res != 0)
-		res = FL2_copyCStreamOutput(coder->fcs, output);
-
 	coder->ending = (ret == LZMA_STREAM_END);
 
-	return res;
+	// Blocks for compression if dict is full
+	size_t pending_output = FL2_updateDictionary(coder->fcs, write_pos);
+	return_if_fl2_error(pending_output);
+
+	if(pending_output)
+		pending_output = FL2_copyCStreamOutput(coder->fcs, output);
+
+	return pending_output;
 }
 
 
@@ -141,12 +141,12 @@ flzma2_encode(void *coder_ptr,
 
 	lzma_ret ret = LZMA_OK;
 
-	size_t res = 0;
+	size_t pending_output = FL2_copyCStreamOutput(coder->fcs, &output);
 
 	if (!coder->ending) {
-		res = fill_window(coder, allocator,
+		pending_output = fill_window(coder, allocator,
 			in, in_pos, in_size, &output, action);
-		return_if_fl2_error(res);
+		return_if_fl2_error(pending_output);
 	}
 
 	switch (action) {
@@ -154,28 +154,29 @@ flzma2_encode(void *coder_ptr,
 		break;
 
 	case LZMA_SYNC_FLUSH:
-		// Return LZMA_OK if output is full or input not done
-		if (res != 0 || !coder->ending)
+		// Return LZMA_OK if output or input not done
+		if (pending_output || !coder->ending)
 			break;
 
-		res = FL2_flushStream(coder->fcs, &output);
-		ret_translate_if_error(res);
+		pending_output = FL2_flushStream(coder->fcs, &output);
+		ret_translate_if_error(pending_output);
 
-		if (res == 0)
+		if (!pending_output)
 			ret = LZMA_STREAM_END;
 
 		break;
 
 	case LZMA_FULL_FLUSH:
 	case LZMA_FULL_BARRIER:
-		// Return LZMA_OK if output is full
+		// Return LZMA_OK if input not done. FL2_endStream() appends to
+		// existing compressed data so pending_output isn't important.
 		if (!coder->ending)
 			break;
 
-		res = FL2_endStream(coder->fcs, &output);
-		ret_translate_if_error(res);
+		pending_output = FL2_endStream(coder->fcs, &output);
+		ret_translate_if_error(pending_output);
 
-		if (res == 0) {
+		if (!pending_output) {
 			ret = LZMA_STREAM_END;
 			// Re-initialize for next block
 			FL2_initCStream(coder->fcs, 0);
@@ -186,10 +187,10 @@ flzma2_encode(void *coder_ptr,
 
 	case LZMA_FINISH:
 		if (coder->ending) {
-			res = FL2_endStream(coder->fcs, &output);
-			ret_translate_if_error(res);
+			pending_output = FL2_endStream(coder->fcs, &output);
+			ret_translate_if_error(pending_output);
 
-			if (res == 0)
+			if (!pending_output)
 				ret = LZMA_STREAM_END;
 		}
 		break;
@@ -302,6 +303,7 @@ lzma_flzma2_encoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 		coder->fcs = FL2_createCStreamMt(options->threads, 0);// options->dual_buffer);
 		if (coder->fcs == NULL)
 			return LZMA_MEM_ERROR;
+		FL2_setCStreamTimeout(coder->fcs, 300);
 	}
 
 	return_if_error(flzma2_set_options(coder, options));

@@ -1060,14 +1060,13 @@ FL2LIB_API size_t FL2LIB_CALL FL2_updateDictionary(FL2_CStream * fcs, size_t add
     return fcs->outThread < fcs->threadCount;
 }
 
-FL2LIB_API size_t FL2LIB_CALL FL2_getNextCStreamBuffer(FL2_CStream* fcs, FL2_cBuffer* cbuf)
+FL2LIB_API size_t FL2LIB_CALL FL2_getNextCompressedBuffer(FL2_CStream* fcs, FL2_cBuffer* cbuf)
 {
     cbuf->src = NULL;
     cbuf->size = 0;
 
 #ifndef FL2_SINGLETHREAD
-    FL2POOL_waitAll(fcs->compressThread, 0);
-    CHECK_F(fcs->asyncRes);
+	CHECK_F(FL2_waitCStream(fcs));
 #endif
 
     if (fcs->outThread < fcs->threadCount) {
