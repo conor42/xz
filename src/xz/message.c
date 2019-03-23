@@ -1013,13 +1013,11 @@ message_filters_to_str(char buf[FILTERS_STR_SIZE],
 						",pb=%" PRIu32
 						",mode=%s,nice=%" PRIu32 ",mf=%s"
 						",depth=%" PRIu32 ",ov=%" PRIu32
-						",ndict=%" PRIu32 ",ndepth=%" PRIu32
-						",dc=%" PRIu32 ",buf=%" PRIu32,
+						",dc=%" PRIu32,
 						opt->lc, opt->lp, opt->pb,
 						mode, opt->nice_len, mf, opt->depth,
-						opt->overlap_fraction, opt->near_dict_size_log,
-						opt->near_depth, opt->divide_and_conquer,
-						opt->buffer_log);
+						opt->overlap_fraction,
+						opt->divide_and_conquer);
 			}
 			break;
 		}
