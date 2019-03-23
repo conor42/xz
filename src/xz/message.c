@@ -999,7 +999,7 @@ message_filters_to_str(char buf[FILTERS_STR_SIZE],
 			// Print the rest of the options, which are known
 			// only when compressing.
 			if (all_known) {
-				if(mf != LZMA_MF_RAD)
+				if(opt->mf != LZMA_MF_RAD)
 					my_snprintf(&pos, &left,
 						",lc=%" PRIu32 ",lp=%" PRIu32
 						",pb=%" PRIu32
