@@ -1014,7 +1014,7 @@ message_filters_to_str(char buf[FILTERS_STR_SIZE],
 						",mode=%s,nice=%" PRIu32 ",mf=%s"
 						",depth=%" PRIu32 ",ov=%" PRIu32
 						",ndict=%" PRIu32 ",ndepth=%" PRIu32
-						",dq=%" PRIu32 ",buf=%" PRIu32,
+						",dc=%" PRIu32 ",buf=%" PRIu32,
 						opt->lc, opt->lp, opt->pb,
 						mode, opt->nice_len, mf, opt->depth,
 						opt->overlap_fraction, opt->near_dict_size_log,
@@ -1231,7 +1231,7 @@ message_help(bool long_help)
 "                        mf=NAME    match finder (hc3, hc4, bt2, bt3, bt4, rad; rad)\n"
 "                        depth=NUM  maximum search depth; 0=automatic (default)\n"
 "                        ov=NUM     overlap between radix mf blocks (0-14; 2)\n"
-"                        dq=NUM     divide up long chains (0-1; 1)"));
+"                        dc=NUM     divide up long chains (0-1; 1)"));
 #endif
 
 		puts(_(

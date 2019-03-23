@@ -50,6 +50,9 @@ lzma2_bound(uint64_t uncompressed_size)
 		return 0;
 
 	uint64_t fl2_bound = FL2_compressBound(uncompressed_size);
+	// Catch the possible integer overflow.
+	if (fl2_bound < uncompressed_size)
+		return 0;
 
 	return my_max(uncompressed_size + overhead, fl2_bound);
 }

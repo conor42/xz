@@ -351,7 +351,7 @@ options_lzma(const char *str)
 		{ "mf",     mfs,    0, 0 },
 		{ "depth",  NULL,   0, UINT32_MAX },
 		{ "ov",     NULL,   0, 14 },
-		{ "dq",     NULL,   0, 1 },
+		{ "dc",     NULL,   0, 1 },
 		{ NULL,     NULL,   0, 0 }
 	};
 

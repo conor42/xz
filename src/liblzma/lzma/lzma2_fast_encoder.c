@@ -251,6 +251,8 @@ flzma2_set_options(flzma2_coder *coder, const lzma_options_lzma *options)
 	ret_translate_if_error(FL2_CStream_setParameter(fcs,
 			FL2_p_overlapFraction, options->overlap_fraction));
 	ret_translate_if_error(FL2_CStream_setParameter(fcs,
+			FL2_p_bufferLog, options->buffer_log));
+	ret_translate_if_error(FL2_CStream_setParameter(fcs,
 			FL2_p_hybridChainLog, options->near_dict_size_log));
 	ret_translate_if_error(FL2_CStream_setParameter(fcs,
 			FL2_p_searchDepth, depth));
