@@ -238,6 +238,8 @@ enum {
 	OPT_NICE,
 	OPT_MF,
 	OPT_DEPTH,
+	OPT_OV,
+	OPT_DQ
 };
 
 
@@ -306,6 +308,14 @@ set_lzma(void *options, unsigned key, uint64_t value, const char *valuestr)
 	case OPT_DEPTH:
 		opt->depth = value;
 		break;
+
+	case OPT_OV:
+		opt->overlap_fraction = value;
+		break;
+
+	case OPT_DQ:
+		opt->divide_and_conquer = value;
+		break;
 	}
 }
 
@@ -340,6 +350,8 @@ options_lzma(const char *str)
 		{ "nice",   NULL,   2, 273 },
 		{ "mf",     mfs,    0, 0 },
 		{ "depth",  NULL,   0, UINT32_MAX },
+		{ "ov",     NULL,   0, 14 },
+		{ "dq",     NULL,   0, 1 },
 		{ NULL,     NULL,   0, 0 }
 	};
 

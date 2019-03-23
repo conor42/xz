@@ -400,6 +400,7 @@ typedef struct {
 	uint32_t near_depth;
 	uint32_t overlap_fraction;
 	uint32_t divide_and_conquer;
+	uint32_t buffer_log;
 	uint32_t threads;
 
 	/*
@@ -411,7 +412,6 @@ typedef struct {
 	 */
 	uint32_t reserved_int1;
 	uint32_t reserved_int2;
-	uint32_t reserved_int3;
 	lzma_reserved_enum reserved_enum1;
 	lzma_reserved_enum reserved_enum2;
 	lzma_reserved_enum reserved_enum3;

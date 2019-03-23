@@ -998,14 +998,29 @@ message_filters_to_str(char buf[FILTERS_STR_SIZE],
 
 			// Print the rest of the options, which are known
 			// only when compressing.
-			if (all_known)
-				my_snprintf(&pos, &left,
-					",lc=%" PRIu32 ",lp=%" PRIu32
-					",pb=%" PRIu32
-					",mode=%s,nice=%" PRIu32 ",mf=%s"
-					",depth=%" PRIu32,
-					opt->lc, opt->lp, opt->pb,
-					mode, opt->nice_len, mf, opt->depth);
+			if (all_known) {
+				if(mf != LZMA_MF_RAD)
+					my_snprintf(&pos, &left,
+						",lc=%" PRIu32 ",lp=%" PRIu32
+						",pb=%" PRIu32
+						",mode=%s,nice=%" PRIu32 ",mf=%s"
+						",depth=%" PRIu32,
+						opt->lc, opt->lp, opt->pb,
+						mode, opt->nice_len, mf, opt->depth);
+				else
+					my_snprintf(&pos, &left,
+						",lc=%" PRIu32 ",lp=%" PRIu32
+						",pb=%" PRIu32
+						",mode=%s,nice=%" PRIu32 ",mf=%s"
+						",depth=%" PRIu32 ",ov=%" PRIu32
+						",ndict=%" PRIu32 ",ndepth=%" PRIu32
+						",dq=%" PRIu32 ",buf=%" PRIu32,
+						opt->lc, opt->lp, opt->pb,
+						mode, opt->nice_len, mf, opt->depth,
+						opt->overlap_fraction, opt->near_dict_size_log,
+						opt->near_depth, opt->divide_and_conquer,
+						opt->buffer_log);
+			}
 			break;
 		}
 
@@ -1159,6 +1174,9 @@ message_help(bool long_help)
 "                      does not affect decompressor memory requirements"));
 
 	puts(_(
+"  -o, --original      use the original xz LZMA2 implementation (default bt4 mf)"));
+
+	puts(_(
 "  -T, --threads=NUM   use at most NUM threads; the default is 1; set to 0\n"
 "                      to use as many threads as there are processor cores"));
 
@@ -1203,7 +1221,7 @@ message_help(bool long_help)
 "\n"
 "  --lzma1[=OPTS]      LZMA1 or LZMA2; OPTS is a comma-separated list of zero or\n"
 "  --lzma2[=OPTS]      more of the following options (valid values; default):\n"
-"                        preset=PRE reset options to a preset (0-9[eo])\n"
+"                        preset=PRE reset options to a preset (0-9[e,o])\n"
 "                        dict=NUM   dictionary size (4KiB - 1024MiB; 16MiB)\n"
 "                        lc=NUM     number of literal context bits (0-4; 3)\n"
 "                        lp=NUM     number of literal position bits (0-4; 0)\n"
@@ -1211,7 +1229,9 @@ message_help(bool long_help)
 "                        mode=MODE  compression mode (fast, normal, ultra; ultra)\n"
 "                        nice=NUM   nice length of a match (2-273; 48)\n"
 "                        mf=NAME    match finder (hc3, hc4, bt2, bt3, bt4, rad; rad)\n"
-"                        depth=NUM  maximum search depth; 0=automatic (default)"));
+"                        depth=NUM  maximum search depth; 0=automatic (default)\n"
+"                        ov=NUM     overlap between radix mf blocks (0-14; 2)\n"
+"                        dq=NUM     divide up long chains (0-1; 1)"));
 #endif
 
 		puts(_(

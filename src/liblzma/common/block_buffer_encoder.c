@@ -49,7 +49,7 @@ lzma2_bound(uint64_t uncompressed_size)
 	if (COMPRESSED_SIZE_MAX - overhead < uncompressed_size)
 		return 0;
 
-    uint64_t fl2_bound = FL2_compressBound(uncompressed_size);
+	uint64_t fl2_bound = FL2_compressBound(uncompressed_size);
 
 	return my_max(uncompressed_size + overhead, fl2_bound);
 }

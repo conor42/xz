@@ -50,6 +50,12 @@ lzma_lzma_preset_orig(lzma_options_lzma *options, uint32_t level, uint32_t flags
 		}
 	}
 
+	// Initialize unused radix parameters to defaults
+	options->near_dict_size_log = 9;
+	options->near_depth = 2;
+	options->divide_and_conquer = 1;
+	options->buffer_log = 4;
+
 	return false;
 }
 
@@ -85,6 +91,7 @@ lzma_lzma_preset(lzma_options_lzma *options, uint32_t preset)
 	if (FL2_isError(FL2_getLevelParameters(level, 0, &params)))
 		return true;
 	options->dict_size = params.dictionarySize;
+	options->buffer_log = params.bufferLog;
 	if (!(flags & LZMA_PRESET_EXTREME)) {
 		options->overlap_fraction = params.overlapFraction;
 		options->mode = params.strategy + 1;
