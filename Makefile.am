@@ -65,7 +65,7 @@ ACLOCAL_AMFLAGS = -I m4
 
 # List of man pages to conver to PDF and plain text in the dist-hook target.
 manfiles = \
-	src/xz/fxz.1 \
+	src/xz/fxz.1 
 #	src/xzdec/fxzdec.1 \
 #	src/lzmainfo/flzmainfo.1 \
 #	src/scripts/fxzdiff.1 \

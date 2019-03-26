@@ -429,7 +429,7 @@ AM_CONDITIONAL([COND_XZ], [test x$enable_fxz != xno])
 
 AC_ARG_ENABLE([fxzdec], [AS_HELP_STRING([--disable-fxzdec],
 		[do not build fxzdec])],
-	[], [enable_fxzdec=yes])
+	[], [enable_fxzdec=no])
 test "x$enable_decoders" = xno && enable_fxzdec=no
 AM_CONDITIONAL([COND_XZDEC], [test x$enable_fxzdec != xno])
 
