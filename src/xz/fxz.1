@@ -54,16 +54,18 @@ is a general-purpose data compression tool based upon
 .B xz
 , with a near-identical command line syntax. The only major difference over
 .B xz
-is the addition of a buffered radix match finder and modified LZMA2 encoder.
+is the addition of a buffered Radix match finder and modified LZMA2 encoder.
 These allow
 .B xz
 's single-threaded mode to run in parallel, enabling multi-threaded
 operation without splitting the input into large blocks or scaling the memory usage
-with the thread count. The compressor is optimized for best speed vs compression ratio.
+with the thread count.
 .B Note:
 in this document, 'multi-threaded mode' refers to the old liblzma multi-block
-method for multi-threading.
-The native
+method for multi-threading. Multi-threading with the Radix match finder works
+essentially the same way as single-threaded mode.
+.PP
+The compressor is optimized for best speed vs compression ratio. The native
 .B .xz
 file format remains unchanged, and the legacy
 .B .lzma
@@ -712,15 +714,15 @@ c c c c c
 n n n n n.
 Preset;DictSize;CompCPU;CompMem;DecMem
 \-0;256 KiB;0;23 MiB;1 MiB
-\-1;1 MiB;1;71 MiB;2 MiB
-\-2;2 MiB;2;19 MiB;3 MiB
-\-3;2 MiB;3;20 MiB;5 MiB
-\-4;8 MiB;4;51 MiB;9 MiB
-\-5;16 MiB;5;92 MiB;17 MiB
-\-6;16 MiB;6;92 MiB;17 MiB
-\-7;32 MiB;6;175 MiB;33 MiB
-\-8;64 MiB;6;341 MiB;65 MiB
-\-9;128 MiB;6;801 MiB;129 MiB
+\-1;1 MiB;1;8 MiB;2 MiB
+\-2;2 MiB;2;13 MiB;3 MiB
+\-3;2 MiB;3;13 MiB;5 MiB
+\-4;8 MiB;4;43 MiB;9 MiB
+\-5;16 MiB;5;83 MiB;17 MiB
+\-6;16 MiB;6;83 MiB;17 MiB
+\-7;32 MiB;6;164 MiB;33 MiB
+\-8;64 MiB;6;326 MiB;65 MiB
+\-9;128 MiB;6;777 MiB;129 MiB
 .TE
 .RE
 .RE
@@ -749,10 +751,11 @@ To get even slower and thus possibly better compression, see
 .BR \-\-extreme .
 .IP \(bu 3
 CompMem contains the compressor memory requirements
-for 4\ threads.
+for one thread.
 It may vary slightly between
 .B fxz
-versions.
+versions. Additional threads require a small relative increase in memory usage.
+See the section below on XZ Utils compatibility for a comparison of 1\ thread versus 4.
 .IP \(bu 3
 DecMem contains the decompressor memory requirements.
 That is, the compression settings determine
@@ -770,9 +773,10 @@ but with bad luck this can also make it worse.
 Decompressor memory usage is not affected,
 but compressor memory usage increases by up to 128\ KiB at all preset levels.
 .TP
-.BR \-e ", " \-\-extreme
+.BR \-o ", " \-\-original
 Use the original liblzma LZMA2 implementation. This is useful for making the
-smallest possible output file for a given dictionary size.
+smallest possible output file for a given dictionary size, because the faster
+encoder in libflzma usually produces slightly larger output using double the dictionary size.
 .TP
 .B \-\-fast
 .PD 0
@@ -1010,9 +1014,9 @@ to a special value
 .B 0
 makes
 .B fxz
-use as many threads as there are CPU cores on the system. For preset 2 and higher the
-multi-threaded radix matchfinder will be used. The old liblzma multi-block method
-for multi-threading will be used at preset 0 or 1, or if
+use as many threads as there are CPU cores on the system. For preset 1 and higher the
+multi-threaded Radix matchfinder will be used. The original liblzma multi-block method
+for multi-threading will be used at preset 0, or if
 .BI \-\-original
 was specified. 
 .IP ""
@@ -1031,7 +1035,7 @@ All files compressed in multi-threaded mode meet this condition,
 but files compressed in single-threaded mode don't even if
 .BI \-\-block\-size= size
 is used. This may be added in a later version to allow multi-threaded decompression
-of files compressed with the radix match finder.
+of files compressed with the Radix match finder.
 .
 .SS "Custom compressor filter chains"
 A custom filter chain allows specifying
@@ -1097,7 +1101,8 @@ These filters can be used only as the last filter in the chain.
 LZMA1 is a legacy filter,
 which is supported almost solely due to the legacy
 .B .lzma
-file format, which supports only LZMA1.
+file format, which supports only LZMA1. Use of LZMA1 also sets
+.B \-\-original .
 LZMA2 is an updated
 version of LZMA1 to fix some practical issues of LZMA1.
 The
@@ -1124,7 +1129,7 @@ to
 .BR 9 ,
 matching the command line options \fB\-0\fR ... \fB\-9\fR.
 The modifier 
-.BR e ,
+.BR e
 matches
 .BR \-\-extreme .
 .B fxz
@@ -1162,6 +1167,10 @@ The maximum for compression is currently 1\ GiB.
 The decompressor already supports dictionaries up to
 one byte less than 4\ GiB, which is the maximum for
 the LZMA1 and LZMA2 stream formats.
+.IP ""
+The Radix match finder is not speed efficient on dictionaries below 1\ MiB,
+and has little to no advantage at 1\ MiB. A different match finder should be
+used for small dictionaries.
 .IP ""
 Dictionary
 .I size
@@ -1279,10 +1288,7 @@ match finders.
 The default depends on the
 .IR preset :
 0 uses
-.BR hc3 ,
-1\-3
-use
-.BR hc4 ,
+.BR hc3
 and the rest use
 .BR rad .
 .IP ""
@@ -1408,8 +1414,7 @@ the data produced by the match finder.
 Supported
 .I modes
 are
-.B fast
-,
+.B fast ,
 .B normal
 and
 .BR ultra .
@@ -1432,9 +1437,6 @@ Usually
 is used with Hash Chain match finders and
 .B fast/normal/ultra
 with the Radix match finder.
-This is also what the
-.I presets
-do.
 .TP
 .BI nice= nice
 Specify what is considered to be a nice length for a match.
@@ -1472,20 +1474,20 @@ Hash Chain or Binary Tree. Avoid setting the
 over 1000 unless you are prepared to interrupt
 the compression in case it is taking far too long.
 .TP
-.BI ov= block overlap
+.BI ov= overlap
 The Radix match finder is a block algorithm which cannot use a
 sliding window. A portion of each completed block must be copied to
 provide some dictionary for the next block.
 .IP ""
-.I Ov
+.I ov
 is specified in sixteenths of the dictionary size. The minimum is 0 and the maximum is 14. The default is 2, but
 .B \-\-extreme
-changes it to 4. Large overlaps may not yield greater compression, especially on
+changes it to 4. Large overlaps do not always yield greater compression, especially on
 small dictionary sizes.
 .TP
-.BI dc= enable division of chains
-Long chains of 2-byte matches may be broken up by the Radix match finder and searched
-to greater depth in segments. This allows cache-efficient buffering.
+.BI dc= divide_chains
+Long chains of 2-byte matches can be broken up by the Radix match finder and searched
+in segments to greater depth. This allows cache-efficient buffering.
 .IP ""
 The default is 1 (=enabled). Setting
 .I dc
@@ -1787,9 +1789,9 @@ will print the version number of
 .B fxz
 and libflzma in the following format:
 .PP
-.BI XZ_VERSION= XYYYZZZS
+.BI FXZ_VERSION= XYYYZZZS
 .br
-.BI LIBLZMA_VERSION= XYYYZZZS
+.BI LIBFLZMA_VERSION= XYYYZZZS
 .TP
 .I X
 Major version.
@@ -2052,12 +2054,9 @@ or
 indicating if all block headers have both compressed size and
 uncompressed size stored in them
 .PP
-.I Since
-.B xz
-.I 5.1.2alpha:
 .IP 4. 4
 Minimum
-.B xz
+.B fxz
 version required to decompress the file
 .RE
 .PD
@@ -2206,13 +2205,21 @@ export FXZ_OPT
 .SH "XZ UTILS COMPATIBILITY"
 The command line syntax of
 .B fxz
-is identical to
+is identical to that of
 .BR xz
-from XZ Utils 5.2.x, but for two additional LZMA2 encoder options.
+from XZ Utils 5.2.x, except for the addition of LZMA2 encoder options
+.B ov
+and
+.B dc .
 In most cases it is possible to replace
 XZ Utils with FXZ Utils without breaking existing scripts.
 There are some differences in memory usage though,
 which may sometimes cause problems.
+.B fxz
+also produces larger output, typically by < 1% of the compressed size, using
+double the dictionary size.
+.B \-\-extreme
+may improve this at some cost in speed.
 .
 .SS "Compression preset levels"
 The most important difference is how dictionary sizes
@@ -2240,7 +2247,7 @@ Level;fxz;xz
 .PP
 The dictionary size differences affect
 the compressor memory usage too,
-but the radix match finder uses less memory per dictionary
+but the Radix match finder uses less memory per dictionary
 byte than hc or bt match finders, so the end result is similar
 for double the dictionary size. Also, the multi-threaded match finder
 in fxz uses far less additional memory per thread than multi-threaded xz:
@@ -2252,7 +2259,7 @@ c c c c c
 c n n n n.
 Level;fxz;xz;fxz \-T4;xz \-T4
 \-0;3 MiB;3 MiB;23 MiB;23 MiB
-\-1;9 MiB;9 MiB;71 MiB;71 MiB
+\-1;8 MiB;9 MiB;14 MiB;71 MiB
 \-2;13 MiB;17 MiB;19 MiB;137 MiB
 \-3;13 MiB;32 MiB;20 MiB;269 MiB
 \-4;43 MiB;48 MiB;51 MiB;333 MiB
@@ -2364,8 +2371,8 @@ with the preset
 .RB ( "\-4 \-\-extreme" ),
 which is slower than e.g. the default
 .BR \-6 ,
-but needs less memory for compression and decompression (48\ MiB
-and 5\ MiB, respectively):
+but needs less memory for compression and decompression (43\ MiB
+and 9\ MiB, respectively):
 .RS
 .PP
 .nf
@@ -2506,18 +2513,22 @@ but the decompressor memory usage has to be kept low
 e.g. to make it possible to decompress the file on
 an embedded system.
 The following command uses
-.B \-6e
-.RB ( "\-6 \-\-extreme" )
+.B \-6eo
+.RB ( "\-6 \-\-extreme \-\-original" )
 as a base and sets the dictionary to only 64\ KiB.
 The resulting file can be decompressed with XZ Embedded
 (that's why there is
 .BR \-\-check=crc32 )
 using about 100\ KiB of memory.
+.B \-\-original
+is required because it will produce smaller output
+for any given dictionary size, and the Radix match finder
+is not speed efficient on dictionaries below about 2\ MiB.
 .RS
 .PP
 .nf
 .ft CW
-fxz \-\-check=crc32 \-\-lzma2=preset=6e,dict=64KiB foo
+fxz \-\-check=crc32 \-\-lzma2=preset=6eo,dict=64KiB foo
 .ft R
 .fi
 .RE
