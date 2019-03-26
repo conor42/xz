@@ -1,5 +1,5 @@
 /**
- * \file        lzma/container.h
+ * \file        flzma/container.h
  * \brief       File formats
  */
 

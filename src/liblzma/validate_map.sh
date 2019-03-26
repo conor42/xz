@@ -20,7 +20,7 @@ cd "$(dirname "$0")"
 
 # Get the list of symbols that aren't defined in liblzma.map.
 SYMS=$(sed -n 's/^extern LZMA_API([^)]*) \([a-z0-9_]*\)(.*$/\1;/p' \
-		api/lzma/*.h \
+		api/flzma/*.h \
 	| sort \
 	| grep -Fve "$(sed '/[{}:*]/d;/^$/d;s/^	//' liblzma.map)")
 

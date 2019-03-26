@@ -1,5 +1,5 @@
 /**
- * \file        lzma/check.h
+ * \file        flzma/check.h
  * \brief       Integrity checks
  */
 

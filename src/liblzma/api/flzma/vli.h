@@ -1,5 +1,5 @@
 /**
- * \file        lzma/vli.h
+ * \file        flzma/vli.h
  * \brief       Variable-length integer handling
  *
  * In the .xz format, most integers are encoded in a variable-length

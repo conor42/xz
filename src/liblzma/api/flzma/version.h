@@ -1,5 +1,5 @@
 /**
- * \file        lzma/version.h
+ * \file        flzma/version.h
  * \brief       Version number
  */
 

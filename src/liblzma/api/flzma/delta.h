@@ -1,5 +1,5 @@
 /**
- * \file        lzma/delta.h
+ * \file        flzma/delta.h
  * \brief       Delta filter
  */
 

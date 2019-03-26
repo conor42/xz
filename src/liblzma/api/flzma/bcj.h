@@ -1,5 +1,5 @@
 /**
- * \file        lzma/bcj.h
+ * \file        flzma/bcj.h
  * \brief       Branch/Call/Jump conversion filters
  */
 

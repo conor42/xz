@@ -1,5 +1,5 @@
 /**
- * \file        lzma/hardware.h
+ * \file        flzma/hardware.h
  * \brief       Hardware information
  *
  * Since liblzma can consume a lot of system resources, it also provides

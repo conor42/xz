@@ -1,5 +1,5 @@
 /**
- * \file        lzma/index_hash.h
+ * \file        flzma/index_hash.h
  * \brief       Validate Index by using a hash function
  *
  * Hashing makes it possible to use constant amount of memory to validate

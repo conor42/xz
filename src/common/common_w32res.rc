@@ -9,7 +9,7 @@
 #include "config.h"
 #define LZMA_H_INTERNAL
 #define LZMA_H_INTERNAL_RC
-#include "lzma/version.h"
+#include "flzma/version.h"
 
 #ifndef MY_BUILD
 # define MY_BUILD 0

@@ -1,5 +1,5 @@
 /**
- * \file        lzma/base.h
+ * \file        flzma/base.h
  * \brief       Data types and functions used in many places in liblzma API
  */
 

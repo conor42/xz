@@ -7,17 +7,17 @@
 
 nobase_include_HEADERS = \
 	flzma.h \
-	lzma/base.h \
-	lzma/bcj.h \
-	lzma/block.h \
-	lzma/check.h \
-	lzma/container.h \
-	lzma/delta.h \
-	lzma/filter.h \
-	lzma/hardware.h \
-	lzma/index.h \
-	lzma/index_hash.h \
-	lzma/lzma12.h \
-	lzma/stream_flags.h \
-	lzma/version.h \
-	lzma/vli.h
+	flzma/base.h \
+	flzma/bcj.h \
+	flzma/block.h \
+	flzma/check.h \
+	flzma/container.h \
+	flzma/delta.h \
+	flzma/filter.h \
+	flzma/hardware.h \
+	flzma/index.h \
+	flzma/index_hash.h \
+	flzma/lzma12.h \
+	flzma/stream_flags.h \
+	flzma/version.h \
+	flzma/vli.h

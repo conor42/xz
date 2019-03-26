@@ -1,5 +1,5 @@
 /**
- * \file        lzma/filter.h
+ * \file        flzma/filter.h
  * \brief       Common filter related types and functions
  */
 

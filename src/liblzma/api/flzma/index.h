@@ -1,5 +1,5 @@
 /**
- * \file        lzma/index.h
+ * \file        flzma/index.h
  * \brief       Handling of .xz Index and related information
  */
 

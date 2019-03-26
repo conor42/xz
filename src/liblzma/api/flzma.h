@@ -291,28 +291,28 @@ extern "C" {
 #define LZMA_H_INTERNAL 1
 
 /* Basic features */
-#include "lzma/version.h"
-#include "lzma/base.h"
-#include "lzma/vli.h"
-#include "lzma/check.h"
+#include "flzma/version.h"
+#include "flzma/base.h"
+#include "flzma/vli.h"
+#include "flzma/check.h"
 
 /* Filters */
-#include "lzma/filter.h"
-#include "lzma/bcj.h"
-#include "lzma/delta.h"
-#include "lzma/lzma12.h"
+#include "flzma/filter.h"
+#include "flzma/bcj.h"
+#include "flzma/delta.h"
+#include "flzma/lzma12.h"
 
 /* Container formats */
-#include "lzma/container.h"
+#include "flzma/container.h"
 
 /* Advanced features */
-#include "lzma/stream_flags.h"
-#include "lzma/block.h"
-#include "lzma/index.h"
-#include "lzma/index_hash.h"
+#include "flzma/stream_flags.h"
+#include "flzma/block.h"
+#include "flzma/index.h"
+#include "flzma/index_hash.h"
 
 /* Hardware information */
-#include "lzma/hardware.h"
+#include "flzma/hardware.h"
 
 /*
  * All subheaders included. Undefine LZMA_H_INTERNAL to prevent applications

@@ -1,5 +1,5 @@
 /**
- * \file        lzma/block.h
+ * \file        flzma/block.h
  * \brief       .xz Block handling
  */
 
