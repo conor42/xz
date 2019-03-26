@@ -379,7 +379,6 @@ parse_real(args_info *args, int argc, char **argv)
 		case OPT_LZMA1:
 			coder_add_filter(LZMA_FILTER_LZMA1,
 					options_lzma(optarg));
-			coder_set_orig();
 			break;
 
 		case OPT_LZMA2:

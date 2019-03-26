@@ -176,6 +176,10 @@ coder_set_compression_settings(void)
 					"versions."));
 		}
 
+		// Radix mf not implemented for LZMA1
+		if(opt_format == FORMAT_LZMA)
+			preset_number |= LZMA_PRESET_ORIG;
+
 		// Get the preset for LZMA1 or LZMA2.
 		if (lzma_lzma_preset(&opt_lzma, preset_number))
 			message_bug();
