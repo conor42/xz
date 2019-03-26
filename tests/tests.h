@@ -15,7 +15,7 @@
 
 #include "sysdefs.h"
 #include "tuklib_integer.h"
-#include "lzma.h"
+#include "flzma.h"
 
 #include <stdio.h>
 

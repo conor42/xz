@@ -13,7 +13,7 @@
 #include <inttypes.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include "lzma.h"
+#include "flzma.h"
 
 
 // Output buffer for decompressed data. This is write only; nothing cares

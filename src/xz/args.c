@@ -635,8 +635,8 @@ args_parse(args_info *args, int argc, char **argv)
 	}
 
 	// First the flags from the environment
-	parse_environment(args, argv[0], "XZ_DEFAULTS");
-	parse_environment(args, argv[0], "XZ_OPT");
+	parse_environment(args, argv[0], "FXZ_DEFAULTS");
+	parse_environment(args, argv[0], "FXZ_OPT");
 
 	// Then from the command line
 	parse_real(args, argc, argv);

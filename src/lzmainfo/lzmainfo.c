@@ -14,7 +14,7 @@
 #include <stdio.h>
 #include <errno.h>
 
-#include "lzma.h"
+#include "flzma.h"
 #include "getopt.h"
 #include "tuklib_gettext.h"
 #include "tuklib_progname.h"

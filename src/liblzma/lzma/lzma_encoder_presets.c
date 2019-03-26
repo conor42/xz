@@ -79,7 +79,7 @@ lzma_lzma_preset(lzma_options_lzma *options, uint32_t preset)
 	options->lp = LZMA_LP_DEFAULT;
 	options->pb = LZMA_PB_DEFAULT;
 
-	if (level < 2 || (flags & LZMA_PRESET_ORIG))
+	if (level == 0 || (flags & LZMA_PRESET_ORIG))
 		return lzma_lzma_preset_orig(options, level, flags);
 
 	static const uint8_t dict_pow2[]

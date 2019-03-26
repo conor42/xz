@@ -19,7 +19,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
-#include <lzma.h>
+#include <flzma.h>
 
 
 static bool

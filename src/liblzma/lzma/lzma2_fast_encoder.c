@@ -373,5 +373,5 @@ lzma_flzma2_encoder_memusage(const void *options)
 	params.chainLog = 9;// opt->hc3_dict_size_log;
 	params.strategy = opt->mode;
 
-	return FL2_estimateCStreamSize_byParams(&params, 0, 0);// opt->threads, opt->dual_buffer);
+	return FL2_estimateCStreamSize_byParams(&params, opt->threads, 0);// opt->dual_buffer);
 }

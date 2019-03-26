@@ -12,11 +12,11 @@
  * This file has been put into the public domain.
  * You can do whatever you want with this file.
  *
- * See ../lzma.h for information about liblzma as a whole.
+ * See ../flzma.h for information about liblzma as a whole.
  */
 
 #ifndef LZMA_H_INTERNAL
-#	error Never include this file directly. Use <lzma.h> instead.
+#	error Never include this file directly. Use <flzma.h> instead.
 #endif
 
 /**

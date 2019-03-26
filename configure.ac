@@ -397,16 +397,16 @@ fi
 # Assumed amount of RAM #
 #########################
 
-# We use 128 MiB as default, because it will allow decompressing files
+# We use 256 MiB as default, because it will allow decompressing files
 # created with "fxz -9". It would be slightly safer to guess a lower value,
 # but most systems, on which we don't have any way to determine the amount
-# of RAM, will probably have at least 128 MiB of RAM.
+# of RAM, will probably have at least 256 MiB of RAM.
 AC_MSG_CHECKING([how much RAM to assume if the real amount is unknown])
 AC_ARG_ENABLE([assume-ram], AS_HELP_STRING([--enable-assume-ram=SIZE],
 		[If and only if the real amount of RAM cannot be determined,
-		assume SIZE MiB. The default is 128 MiB. This affects the
+		assume SIZE MiB. The default is 256 MiB. This affects the
 		default memory usage limit.]),
-	[], [enable_assume_ram=128])
+	[], [enable_assume_ram=256])
 assume_ram_check=`echo "$enable_assume_ram" | tr -d 0123456789`
 if test -z "$enable_assume_ram" || test -n "$assume_ram_check"; then
 	AC_MSG_RESULT([])

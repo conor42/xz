@@ -16,7 +16,7 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include <stdbool.h>
-#include <lzma.h>
+#include <flzma.h>
 
 
 /* read/write buffer sizes */

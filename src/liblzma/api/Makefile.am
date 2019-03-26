@@ -6,7 +6,7 @@
 ##
 
 nobase_include_HEADERS = \
-	lzma.h \
+	flzma.h \
 	lzma/base.h \
 	lzma/bcj.h \
 	lzma/block.h \

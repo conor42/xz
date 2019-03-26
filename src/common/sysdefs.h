@@ -51,7 +51,7 @@
 // Be more compatible with systems that have non-conforming inttypes.h.
 // We assume that int is 32-bit and that long is either 32-bit or 64-bit.
 // Full Autoconf test could be more correct, but this should work well enough.
-// Note that this duplicates some code from lzma.h, but this is better since
+// Note that this duplicates some code from flzma.h, but this is better since
 // we can work without inttypes.h thanks to Autoconf tests.
 #ifndef UINT32_C
 #	if UINT_MAX != 4294967295U

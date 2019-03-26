@@ -1,17 +1,18 @@
 /**
- * \file        api/lzma.h
- * \brief       The public API of liblzma data compression library
+ * \file        api/flzma.h
+ * \brief       The public API of libflzma data compression library
  *
- * liblzma is a public domain general-purpose data compression library with
+ * libflzma is a public domain general-purpose data compression library with
  * a zlib-like API. The native file format is .xz, but also the old .lzma
  * format and raw (no headers) streams are supported. Multiple compression
  * algorithms (filters) are supported. Currently LZMA2 is the primary filter.
  *
- * liblzma is part of XZ Utils <http://tukaani.org/xz/>. XZ Utils includes
- * a gzip-like command line tool named xz and some other tools. XZ Utils
- * is developed and maintained by Lasse Collin.
+ * libflzma is part of FXZ Utils <https://github.com/conor42/fxz>. FXZ Utils
+ * includes a gzip-like command line tool named xz and some other tools. FXZ
+ * Utils is based on XZ Utils by Lasse Collin, and is developed and
+ * maintained by Conor McCarthy.
  *
- * Major parts of liblzma are based on Igor Pavlov's public domain LZMA SDK
+ * Major parts of libflzma are based on Igor Pavlov's public domain LZMA SDK
  * <http://7-zip.org/sdk.html>.
  *
  * The SHA-256 implementation is based on the public domain code found from
@@ -21,7 +22,8 @@
  */
 
 /*
- * Author: Lasse Collin
+ * Authors: Lasse Collin
+ *          Conor McCarthy
  *
  * This file has been put into the public domain.
  * You can do whatever you want with this file.
@@ -35,7 +37,7 @@
  *****************************/
 
 /*
- * liblzma API headers need some standard types and macros. To allow
+ * libflzma API headers need some standard types and macros. To allow
  * including lzma.h without requiring the application to include other
  * headers first, lzma.h includes the required standard headers unless
  * they already seem to be included already or if LZMA_MANUAL_HEADERS
@@ -58,12 +60,12 @@
  * inttypes.h here again. However, you may define LZMA_MANUAL_HEADERS to
  * force this file to never include any system headers.
  *
- * Some could argue that liblzma API should provide all the required types,
+ * Some could argue that libflzma API should provide all the required types,
  * for example lzma_uint64, LZMA_UINT64_C(n), and LZMA_UINT64_MAX. This was
  * seen as an unnecessary mess, since most systems already provide all the
  * necessary types and macros in the standard headers.
  *
- * Note that liblzma API still has lzma_bool, because using stdbool.h would
+ * Note that libflzma API still has lzma_bool, because using stdbool.h would
  * break C89 and C++ programs on many systems. sizeof(bool) in C99 isn't
  * necessarily the same as sizeof(bool) in C++.
  */
@@ -83,16 +85,16 @@
 			|| !defined(UINT32_MAX) || !defined(UINT64_MAX)
 		/*
 		 * MSVC versions older than 2013 have no C99 support, and
-		 * thus they cannot be used to compile liblzma. Using an
-		 * existing liblzma.dll with old MSVC can work though(*),
+		 * thus they cannot be used to compile libflzma. Using an
+		 * existing libflzma.dll with old MSVC can work though(*),
 		 * but we need to define the required standard integer
 		 * types here in a MSVC-specific way.
 		 *
-		 * (*) If you do this, the existing liblzma.dll probably uses
+		 * (*) If you do this, the existing libflzma.dll probably uses
 		 *     a different runtime library than your MSVC-built
 		 *     application. Mixing runtimes is generally bad, but
 		 *     in this case it should work as long as you avoid
-		 *     the few rarely-needed liblzma functions that allocate
+		 *     the few rarely-needed libflzma functions that allocate
 		 *     memory and expect the caller to free it using free().
 		 */
 #		if defined(_WIN32) && defined(_MSC_VER) && _MSC_VER < 1800
@@ -175,10 +177,10 @@
  * symbols and LZMA_API_CALL is to specify the calling convention.
  *
  * By default it is assumed that the application will link dynamically
- * against liblzma. #define LZMA_API_STATIC in your application if you
- * want to link against static liblzma. If you don't care about portability
+ * against libflzma. #define LZMA_API_STATIC in your application if you
+ * want to link against static libflzma. If you don't care about portability
  * to operating systems like Windows, or at least don't care about linking
- * against static liblzma on them, don't worry about LZMA_API_STATIC. That
+ * against static libflzma on them, don't worry about LZMA_API_STATIC. That
  * is, most developers will never need to use LZMA_API_STATIC.
  *
  * The GCC variants are a special case on Windows (Cygwin and MinGW).
@@ -213,9 +215,9 @@
  ***********/
 
 /*
- * None of the functions in liblzma may throw an exception. Even
+ * None of the functions in libflzma may throw an exception. Even
  * the functions that use callback functions won't throw exceptions,
- * because liblzma would break if a callback function threw an exception.
+ * because libflzma would break if a callback function threw an exception.
  */
 #ifndef lzma_nothrow
 #	if defined(__cplusplus)

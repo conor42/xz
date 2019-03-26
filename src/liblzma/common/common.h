@@ -32,7 +32,7 @@
 
 #define LZMA_API(type) LZMA_API_EXPORT type LZMA_API_CALL
 
-#include "lzma.h"
+#include "flzma.h"
 
 // These allow helping the compiler in some often-executed branches, whose
 // result is almost always the same.

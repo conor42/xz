@@ -74,7 +74,7 @@ test_fxz() {
 	echo . | tr -d '\n\r'
 }
 
-XZ="../src/xz/fxz --memlimit-compress=48MiB --memlimit-decompress=5MiB \
+XZ="../src/xz/fxz --memlimit-compress=48MiB --memlimit-decompress=10MiB \
 		--no-adjust --threads=1 --check=crc64"
 XZDEC="../src/xzdec/fxzdec" # No memory usage limiter available
 test -x ../src/xzdec/fxzdec || XZDEC=

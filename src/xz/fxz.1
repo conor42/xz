@@ -5,65 +5,73 @@
 .\" This file has been put into the public domain.
 .\" You can do whatever you want with this file.
 .\"
-.TH XZ 1 "2018-11-22" "Tukaani" "XZ Utils"
+.TH FXZ 1 "2019-03-26" "Tukaani & C.McCarthy" "FXZ Utils"
 .
 .SH NAME
-xz, unxz, xzcat, lzma, unlzma, lzcat \- Compress or decompress .xz and .lzma files
+fxz, funxz, fxzcat, flzma, funlzma, flzcat \- Compress or decompress .xz and .lzma files
 .
 .SH SYNOPSIS
-.B xz
+.B fxz
 .RI [ option... ]
 .RI [ file... ]
 .
 .SH COMMAND ALIASES
-.B unxz
+.B funxz
 is equivalent to
-.BR "xz \-\-decompress" .
+.BR "fxz \-\-decompress" .
 .br
-.B xzcat
+.B fxzcat
 is equivalent to
-.BR "xz \-\-decompress \-\-stdout" .
+.BR "fxz \-\-decompress \-\-stdout" .
 .br
-.B lzma
+.B flzma
 is equivalent to
-.BR "xz \-\-format=lzma" .
+.BR "fxz \-\-format=lzma" .
 .br
-.B unlzma
+.B funlzma
 is equivalent to
-.BR "xz \-\-format=lzma \-\-decompress" .
+.BR "fxz \-\-format=lzma \-\-decompress" .
 .br
-.B lzcat
+.B flzcat
 is equivalent to
-.BR "xz \-\-format=lzma \-\-decompress \-\-stdout" .
+.BR "fxz \-\-format=lzma \-\-decompress \-\-stdout" .
 .PP
 When writing scripts that need to decompress files,
 it is recommended to always use the name
-.B xz
+.B fxz
 with appropriate arguments
-.RB ( "xz \-d"
+.RB ( "fxz \-d"
 or
-.BR "xz \-dc" )
+.BR "fxz \-dc" )
 instead of the names
-.B unxz
+.B funxz
 and
-.BR xzcat .
+.BR fxzcat .
 .
 .SH DESCRIPTION
+.B fxz
+is a general-purpose data compression tool based upon
 .B xz
-is a general-purpose data compression tool with
-command line syntax similar to
-.BR gzip (1)
-and
-.BR bzip2 (1).
-The native file format is the
+, with a near-identical command line syntax. The only major difference over
+.B xz
+is the addition of a buffered radix match finder and modified LZMA2 encoder.
+These allow
+.B xz
+'s single-threaded mode to run in parallel, enabling multi-threaded
+operation without splitting the input into large blocks or scaling the memory usage
+with the thread count. The compressor is optimized for best speed vs compression ratio.
+.B Note:
+in this document, 'multi-threaded mode' refers to the old liblzma multi-block
+method for multi-threading.
+The native
 .B .xz
-format, but the legacy
+file format remains unchanged, and the legacy
 .B .lzma
 format used by LZMA Utils and
 raw compressed streams with no container format headers
 are also supported.
 .PP
-.B xz
+.B fxz
 compresses or decompresses each
 .I file
 according to the selected operation mode.
@@ -73,15 +81,15 @@ are given or
 .I file
 is
 .BR \- ,
-.B xz
+.B fxz
 reads from standard input and writes the processed data
 to standard output.
-.B xz
+.B fxz
 will refuse (display an error and skip the
 .IR file )
 to write compressed data to standard output if it is a terminal.
 Similarly,
-.B xz
+.B fxz
 will refuse to read compressed data
 from standard input if it is a terminal.
 .PP
@@ -106,7 +114,7 @@ When decompressing, the
 or
 .B .lzma
 suffix is removed from the filename to get the target filename.
-.B xz
+.B fxz
 also recognizes the suffixes
 .B .txz
 and
@@ -120,7 +128,7 @@ If the target file already exists, an error is displayed and the
 is skipped.
 .PP
 Unless writing to standard output,
-.B xz
+.B fxz
 will display a warning and skip the
 .I file
 if any of the following applies:
@@ -163,7 +171,7 @@ or
 .PP
 After successfully compressing or decompressing the
 .IR file ,
-.B xz
+.B fxz
 copies the owner, group, permissions, access time,
 and modification time from the source
 .I file
@@ -172,7 +180,7 @@ If copying the group fails, the permissions are modified
 so that the target file doesn't become accessible to users
 who didn't have permission to access the source
 .IR file .
-.B xz
+.B fxz
 doesn't support copying other metadata like access control lists
 or extended attributes yet.
 .PP
@@ -190,7 +198,7 @@ Sending
 or
 .B SIGUSR1
 to the
-.B xz
+.B fxz
 process makes it print progress information to standard error.
 This has only limited use since when standard error
 is a terminal, using
@@ -199,7 +207,7 @@ will display an automatically updating progress indicator.
 .
 .SS "Memory usage"
 The memory usage of
-.B xz
+.B fxz
 varies from a few hundred kilobytes to several gigabytes
 depending on the compression settings.
 The settings used when compressing a file determine
@@ -208,8 +216,8 @@ Typically the decompressor needs 5\ % to 20\ % of
 the amount of memory that the compressor needed when
 creating the file.
 For example, decompressing a file created with
-.B xz \-9
-currently requires 65\ MiB of memory.
+.B fxz \-9
+currently requires 129\ MiB of memory.
 Still, it is possible to have
 .B .xz
 files that require several gigabytes of memory to decompress.
@@ -217,7 +225,7 @@ files that require several gigabytes of memory to decompress.
 Especially users of older systems may find
 the possibility of very large memory usage annoying.
 To prevent uncomfortable surprises,
-.B xz
+.B fxz
 has a built-in memory usage limiter, which is disabled by default.
 While some operating systems provide ways to limit
 the memory usage of processes, relying on it
@@ -230,27 +238,27 @@ The memory usage limiter can be enabled with
 the command line option \fB\-\-memlimit=\fIlimit\fR.
 Often it is more convenient to enable the limiter
 by default by setting the environment variable
-.BR XZ_DEFAULTS ,
+.BR FXZ_DEFAULTS ,
 e.g.\&
-.BR XZ_DEFAULTS=\-\-memlimit=150MiB .
+.BR FXZ_DEFAULTS=\-\-memlimit=150MiB .
 It is possible to set the limits separately
 for compression and decompression
 by using \fB\-\-memlimit\-compress=\fIlimit\fR and
 \fB\-\-memlimit\-decompress=\fIlimit\fR.
 Using these two options outside
-.B XZ_DEFAULTS
+.B FXZ_DEFAULTS
 is rarely useful because a single run of
-.B xz
+.B fxz
 cannot do both compression and decompression and
 .BI \-\-memlimit= limit
 (or \fB\-M\fR \fIlimit\fR)
 is shorter to type on the command line.
 .PP
 If the specified memory usage limit is exceeded when decompressing,
-.B xz
+.B fxz
 will display an error and decompressing the file will fail.
 If the limit is exceeded when compressing,
-.B xz
+.B fxz
 will try to scale the settings down so that the limit
 is no longer exceeded (except when using \fB\-\-format=raw\fR
 or \fB\-\-no\-adjust\fR).
@@ -258,16 +266,16 @@ This way the operation won't fail unless the limit is very small.
 The scaling of the settings is done in steps that don't
 match the compression level presets, e.g. if the limit is
 only slightly less than the amount required for
-.BR "xz \-9" ,
+.BR "fxz \-9" ,
 the settings will be scaled down only a little,
 not all the way down to
-.BR "xz \-8" .
+.BR "fxz \-8" .
 .
 .SS "Concatenation and padding with .xz files"
 It is possible to concatenate
 .B .xz
 files as is.
-.B xz
+.B fxz
 will decompress such files as if they were a single
 .B .xz
 file.
@@ -378,7 +386,7 @@ The width of verbose output exceeds
 may be convenient if the terminal isn't wide enough.
 .IP ""
 The exact output may vary between
-.B xz
+.B fxz
 versions and different locales.
 For machine-readable output,
 .B \-\-robot \-\-list
@@ -407,7 +415,7 @@ When used with
 .B \-\-decompress
 .BR \-\-stdout
 and
-.B xz
+.B fxz
 cannot recognize the type of the source file,
 copy the source file as is to standard output.
 This allows
@@ -416,16 +424,16 @@ This allows
 to be used like
 .BR cat (1)
 for files that have not been compressed with
-.BR xz .
+.BR fxz .
 Note that in future,
-.B xz
+.B fxz
 might support new compressed file formats, which may make
-.B xz
+.B fxz
 decompress more types of files instead of copying them as is to
 standard output.
 .BI \-\-format= format
 can be used to restrict
-.B xz
+.B fxz
 to decompress only a single file format.
 .RE
 .TP
@@ -441,14 +449,14 @@ Decompress only the first
 stream, and
 silently ignore possible remaining input data following the stream.
 Normally such trailing garbage makes
-.B xz
+.B fxz
 display an error.
 .IP ""
-.B xz
+.B fxz
 never decompresses more than one stream from
 .B .lzma
 files or raw streams, but this option still makes
-.B xz
+.B fxz
 ignore the possible trailing data after the
 .B .lzma
 file or raw stream.
@@ -461,7 +469,7 @@ or
 .B \-\-no\-sparse
 Disable creation of sparse files.
 By default, if decompressing into a regular file,
-.B xz
+.B fxz
 tries to make the file sparse if the decompressed data contains
 long sequences of binary zeros.
 It also works when writing to standard output
@@ -671,7 +679,7 @@ decompressor memory usage reasonable even for old systems.
 .B \-6
 is the default, which is usually a good choice
 e.g. for distributing files that need to be decompressible
-even on systems with only 16\ MiB RAM.
+even on systems with only 32\ MiB RAM.
 .RB ( \-5e
 or
 .B \-6e
@@ -684,7 +692,7 @@ These are like
 .B \-6
 but with higher compressor and decompressor memory requirements.
 These are useful only when compressing files bigger than
-8\ MiB, 16\ MiB, and 32\ MiB, respectively.
+16\ MiB, 32\ MiB, and 64\ MiB, respectively.
 .RE
 .IP ""
 On the same hardware, the decompression speed is approximately
@@ -703,16 +711,16 @@ tab(;);
 c c c c c
 n n n n n.
 Preset;DictSize;CompCPU;CompMem;DecMem
-\-0;256 KiB;0;3 MiB;1 MiB
-\-1;1 MiB;1;9 MiB;2 MiB
-\-2;2 MiB;2;17 MiB;3 MiB
-\-3;4 MiB;3;32 MiB;5 MiB
-\-4;4 MiB;4;48 MiB;5 MiB
-\-5;8 MiB;5;94 MiB;9 MiB
-\-6;8 MiB;6;94 MiB;9 MiB
-\-7;16 MiB;6;186 MiB;17 MiB
-\-8;32 MiB;6;370 MiB;33 MiB
-\-9;64 MiB;6;674 MiB;65 MiB
+\-0;256 KiB;0;23 MiB;1 MiB
+\-1;1 MiB;1;71 MiB;2 MiB
+\-2;2 MiB;2;19 MiB;3 MiB
+\-3;2 MiB;3;20 MiB;5 MiB
+\-4;8 MiB;4;51 MiB;9 MiB
+\-5;16 MiB;5;92 MiB;17 MiB
+\-6;16 MiB;6;92 MiB;17 MiB
+\-7;32 MiB;6;175 MiB;33 MiB
+\-8;64 MiB;6;341 MiB;65 MiB
+\-9;128 MiB;6;801 MiB;129 MiB
 .TE
 .RE
 .RE
@@ -741,12 +749,10 @@ To get even slower and thus possibly better compression, see
 .BR \-\-extreme .
 .IP \(bu 3
 CompMem contains the compressor memory requirements
-in the single-threaded mode.
+for 4\ threads.
 It may vary slightly between
-.B xz
+.B fxz
 versions.
-Memory requirements of some of the future multithreaded modes may
-be dramatically higher than that of the single-threaded mode.
 .IP \(bu 3
 DecMem contains the decompressor memory requirements.
 That is, the compression settings determine
@@ -762,49 +768,11 @@ Use a slower variant of the selected compression preset level
 to hopefully get a little bit better compression ratio,
 but with bad luck this can also make it worse.
 Decompressor memory usage is not affected,
-but compressor memory usage increases a little at preset levels
-.BR \-0 " ... " \-3 .
-.IP ""
-Since there are two presets with dictionary sizes
-4\ MiB and 8\ MiB, the presets
-.B \-3e
-and
-.B \-5e
-use slightly faster settings (lower CompCPU) than
-.B \-4e
-and
-.BR \-6e ,
-respectively.
-That way no two presets are identical.
-.RS
-.RS
-.PP
-.TS
-tab(;);
-c c c c c
-n n n n n.
-Preset;DictSize;CompCPU;CompMem;DecMem
-\-0e;256 KiB;8;4 MiB;1 MiB
-\-1e;1 MiB;8;13 MiB;2 MiB
-\-2e;2 MiB;8;25 MiB;3 MiB
-\-3e;4 MiB;7;48 MiB;5 MiB
-\-4e;4 MiB;8;48 MiB;5 MiB
-\-5e;8 MiB;7;94 MiB;9 MiB
-\-6e;8 MiB;8;94 MiB;9 MiB
-\-7e;16 MiB;8;186 MiB;17 MiB
-\-8e;32 MiB;8;370 MiB;33 MiB
-\-9e;64 MiB;8;674 MiB;65 MiB
-.TE
-.RE
-.RE
-.IP ""
-For example, there are a total of four presets that use
-8\ MiB dictionary, whose order from the fastest to the slowest is
-.BR \-5 ,
-.BR \-6 ,
-.BR \-5e ,
-and
-.BR \-6e .
+but compressor memory usage increases by up to 128\ KiB at all preset levels.
+.TP
+.BR \-e ", " \-\-extreme
+Use the original liblzma LZMA2 implementation. This is useful for making the
+smallest possible output file for a given dictionary size.
 .TP
 .B \-\-fast
 .PD 0
@@ -826,14 +794,14 @@ When compressing to the
 format, split the input data into blocks of
 .I size
 bytes.
-The blocks are compressed independently from each other,
+At level 0, the blocks are compressed independently from each other,
 which helps with multi-threading and
 makes limited random-access decompression possible.
 This option is typically used to override the default
 block size in multi-threaded mode,
 but this option can be used in single-threaded mode too.
 .IP ""
-In multi-threaded mode about three times
+In multi-threaded mode, about three times
 .I size
 bytes will be allocated in each thread for buffering input and output.
 The default
@@ -848,7 +816,7 @@ less than the LZMA2 dictionary size is waste of RAM
 because then the LZMA2 dictionary buffer will never get fully used.
 The sizes of the blocks are stored in the block headers,
 which a future version of
-.B xz
+.B fxz
 will use for multi-threaded decompression.
 .IP ""
 In single-threaded mode no block splitting is done by default.
@@ -857,7 +825,7 @@ No size information is stored in block headers,
 thus files created in single-threaded mode
 won't be identical to files created in multi-threaded mode.
 The lack of size information also means that a future version of
-.B xz
+.B fxz
 won't be able decompress the files in multi-threaded mode.
 .TP
 .BI \-\-block\-list= sizes
@@ -911,7 +879,7 @@ reading more input would block,
 all the pending input data is flushed from the encoder and
 made available in the output stream.
 This can be useful if
-.B xz
+.B fxz
 is used to compress data that is streamed over a network.
 Small
 .I timeout
@@ -933,9 +901,9 @@ This feature is not available on non-POSIX systems.
 .\" FIXME
 .B "This feature is still experimental."
 Currently
-.B xz
+.B fxz
 is unsuitable for decompressing the stream in real time due to how
-.B xz
+.B fxz
 does buffering.
 .TP
 .BI \-\-memlimit\-compress= limit
@@ -945,7 +913,7 @@ the last one takes effect.
 .IP ""
 If the compression settings exceed the
 .IR limit ,
-.B xz
+.B fxz
 will adjust the settings downwards so that
 the limit is no longer exceeded and display a notice that
 automatic adjustment was done.
@@ -955,7 +923,7 @@ or if
 .B \-\-no\-adjust
 has been specified.
 In those cases, an error is displayed and
-.B xz
+.B fxz
 will exit with exit status 1.
 .IP ""
 The
@@ -976,7 +944,7 @@ The
 .I limit
 can be specified as a percentage of total physical memory (RAM).
 This can be useful especially when setting the
-.B XZ_DEFAULTS
+.B FXZ_DEFAULTS
 environment variable in a shell initialization script
 that is shared between different computers.
 That way the limit is automatically bigger
@@ -993,12 +961,12 @@ This is currently equivalent to setting the
 to
 .B max
 (no memory usage limit).
-Once multithreading support has been implemented,
+Once multi-threading support has been implemented,
 there may be a difference between
 .B 0
 and
 .B max
-for the multithreaded case, so it is recommended to use
+for the multi-threaded case, so it is recommended to use
 .B 0
 instead of
 .B max
@@ -1015,7 +983,7 @@ This also affects the
 mode.
 If the operation is not possible without exceeding the
 .IR limit ,
-.B xz
+.B fxz
 will display an error and decompressing the file will fail.
 See
 .BI \-\-memlimit\-compress= limit
@@ -1041,28 +1009,29 @@ Setting
 to a special value
 .B 0
 makes
-.B xz
-use as many threads as there are CPU cores on the system.
-The actual number of threads can be less than
-.I threads
-if the input file is not big enough
-for threading with the given settings or
-if using more threads would exceed the memory usage limit.
+.B fxz
+use as many threads as there are CPU cores on the system. For preset 2 and higher the
+multi-threaded radix matchfinder will be used. The old liblzma multi-block method
+for multi-threading will be used at preset 0 or 1, or if
+.BI \-\-original
+was specified. 
 .IP ""
-Currently the only threading method is to split the input into
-blocks and compress them independently from each other.
 The default block size depends on the compression level and
 can be overriden with the
 .BI \-\-block\-size= size
 option.
 .IP ""
+The actual number of threads can be less than
+.I threads
+if the input file is only a few KiB, or if the multi-block mode is enabled.
 Threaded decompression hasn't been implemented yet.
 It will only work on files that contain multiple blocks
 with size information in block headers.
 All files compressed in multi-threaded mode meet this condition,
 but files compressed in single-threaded mode don't even if
 .BI \-\-block\-size= size
-is used.
+is used. This may be added in a later version to allow multi-threaded decompression
+of files compressed with the radix match finder.
 .
 .SS "Custom compressor filter chains"
 A custom filter chain allows specifying
@@ -1111,7 +1080,7 @@ specify only those you want to change.
 To see the whole filter chain and
 .IR options ,
 use
-.B "xz \-vv"
+.B "fxz \-vv"
 (that is, use
 .B \-\-verbose
 twice).
@@ -1154,10 +1123,15 @@ The integer can be from
 to
 .BR 9 ,
 matching the command line options \fB\-0\fR ... \fB\-9\fR.
-The only supported modifier is currently
+The modifier 
 .BR e ,
-which matches
+matches
 .BR \-\-extreme .
+.B fxz
+adds a new option
+.BR o ,
+which matches
+.BR \-\-original .
 If no
 .B preset
 is specified, the default values of LZMA1 or LZMA2
@@ -1182,9 +1156,9 @@ a dictionary bigger than the uncompressed file is waste of memory.
 .IP ""
 Typical dictionary
 .I size
-is from 64\ KiB to 64\ MiB.
+is from 64\ KiB to 128\ MiB.
 The minimum is 4\ KiB.
-The maximum for compression is currently 1.5\ GiB (1536\ MiB).
+The maximum for compression is currently 1\ GiB.
 The decompressor already supports dictionaries up to
 one byte less than 4\ GiB, which is the maximum for
 the LZMA1 and LZMA2 stream formats.
@@ -1310,7 +1284,7 @@ The default depends on the
 use
 .BR hc4 ,
 and the rest use
-.BR bt4 .
+.BR rad .
 .IP ""
 The following match finders are supported.
 The memory usage formulas below are rough approximations,
@@ -1405,6 +1379,25 @@ Memory usage:
 * 10.5 (if
 .I dict
 > 32 MiB)
+.TP
+.B rad
+Radix match finder plus additional hc3 in hybrid (ultra) mode
+.br
+Minimum value for
+.IR nice :
+6
+.br
+Memory usage:
+.br
+.I dict
+* 5 (if
+.I dict
+<= 64 MiB);
+.br
+.I dict
+* 6 (if
+.I dict
+> 64 MiB)
 .RE
 .TP
 .BI mode= mode
@@ -1416,14 +1409,20 @@ Supported
 .I modes
 are
 .B fast
+,
+.B normal
 and
-.BR normal .
+.BR ultra .
 The default is
 .B fast
 for
 .I presets
-0\-3 and
+0\-2,
 .B normal
+for
+.I presets
+3\-5 and
+.B ultra
 for
 .I presets
 4\-9.
@@ -1431,8 +1430,8 @@ for
 Usually
 .B fast
 is used with Hash Chain match finders and
-.B normal
-with Binary Tree match finders.
+.B fast/normal/ultra
+with the Radix match finder.
 This is also what the
 .I presets
 do.
@@ -1463,14 +1462,34 @@ and
 .IP ""
 Reasonable
 .I depth
-for Hash Chains is 4\-100 and 16\-1000 for Binary Trees.
+for Hash Chains is 4\-100, 16\-1000 for Binary Trees, and
+6\-254 for the Radix match finder.
 Using very high values for
 .I depth
-can make the encoder extremely slow with some files.
-Avoid setting the
+can make the encoder extremely slow with some files if using a
+Hash Chain or Binary Tree. Avoid setting the
 .I depth
 over 1000 unless you are prepared to interrupt
 the compression in case it is taking far too long.
+.TP
+.BI ov= block overlap
+The Radix match finder is a block algorithm which cannot use a
+sliding window. A portion of each completed block must be copied to
+provide some dictionary for the next block.
+.IP ""
+.I Ov
+is specified in sixteenths of the dictionary size. The minimum is 0 and the maximum is 14. The default is 2, but
+.B \-\-extreme
+changes it to 4. Large overlaps may not yield greater compression, especially on
+small dictionary sizes.
+.TP
+.BI dc= enable division of chains
+Long chains of 2-byte matches may be broken up by the Radix match finder and searched
+to greater depth in segments. This allows cache-efficient buffering.
+.IP ""
+The default is 1 (=enabled). Setting
+.I dc
+to 0 slows compression but usually improves the ratio. Chain division provides a good speed/ratio tradeoff.
 .RE
 .IP ""
 When decoding raw streams
@@ -1644,7 +1663,7 @@ the exit status to indicate a warning is still used.
 .BR \-v ", " \-\-verbose
 Be verbose.
 If standard error is connected to a terminal,
-.B xz
+.B fxz
 will display a progress indicator.
 Specifying
 .B \-\-verbose
@@ -1671,7 +1690,7 @@ Compression or decompression speed.
 This is measured as the amount of uncompressed data consumed
 (compression) or produced (decompression) per second.
 It is shown after a few seconds have passed since
-.B xz
+.B fxz
 started processing the file.
 .IP \(bu 3
 Elapsed time in the format M:SS or H:MM:SS.
@@ -1679,7 +1698,7 @@ Elapsed time in the format M:SS or H:MM:SS.
 Estimated remaining time is shown
 only when the size of the input file is
 known and a couple of seconds have already passed since
-.B xz
+.B fxz
 started processing the file.
 The time is shown in a less precise format which
 never has any colons, e.g. 2 min 30 s.
@@ -1688,7 +1707,7 @@ never has any colons, e.g. 2 min 30 s.
 When standard error is not a terminal,
 .B \-\-verbose
 will make
-.B xz
+.B fxz
 print the filename, compressed size, uncompressed size,
 compression ratio, and possibly also the speed and elapsed time
 on a single line to standard error after compressing or
@@ -1712,10 +1731,10 @@ to not alter the exit status.
 .B \-\-robot
 Print messages in a machine-parsable format.
 This is intended to ease writing frontends that want to use
-.B xz
-instead of liblzma, which may be the case with various scripts.
+.B fxz
+instead of libflzma, which may be the case with various scripts.
 The output with this option enabled is meant to be stable across
-.B xz
+.B fxz
 releases.
 See the section
 .B "ROBOT MODE"
@@ -1723,7 +1742,7 @@ for details.
 .TP
 .BR \-\-info\-memory
 Display, in human-readable format, how much physical memory (RAM)
-.B xz
+.B fxz
 thinks the system has and the memory usage limits for compression
 and decompression, and exit successfully.
 .TP
@@ -1733,13 +1752,13 @@ and exit successfully.
 .TP
 .BR \-H ", " \-\-long\-help
 Display a help message describing all features of
-.BR xz ,
+.BR fxz ,
 and exit successfully
 .TP
 .BR \-V ", " \-\-version
 Display the version number of
-.B xz
-and liblzma in human readable format.
+.B fxz
+and libflzma in human readable format.
 To get machine-parsable output, specify
 .B \-\-robot
 before
@@ -1750,7 +1769,7 @@ The robot mode is activated with the
 .B \-\-robot
 option.
 It makes the output of
-.B xz
+.B fxz
 easier to parse by other programs.
 Currently
 .B \-\-robot
@@ -1763,10 +1782,10 @@ It will be supported for compression and
 decompression in the future.
 .
 .SS Version
-.B "xz \-\-robot \-\-version"
+.B "fxz \-\-robot \-\-version"
 will print the version number of
-.B xz
-and liblzma in the following format:
+.B fxz
+and libflzma in the following format:
 .PP
 .BI XZ_VERSION= XYYYZZZS
 .br
@@ -1794,8 +1813,8 @@ is even.
 .PP
 .I XYYYZZZS
 are the same on both lines if
-.B xz
-and liblzma are from the same XZ Utils release.
+.B fxz
+and libflzma are from the same FXZ Utils release.
 .PP
 Examples: 4.999.9beta is
 .B 49990091
@@ -1804,7 +1823,7 @@ and
 .BR 50000002 .
 .
 .SS "Memory limit information"
-.B "xz \-\-robot \-\-info\-memory"
+.B "fxz \-\-robot \-\-info\-memory"
 prints a single line with three tab-separated columns:
 .IP 1. 4
 Total amount of physical memory (RAM) in bytes
@@ -1818,11 +1837,11 @@ A special value of zero indicates the default setting,
 which for single-threaded mode is the same as no limit.
 .PP
 In the future, the output of
-.B "xz \-\-robot \-\-info\-memory"
+.B "fxz \-\-robot \-\-info\-memory"
 may have more columns, but never more than a single line.
 .
 .SS "List mode"
-.B "xz \-\-robot \-\-list"
+.B "fxz \-\-robot \-\-list"
 uses tab-separated output.
 The first column of every line has a string
 that indicates the type of the information found on that line:
@@ -2004,7 +2023,7 @@ the block header, block padding, and check fields)
 .IP 15. 4
 Amount of memory (in bytes) required to decompress
 this block with this
-.B xz
+.B fxz
 version
 .IP 16. 4
 Filter chain.
@@ -2024,7 +2043,7 @@ lines:
 .IP 2. 4
 Amount of memory (in bytes) required to decompress
 this file with this
-.B xz
+.B fxz
 version
 .IP 3. 4
 .B yes
@@ -2082,7 +2101,7 @@ line:
 .IP 10. 4
 Maximum amount of memory (in bytes) required to decompress
 the files with this
-.B xz
+.B fxz
 version
 .IP 11. 4
 .B yes
@@ -2121,12 +2140,12 @@ Notices (not warnings or errors) printed on standard error
 don't affect the exit status.
 .
 .SH ENVIRONMENT
-.B xz
+.B fxz
 parses space-separated lists of options
 from the environment variables
-.B XZ_DEFAULTS
+.B FXZ_DEFAULTS
 and
-.BR XZ_OPT ,
+.BR FXZ_OPT ,
 in this order, before parsing the options from the command line.
 Note that only options are parsed from the environment variables;
 all non-options are silently ignored.
@@ -2134,23 +2153,23 @@ Parsing is done with
 .BR getopt_long (3)
 which is used also for the command line arguments.
 .TP
-.B XZ_DEFAULTS
+.B FXZ_DEFAULTS
 User-specific or system-wide default options.
 Typically this is set in a shell initialization script to enable
-.BR xz 's
+.BR fxz 's
 memory usage limiter by default.
 Excluding shell initialization scripts
 and similar special cases, scripts must never set or unset
-.BR XZ_DEFAULTS .
+.BR FXZ_DEFAULTS .
 .TP
-.B XZ_OPT
+.B FXZ_OPT
 This is for passing options to
-.B xz
+.B fxz
 when it is not possible to set the options directly on the
-.B xz
+.B fxz
 command line.
 This is the case e.g. when
-.B xz
+.B fxz
 is run by a script or tool, e.g. GNU
 .BR tar (1):
 .RS
@@ -2158,17 +2177,17 @@ is run by a script or tool, e.g. GNU
 .PP
 .nf
 .ft CW
-XZ_OPT=\-2v tar caf foo.tar.xz foo
+FXZ_OPT=\-2v tar caf foo.tar.xz foo
 .ft R
 .fi
 .RE
 .RE
 .IP ""
 Scripts may use
-.B XZ_OPT
+.B FXZ_OPT
 e.g. to set script-specific default compression options.
 It is still recommended to allow users to override
-.B XZ_OPT
+.B FXZ_OPT
 if that is reasonable, e.g. in
 .BR sh (1)
 scripts one may use something like this:
@@ -2177,31 +2196,25 @@ scripts one may use something like this:
 .PP
 .nf
 .ft CW
-XZ_OPT=${XZ_OPT\-"\-7e"}
-export XZ_OPT
+FXZ_OPT=${FXZ_OPT\-"\-7e"}
+export FXZ_OPT
 .ft R
 .fi
 .RE
 .RE
 .
-.SH "LZMA UTILS COMPATIBILITY"
+.SH "XZ UTILS COMPATIBILITY"
 The command line syntax of
-.B xz
-is practically a superset of
-.BR lzma ,
-.BR unlzma ,
-and
-.BR lzcat
-as found from LZMA Utils 4.32.x.
-In most cases, it is possible to replace
-LZMA Utils with XZ Utils without breaking existing scripts.
-There are some incompatibilities though,
+.B fxz
+is identical to
+.BR xz
+from XZ Utils 5.2.x, but for two additional LZMA2 encoder options.
+In most cases it is possible to replace
+XZ Utils with FXZ Utils without breaking existing scripts.
+There are some differences in memory usage though,
 which may sometimes cause problems.
 .
 .SS "Compression preset levels"
-The numbering of the compression level presets is not identical in
-.B xz
-and LZMA Utils.
 The most important difference is how dictionary sizes
 are mapped to different presets.
 Dictionary size is roughly equal to the decompressor memory usage.
@@ -2211,171 +2224,59 @@ Dictionary size is roughly equal to the decompressor memory usage.
 tab(;);
 c c c
 c n n.
-Level;xz;LZMA Utils
-\-0;256 KiB;N/A
-\-1;1 MiB;64 KiB
-\-2;2 MiB;1 MiB
-\-3;4 MiB;512 KiB
-\-4;4 MiB;1 MiB
-\-5;8 MiB;2 MiB
-\-6;8 MiB;4 MiB
-\-7;16 MiB;8 MiB
-\-8;32 MiB;16 MiB
-\-9;64 MiB;32 MiB
+Level;fxz;xz
+\-0;256 KiB;256 KiB
+\-1;1 MiB;1 MiB
+\-2;2 MiB;2 MiB
+\-3;2 MiB;4 MiB
+\-4;8 MiB;4 MiB
+\-5;16 MiB;8 MiB
+\-6;16 MiB;8 MiB
+\-7;32 MiB;16 MiB
+\-8;64 MiB;32 MiB
+\-9;128 MiB;64 MiB
 .TE
 .RE
 .PP
 The dictionary size differences affect
 the compressor memory usage too,
-but there are some other differences between
-LZMA Utils and XZ Utils, which
-make the difference even bigger:
+but the radix match finder uses less memory per dictionary
+byte than hc or bt match finders, so the end result is similar
+for double the dictionary size. Also, the multi-threaded match finder
+in fxz uses far less additional memory per thread than multi-threaded xz:
 .RS
 .PP
 .TS
 tab(;);
-c c c
-c n n.
-Level;xz;LZMA Utils 4.32.x
-\-0;3 MiB;N/A
-\-1;9 MiB;2 MiB
-\-2;17 MiB;12 MiB
-\-3;32 MiB;12 MiB
-\-4;48 MiB;16 MiB
-\-5;94 MiB;26 MiB
-\-6;94 MiB;45 MiB
-\-7;186 MiB;83 MiB
-\-8;370 MiB;159 MiB
-\-9;674 MiB;311 MiB
+c c c c c
+c n n n n.
+Level;fxz;xz;fxz \-T4;xz \-T4
+\-0;3 MiB;3 MiB;23 MiB;23 MiB
+\-1;9 MiB;9 MiB;71 MiB;71 MiB
+\-2;13 MiB;17 MiB;19 MiB;137 MiB
+\-3;13 MiB;32 MiB;20 MiB;269 MiB
+\-4;43 MiB;48 MiB;51 MiB;333 MiB
+\-5;83 MiB;94 MiB;92 MiB;661 MiB
+\-6;83 MiB;94 MiB;92 MiB;661 MiB
+\-7;164 MiB;186 MiB;175 MiB;1,317 MiB
+\-8;326 MiB;370 MiB;341 MiB;2,629 MiB
+\-9;777 MiB;674 MiB;801 MiB;4,997 MiB
 .TE
 .RE
 .PP
-The default preset level in LZMA Utils is
-.B \-7
-while in XZ Utils it is
-.BR \-6 ,
-so both use an 8 MiB dictionary by default.
-.
-.SS "Streamed vs. non-streamed .lzma files"
-The uncompressed size of the file can be stored in the
-.B .lzma
-header.
-LZMA Utils does that when compressing regular files.
-The alternative is to mark that uncompressed size is unknown
-and use end-of-payload marker to indicate
-where the decompressor should stop.
-LZMA Utils uses this method when uncompressed size isn't known,
-which is the case for example in pipes.
-.PP
-.B xz
-supports decompressing
-.B .lzma
-files with or without end-of-payload marker, but all
-.B .lzma
-files created by
-.B xz
-will use end-of-payload marker and have uncompressed size
-marked as unknown in the
-.B .lzma
-header.
-This may be a problem in some uncommon situations.
-For example, a
-.B .lzma
-decompressor in an embedded device might work
-only with files that have known uncompressed size.
-If you hit this problem, you need to use LZMA Utils
-or LZMA SDK to create
-.B .lzma
-files with known uncompressed size.
-.
-.SS "Unsupported .lzma files"
-The
-.B .lzma
-format allows
-.I lc
-values up to 8, and
-.I lp
-values up to 4.
-LZMA Utils can decompress files with any
-.I lc
-and
-.IR lp ,
-but always creates files with
-.B lc=3
-and
-.BR lp=0 .
-Creating files with other
-.I lc
-and
-.I lp
-is possible with
-.B xz
-and with LZMA SDK.
-.PP
-The implementation of the LZMA1 filter in liblzma
-requires that the sum of
-.I lc
-and
-.I lp
-must not exceed 4.
-Thus,
-.B .lzma
-files, which exceed this limitation, cannot be decompressed with
-.BR xz .
-.PP
-LZMA Utils creates only
-.B .lzma
-files which have a dictionary size of
-.RI "2^" n
-(a power of 2) but accepts files with any dictionary size.
-liblzma accepts only
-.B .lzma
-files which have a dictionary size of
-.RI "2^" n
-or
-.RI "2^" n " + 2^(" n "\-1)."
-This is to decrease false positives when detecting
-.B .lzma
-files.
-.PP
-These limitations shouldn't be a problem in practice,
-since practically all
-.B .lzma
-files have been compressed with settings that liblzma will accept.
-.
-.SS "Trailing garbage"
-When decompressing,
-LZMA Utils silently ignore everything after the first
-.B .lzma
-stream.
-In most situations, this is a bug.
-This also means that LZMA Utils
-don't support decompressing concatenated
-.B .lzma
-files.
-.PP
-If there is data left after the first
-.B .lzma
-stream,
-.B xz
-considers the file to be corrupt unless
-.B \-\-single\-stream
-was used.
-This may break obscure scripts which have
-assumed that trailing garbage is ignored.
 .
 .SH NOTES
 .
 .SS "Compressed output may vary"
 The exact compressed output produced from
 the same uncompressed input file
-may vary between XZ Utils versions even if
+may vary between FXZ Utils versions even if
 compression options are identical.
 This is because the encoder can be improved
 (faster or better compression)
 without affecting the file format.
 The output can vary even between different
-builds of the same XZ Utils version,
+builds of the same FXZ Utils version,
 if different build options are used.
 .PP
 The above means that once
@@ -2383,10 +2284,10 @@ The above means that once
 has been implemented,
 the resulting files won't necessarily be rsyncable
 unless both old and new files have been compressed
-with the same xz version.
+with the same fxz version.
 This problem can be fixed if a part of the encoder
 implementation is frozen to keep rsyncable output
-stable across xz versions.
+stable across fxz versions.
 .
 .SS "Embedded .xz decompressors"
 Embedded
@@ -2435,7 +2336,7 @@ if compression is successful:
 .PP
 .nf
 .ft CW
-xz foo
+fxz foo
 .ft R
 .fi
 .RE
@@ -2451,7 +2352,7 @@ even if decompression is successful:
 .PP
 .nf
 .ft CW
-xz \-dk bar.xz
+fxz \-dk bar.xz
 .ft R
 .fi
 .RE
@@ -2469,7 +2370,7 @@ and 5\ MiB, respectively):
 .PP
 .nf
 .ft CW
-tar cf \- baz | xz \-4e > baz.tar.xz
+tar cf \- baz | fxz \-4e > baz.tar.xz
 .ft R
 .fi
 .RE
@@ -2480,53 +2381,10 @@ to standard output with a single command:
 .PP
 .nf
 .ft CW
-xz \-dcf a.txt b.txt.xz c.txt d.txt.lzma > abcd.txt
+fxz \-dcf a.txt b.txt.xz c.txt d.txt.lzma > abcd.txt
 .ft R
 .fi
 .RE
-.
-.SS "Parallel compression of many files"
-On GNU and *BSD,
-.BR find (1)
-and
-.BR xargs (1)
-can be used to parallelize compression of many files:
-.RS
-.PP
-.nf
-.ft CW
-find . \-type f \e! \-name '*.xz' \-print0 \e
-    | xargs \-0r \-P4 \-n16 xz \-T1
-.ft R
-.fi
-.RE
-.PP
-The
-.B \-P
-option to
-.BR xargs (1)
-sets the number of parallel
-.B xz
-processes.
-The best value for the
-.B \-n
-option depends on how many files there are to be compressed.
-If there are only a couple of files,
-the value should probably be 1;
-with tens of thousands of files,
-100 or even more may be appropriate to reduce the number of
-.B xz
-processes that
-.BR xargs (1)
-will eventually create.
-.PP
-The option
-.B \-T1
-for
-.B xz
-is there to force it to single-threaded mode, because
-.BR xargs (1)
-is used to control the amount of parallelization.
 .
 .SS "Robot mode"
 Calculate how many bytes have been saved in total
@@ -2535,47 +2393,23 @@ after compressing multiple files:
 .PP
 .nf
 .ft CW
-xz \-\-robot \-\-list *.xz | awk '/^totals/{print $5\-$4}'
-.ft R
-.fi
-.RE
-.PP
-A script may want to know that it is using new enough
-.BR xz .
-The following
-.BR sh (1)
-script checks that the version number of the
-.B xz
-tool is at least 5.0.0.
-This method is compatible with old beta versions,
-which didn't support the
-.B \-\-robot
-option:
-.RS
-.PP
-.nf
-.ft CW
-if ! eval "$(xz \-\-robot \-\-version 2> /dev/null)" ||
-        [ "$XZ_VERSION" \-lt 50000002 ]; then
-    echo "Your xz is too old."
-fi
-unset XZ_VERSION LIBLZMA_VERSION
+fxz \-\-robot \-\-list *.xz | awk '/^totals/{print $5\-$4}'
 .ft R
 .fi
 .RE
 .PP
 Set a memory usage limit for decompression using
-.BR XZ_OPT ,
+.BR FXZ_OPT ,
 but if a limit has already been set, don't increase it:
 .RS
 .PP
 .nf
 .ft CW
 NEWLIM=$((123 << 20))  # 123 MiB
-OLDLIM=$(xz \-\-robot \-\-info\-memory | cut \-f3)
+OLDLIM=$(fxz \-\-robot \-\-info\-memory | cut \-f3)
 if [ $OLDLIM \-eq 0 \-o $OLDLIM \-gt $NEWLIM ]; then
-    XZ_OPT="$XZ_OPT \-\-memlimit\-decompress=$NEWLIM"
-    export XZ_OPT
+    FXZ_OPT="$XZ_OPT \-\-memlimit\-decompress=$NEWLIM"
+    export FXZ_OPT
 fi
 .ft R
 .fi
@@ -2617,20 +2451,20 @@ Preset;CompCPU
 If you know that a file requires
 somewhat big dictionary (e.g. 32 MiB) to compress well,
 but you want to compress it quicker than
-.B "xz \-8"
+.B "fxz \-8"
 would do, a preset with a low CompCPU value (e.g. 1)
 can be modified to use a bigger dictionary:
 .RS
 .PP
 .nf
 .ft CW
-xz \-\-lzma2=preset=1,dict=32MiB foo.tar
+fxz \-\-lzma2=preset=1,dict=32MiB foo.tar
 .ft R
 .fi
 .RE
 .PP
 With certain files, the above command may be faster than
-.B "xz \-6"
+.B "fxz \-6"
 while compressing significantly better.
 However, it must be emphasized that only some files benefit from
 a big dictionary while keeping the CompCPU value low.
@@ -2646,13 +2480,13 @@ If very high compressor and decompressor memory usage is fine,
 and the file being compressed is
 at least several hundred megabytes, it may be useful
 to use an even bigger dictionary than the 64 MiB that
-.B "xz \-9"
+.B "fxz \-9"
 would use:
 .RS
 .PP
 .nf
 .ft CW
-xz \-vv \-\-lzma2=dict=192MiB big_foo.tar
+fxz \-vv \-\-lzma2=dict=192MiB big_foo.tar
 .ft R
 .fi
 .RE
@@ -2683,7 +2517,7 @@ using about 100\ KiB of memory.
 .PP
 .nf
 .ft CW
-xz \-\-check=crc32 \-\-lzma2=preset=6e,dict=64KiB foo
+fxz \-\-check=crc32 \-\-lzma2=preset=6e,dict=64KiB foo
 .ft R
 .fi
 .RE
@@ -2704,14 +2538,14 @@ are more important.
 E.g. a source code archive contains mostly US-ASCII text,
 so something like the following might give
 slightly (like 0.1\ %) smaller file than
-.B "xz \-6e"
+.B "fxz \-6e"
 (try also without
 .BR lc=4 ):
 .RS
 .PP
 .nf
 .ft CW
-xz \-\-lzma2=preset=6e,pb=0,lc=4 source_code.tar
+fxz \-\-lzma2=preset=6e,pb=0,lc=4 source_code.tar
 .ft R
 .fi
 .RE
@@ -2724,7 +2558,7 @@ using the x86 BCJ filter:
 .PP
 .nf
 .ft CW
-xz \-\-x86 \-\-lzma2 libfoo.so
+fxz \-\-x86 \-\-lzma2 libfoo.so
 .ft R
 .fi
 .RE
@@ -2734,7 +2568,7 @@ If
 .B \-\-x86
 is specified after
 .BR \-\-lzma2 ,
-.B xz
+.B fxz
 will give an error,
 because there cannot be any filter after LZMA2,
 and also because the x86 BCJ filter cannot be used
@@ -2759,7 +2593,7 @@ to LZMA2 to accommodate the three-byte alignment:
 .PP
 .nf
 .ft CW
-xz \-\-delta=dist=3 \-\-lzma2=pb=0 foo.tiff
+fxz \-\-delta=dist=3 \-\-lzma2=pb=0 foo.tiff
 .ft R
 .fi
 .RE
@@ -2770,17 +2604,21 @@ the Delta filter will work on that too as long as all images
 have the same number of bytes per pixel.
 .
 .SH "SEE ALSO"
-.BR xzdec (1),
-.BR xzdiff (1),
-.BR xzgrep (1),
-.BR xzless (1),
-.BR xzmore (1),
+.BR fxzdec (1),
+.BR fxzdiff (1),
+.BR fxzgrep (1),
+.BR fxzless (1),
+.BR fxzmore (1),
 .BR gzip (1),
 .BR bzip2 (1),
 .BR 7z (1)
 .PP
+FXZ Utils: <https://github.com/conor42/fxz>
+.br
 XZ Utils: <https://tukaani.org/xz/>
 .br
 XZ Embedded: <https://tukaani.org/xz/embedded.html>
+.br
+Fast LZMA2: <https://github.com/conor42/fast-lzma2>
 .br
 LZMA SDK: <http://7-zip.org/sdk.html>
