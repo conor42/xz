@@ -396,11 +396,67 @@ typedef struct {
 	 */
 	uint32_t depth;
 
+	/**
+	 * \brief       Dictionary size for the near match finder
+	 *
+	 * The radix match finder can supply the optimizer with only one
+	 * match, usually the longest. LZMA_MODE_ULTRA adds an additional
+	 * hc3 match finder to find shorter matches within a small window.
+	 * The window size is 2 ^ near_dict_size_log. The log value must be in
+	 * the range [4, 14].
+	 */
 	uint32_t near_dict_size_log;
+
+	/**
+	 * \brief       Maximum search depth in the near match finder
+	 *
+	 * Must be in the range [1, 64]. Large values typically have little
+	 * effect due to the small window size.
+	 */
 	uint32_t near_depth;
+
+	/**
+	 * \brief       Block overlap in sixteenths of dict_size
+	 *
+	 * The Radix match finder is a block algorithm which cannot use a
+	 * sliding window. A portion of each completed block must be copied to
+	 * provide some dictionary for the next block. Must be in the range
+	 * [0, 14]. Large overlaps do not always yield greater compression,
+	 * especially on small dictionary sizes. Default is 2.
+	 */
 	uint32_t overlap_fraction;
+
+	/**
+	 * \brief       Divide up long chains
+	 *
+	 * Long chains of 2-byte matches can be broken up by the radix match
+	 * finder and searched in segments to greater depth. This allows
+	 * cache-efficient buffering. The speed gain is normally worth the
+	 * small loss in compression ratio.
+	 */
 	uint32_t divide_and_conquer;
+
+	/**
+	 * \brief       Log value of chain buffer relative to dict_size
+	 *
+	 * Buffering speeds up the matchfinder. Buffer size is
+	 * (dictionarySize >> (12 - bufferLog)) * 12 bytes.
+	 * Higher number = slower, better compression, higher memory usage.
+	 * A CPU with a large memory cache may make effective use of a larger
+	 * buffer. Must be in the range [0, 6]. Default is 4.
+	 */
 	uint32_t buffer_log;
+
+	/**
+	 * \brief       Number of worker threads
+	 *
+	 * The number of threads used for the radix match finder does not
+	 * affect the compression ratio. This number is also used for the
+	 * encoding stage, where the dictionary is sliced up and worked on by
+	 * multiple encoders. This results in a small loss of compression
+	 * ratio due to the resetting of probabilities at the start of each
+	 * slice.
+	*/
 	uint32_t threads;
 
 	/*

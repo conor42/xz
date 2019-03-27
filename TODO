@@ -1,40 +1,56 @@
 
-XZ Utils To-Do List
+FXZ Utils To-Do List
 ===================
+
+
+FXZ was made by nesting the Fast LZMA2 library within liblzma to create
+a two-headed monster, libflzma. It would be better to adapt the necessary
+components from fast-lzma2 and fit them neatly into the rest of the
+liblzma code.
+
+So far the only tested build environments are x86-64 Ubuntu Linux and
+Windows/MSYS2. fxz is the only tool currently enabled to build.
+
 
 Known bugs
 ----------
 
-    The test suite is too incomplete.
+    The xz test suite is too incomplete. However the Fast LZMA2 code has
+	a thorough fuzz tester derived from the ZStandard project. It has
+	also been tested on random file collections using the Radyx archiver.
 
-    If the memory usage limit is less than about 13 MiB, xz is unable to
+    If the memory usage limit is less than about 8 MiB, fxz is unable to
     automatically scale down the compression settings enough even though
-    it would be  possible by switching from BT2/BT3/BT4 match finder to
-    HC3/HC4.
+    it would be possible by switching from radix match finder to HC3/HC4.
 
-    XZ Utils compress some files significantly worse than LZMA Utils.
-    This is due to faster compression presets used by XZ Utils, and
-    can often be worked around by using "xz --extreme". With some files
-    --extreme isn't enough though: it's most likely with files that
-    compress extremely well, so going from compression ratio of 0.003
-    to 0.004 means big relative increase in the compressed file size.
-
-    xz doesn't quote unprintable characters when it displays file names
+    fxz doesn't quote unprintable characters when it displays file names
     given on the command line.
 
     tuklib_exit() doesn't block signals => EINTR is possible.
 
-    SIGTSTP is not handled. If xz is stopped, the estimated remaining
+    SIGTSTP is not handled. If fxz is stopped, the estimated remaining
     time and calculated (de)compression speed won't make sense in the
-    progress indicator (xz --verbose).
+    progress indicator (fxz --verbose).
 
-    If liblzma has created threads and fork() gets called, liblzma
+    If libflzma has created threads and fork() gets called, libflzma
     code will break in the child process unless it calls exec() and
-    doesn't touch liblzma.
+    doesn't touch libflzma.
 
 
 Missing features
 ----------------
+
+	The Fast LZMA2 library already supports multi-threaded
+	decompression, but it doesn't use info from .xz block headers.
+	Instead it speculatively reads compressed data into memory and
+	parses it searching for dictionary resets. This is based on the
+	scheme Igor Pavlov introduced in 7-Zip 18.03. It is not enabled in
+	fxz because the new api function it requires is not done, and
+	because use of block headers is a better system for .xz files. To
+	enable it, remove the line in lzma2_fast_encoder.c which sets
+	FL2_p_resetInterval to 0, and change FL2_createDStream() in
+	lzma2_fast_decoder.c to FL2_createDStreamMt(nbThreads), where
+	nbThreads is 0 or some fixed number.
 
     Add support for storing metadata in .xz files. A preliminary
     idea is to create a new Stream type for metadata. When both
@@ -53,13 +69,6 @@ Missing features
 
     xz doesn't support copying extended attributes, access control
     lists etc. from source to target file.
-
-    Multithreaded compression:
-      - Reduce memory usage of the current method.
-      - Implement threaded match finders.
-      - Implement pigz-style threading in LZMA2.
-
-    Multithreaded decompression
 
     Buffer-to-buffer coding could use less RAM (especially when
     decompressing LZMA1 or LZMA2).
@@ -99,7 +108,7 @@ Missing features
 Documentation
 -------------
 
-    More tutorial programs are needed for liblzma.
+    More tutorial programs are needed for libflzma.
 
     Document the LZMA1 and LZMA2 algorithms.
 

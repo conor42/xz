@@ -1,4 +1,14 @@
 
+FXZ Utils Release Notes
+=======================
+
+0.999.9alpha (2019-03-28)
+
+    * Initial public release. Added the Fast LZMA2 Library and a
+	  wrapper to use it from liblzma. The x86-64 build includes
+	  a port of Igor Pavlov's assembler-optimized decoder.
+
+
 XZ Utils Release Notes
 ======================
 
