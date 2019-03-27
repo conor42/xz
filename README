@@ -17,23 +17,23 @@ FXZ Utils
 0. Overview
 -----------
 
-	FXZ Utils is a fork of XZ Utils. It adds a multi-threaded radix
-	match finder and optimized encoder. The documentation, including this
-	file, is based upon the XZ Utils documentation.
+    FXZ Utils is a fork of XZ Utils. It adds a multi-threaded radix
+    match finder and optimized encoder. The documentation, including this
+    file, is based upon the XZ Utils documentation.
 
-	The fxz command-line tool, derived from xz, provides faster
-	compression than xz on most inputs, but a slightly larger output.
-	These tests on the 723 MiB 'raspbian-jessie-lite-20151121.tar' from
-	the Squash Compression Corpus demonstrate performance relative to xz
-	using 4 threads:
+    The fxz command-line tool, derived from xz, provides faster
+    compression than xz on most inputs, but a slightly larger output.
+    These tests on the 723 MiB 'raspbian-jessie-lite-20151121.tar' from
+    the Squash Compression Corpus demonstrate performance relative to xz
+    using 4 threads:
 
-	      Preset   Size  Time  MiB/s  RAM MiB
-	  xz     4    222.6  1:11  10.2      333
-	  fxz    4    222.6  0:45  16.0       50
-	  xz     6    213.4  1:34   7.6      661
-	  fxz    6    214.2  0:52  13.7       92
-	  xz     8    195.9  2:02   5.9    2,629
-	  fxz    8    196.9  1:06  10.9      335
+          Preset   Size  Time  MiB/s  RAM MiB
+      xz     4    222.6  1:11  10.2      333
+      fxz    4    222.7  0:45  16.0       50
+      xz     6    213.4  1:34   7.6      661
+      fxz    6    214.2  0:52  13.7       92
+      xz     8    195.9  2:02   5.9    2,629
+      fxz    8    196.9  1:06  10.9      335
 
     FXZ Utils provide a general-purpose data-compression library plus
     command-line tools. The native file format is the .xz format, but
@@ -74,13 +74,13 @@ FXZ Utils
     compress better than LZMA2.
 
     FXZ Utils doesn't support multithreaded decompression yet (sort-of -
-	see TODO). It has been planned though and taken into account when
-	designing the .xz file format.
+    see TODO). It has been planned though and taken into account when
+    designing the .xz file format.
 
-	Of the tool builds, only fxz is enabled in configure.ac. The others,
-	including fxzdec, are disabled and untested. The original xzdec tool
-	is intended to be size optimized, and this is not yet organized in the
-	fxzdec build.
+    Of the tool builds, only fxz is enabled in configure.ac. The others,
+    including fxzdec, are disabled and untested. The original xzdec tool
+    is intended to be size optimized, and this is not yet organized in the
+    fxzdec build.
 
 1. Documentation
 ----------------
@@ -126,8 +126,8 @@ FXZ Utils
     a quick reference.
 
     If you have never used libflzma, libbzip2, or zlib, I recommend
-	learning the *basics* of the zlib API. Once you know that, it should
-	be easier to learn libflzma.
+    learning the *basics* of the zlib API. Once you know that, it should
+    be easier to learn libflzma.
 
         http://zlib.net/manual.html
         http://zlib.net/zlib_how.html
@@ -169,11 +169,11 @@ FXZ Utils
 -----------------
 
     If the bug exists in XZ Utils too, it would be better to report it
-	to the maintainer of that project, as it is widely used and XZ
-	fixes can easily be incorporated into FXZ. For information see
-	https://tukaani.org/xz/
+    to the maintainer of that project, as it is widely used and XZ
+    fixes can easily be incorporated into FXZ. For information see
+    https://tukaani.org/xz/
 
-	Naturally it is easiest for me if you already know what causes the
+    Naturally it is easiest for me if you already know what causes the
     unexpected behavior. Even better if you have a patch to propose.
     However, quite often the reason for unexpected behavior is unknown,
     so here are a few things to do before sending a bug report:
@@ -233,6 +233,6 @@ FXZ Utils
 ----------------------
 
     If you have questions, bug reports, patches etc. related to FXZ
-	Utils, contact Conor McCarthy <conor.mccarthy.444@gmail.com>.
+    Utils, contact Conor McCarthy <conor.mccarthy.444@gmail.com>.
     I'm sometimes slow at replying. If you haven't got a reply within two
     weeks, assume that your email has got lost and resend it.
