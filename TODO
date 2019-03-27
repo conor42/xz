@@ -16,8 +16,8 @@ Known bugs
 ----------
 
     The xz test suite is too incomplete. However the Fast LZMA2 code has
-	a thorough fuzz tester derived from the ZStandard project. It has
-	also been tested on random file collections using the Radyx archiver.
+    a thorough fuzz tester derived from the ZStandard project. It has
+    also been tested on random file collections using the Radyx archiver.
 
     If the memory usage limit is less than about 8 MiB, fxz is unable to
     automatically scale down the compression settings enough even though
@@ -40,17 +40,17 @@ Known bugs
 Missing features
 ----------------
 
-	The Fast LZMA2 library already supports multi-threaded
-	decompression, but it doesn't use info from .xz block headers.
-	Instead it speculatively reads compressed data into memory and
-	parses it searching for dictionary resets. This is based on the
-	scheme Igor Pavlov introduced in 7-Zip 18.03. It is not enabled in
-	fxz because the new api function it requires is not done, and
-	because use of block headers is a better system for .xz files. To
-	enable it, remove the line in lzma2_fast_encoder.c which sets
-	FL2_p_resetInterval to 0, and change FL2_createDStream() in
-	lzma2_fast_decoder.c to FL2_createDStreamMt(nbThreads), where
-	nbThreads is 0 or some fixed number.
+    The Fast LZMA2 library already supports multi-threaded
+    decompression, but it doesn't use info from .xz block headers.
+    Instead it speculatively reads compressed data into memory and
+    parses it searching for dictionary resets. This is based on the
+    scheme Igor Pavlov introduced in 7-Zip 18.03. It is not enabled in
+    fxz because the new api function it requires is not done, and
+    because use of block headers is a better system for .xz files. To
+    enable it, remove the line in lzma2_fast_encoder.c which sets
+    FL2_p_resetInterval to 0, and change FL2_createDStream() in
+    lzma2_fast_decoder.c to FL2_createDStreamMt(nbThreads), where
+    nbThreads is 0 or some fixed number.
 
     Add support for storing metadata in .xz files. A preliminary
     idea is to create a new Stream type for metadata. When both

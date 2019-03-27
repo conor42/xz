@@ -3,18 +3,18 @@ Authors of FXZ Utils
 ===================
 
     FXZ Utils is a fork of the XZ Utils project by Lasse Collin
-	<https://tukaani.org/xz/>
+    <https://tukaani.org/xz/>
 
     FXZ Utils and the Fast LZMA2 Library are developed and maintained by
-	Conor McCarthy <conor.mccarthy.444@gmail.com>.
+    Conor McCarthy <conor.mccarthy.444@gmail.com>.
 
-	Major parts of liblzma and and the Fast LZMA2 Library are based on
-	code written by Igor Pavlov, specifically the LZMA SDK
-	<http://7-zip.org/sdk.html>. Without this code, FXZ Utils and Fast
-	LZMA2 wouldn't exist.
+    Major parts of liblzma and and the Fast LZMA2 Library are based on
+    code written by Igor Pavlov, specifically the LZMA SDK
+    <http://7-zip.org/sdk.html>. Without this code, FXZ Utils and Fast
+    LZMA2 wouldn't exist.
 
-	Some parts of the Fast LZMA2 Library use code written by Yann Collet
-	and Tino Reichardt for ZStandard.
+    Some parts of the Fast LZMA2 Library use code written by Yann Collet
+    and Tino Reichardt for ZStandard.
 
     The SHA-256 implementation in liblzma is based on the code found from
     7-Zip <http://7-zip.org/>, which has a modified version of the SHA-256

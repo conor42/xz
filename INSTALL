@@ -33,10 +33,10 @@ FXZ Utils Installation
 0. Preface
 ----------
 
-	NOTE: fxz is the only enabled tool build in this release. The others
-	are untested or not completely renamed and will probably be enabled
-	later. The DOS makefiles are not fully converted either. So far the
-	only tested build environment is x86-64 Ubuntu Linux.
+    NOTE: fxz is the only enabled tool build in this release. The others
+    are untested or not completely renamed and will probably be enabled
+    later. The DOS makefiles are not fully converted either. So far the
+    only tested build environment is x86-64 Ubuntu Linux.
 
     If you aren't familiar with building packages that use GNU Autotools,
     see the file INSTALL.generic for generic instructions before reading
@@ -319,7 +319,7 @@ FXZ Utils Installation
     --disable-assembler
                 libflzma includes some assembler optimizations. Currently
                 there is assembler code for CRC32 and CRC64 for 32-bit
-				x86, and an LZMA2 decoder for 64-bit x86.
+                x86, and an LZMA2 decoder for 64-bit x86.
 
                 All the assembler code in libflzma is position-independent
                 code, which is suitable for use in shared libraries and
