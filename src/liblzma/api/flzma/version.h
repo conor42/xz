@@ -20,8 +20,8 @@
 /*
  * Version number split into components
  */
-#define LZMA_VERSION_MAJOR 1
-#define LZMA_VERSION_MINOR 0
+#define LZMA_VERSION_MAJOR 0
+#define LZMA_VERSION_MINOR 9
 #define LZMA_VERSION_PATCH 0
 #define LZMA_VERSION_STABILITY LZMA_VERSION_STABILITY_ALPHA
 
