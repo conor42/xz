@@ -15,6 +15,9 @@ Windows/MSYS2. fxz is the only tool currently enabled to build.
 Known bugs
 ----------
 
+    Fast LZMA2 has no custom allocator support, so it will ignore any
+    custom allocator passed to libflzma.
+
     The xz test suite is too incomplete. However the Fast LZMA2 code has
     a thorough fuzz tester derived from the ZStandard project. It has
     also been tested on random file collections using the Radyx archiver.
@@ -113,10 +116,3 @@ Documentation
     More tutorial programs are needed for libflzma.
 
     Document the LZMA1 and LZMA2 algorithms.
-
-
-Miscellaneous
-------------
-
-    Try to get the media type for .xz registered at IANA.
-
