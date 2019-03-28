@@ -437,17 +437,6 @@ typedef struct {
 	uint32_t divide_and_conquer;
 
 	/**
-	 * \brief       Log value of chain buffer relative to dict_size
-	 *
-	 * Buffering speeds up the matchfinder. Buffer size is
-	 * (dictionarySize >> (12 - bufferLog)) * 12 bytes.
-	 * Higher number = slower, better compression, higher memory usage.
-	 * A CPU with a large memory cache may make effective use of a larger
-	 * buffer. Must be in the range [0, 6]. Default is 4.
-	 */
-	uint32_t buffer_log;
-
-	/**
 	 * \brief       Number of worker threads
 	 *
 	 * The number of threads used for the radix match finder does not
@@ -468,7 +457,8 @@ typedef struct {
 	 */
 	uint32_t reserved_int1;
 	uint32_t reserved_int2;
-	lzma_reserved_enum reserved_enum1;
+    uint32_t reserved_int3;
+    lzma_reserved_enum reserved_enum1;
 	lzma_reserved_enum reserved_enum2;
 	lzma_reserved_enum reserved_enum3;
 	lzma_reserved_enum reserved_enum4;

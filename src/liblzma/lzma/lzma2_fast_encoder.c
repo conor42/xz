@@ -251,8 +251,6 @@ flzma2_set_options(flzma2_coder *coder, const lzma_options_lzma *options)
 	ret_translate_if_error(FL2_CStream_setParameter(fcs,
 			FL2_p_overlapFraction, options->overlap_fraction));
 	ret_translate_if_error(FL2_CStream_setParameter(fcs,
-			FL2_p_bufferLog, options->buffer_log));
-	ret_translate_if_error(FL2_CStream_setParameter(fcs,
 			FL2_p_hybridChainLog, options->near_dict_size_log));
 	ret_translate_if_error(FL2_CStream_setParameter(fcs,
 			FL2_p_searchDepth, depth));
@@ -369,7 +367,6 @@ lzma_flzma2_encoder_memusage(const void *options)
 	FL2_compressionParameters params;
 
 	params.dictionarySize = opt->dict_size;
-	params.bufferLog = opt->buffer_log;
 	params.chainLog = opt->near_dict_size_log;
 	params.strategy = opt->mode - 1;
 
