@@ -33,7 +33,7 @@ FXZ Utils
       xz     6    213.4  1:34   7.6      661
       fxz    6    214.2  0:52  13.7       92
       xz     8    195.9  2:02   5.9    2,629
-      fxz    8    196.9  1:06  10.9      335
+      fxz    8    196.9  1:06  10.9      336
 
     FXZ Utils provide a general-purpose data-compression library plus
     command-line tools. The native file format is the .xz format, but
