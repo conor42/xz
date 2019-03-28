@@ -9,13 +9,13 @@ EXTRA_DIST = \
 	files \
 	ossfuzz \
 	tests.h \
-	test_files.sh \
 	test_compress.sh \
 	test_scripts.sh \
 	bcj_test.c \
 	compress_prepared_bcj_sparc \
 	compress_prepared_bcj_x86 \
 	xzgrep_expected_output
+#	test_files.sh
 
 AM_CPPFLAGS = \
 	-I$(top_srcdir)/src/common \
@@ -46,8 +46,8 @@ TESTS = \
 	test_block_header \
 	test_index \
 	test_bcj_exact_size \
-	test_files.sh \
 	test_compress.sh
+#	test_files.sh
 
 if COND_SCRIPTS
 TESTS += test_scripts.sh
