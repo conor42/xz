@@ -50,7 +50,9 @@ Missing features
     enable it, remove the line in lzma2_fast_encoder.c which sets
     FL2_p_resetInterval to 0, and change FL2_createDStream() in
     lzma2_fast_decoder.c to FL2_createDStreamMt(nbThreads), where
-    nbThreads is 0 or some fixed number.
+    nbThreads is 0 or some fixed number. The decoder could use more
+    than 5 * dict_size of memory per thread and the limiter is NOT
+    enabled.
 
     Add support for storing metadata in .xz files. A preliminary
     idea is to create a new Stream type for metadata. When both
