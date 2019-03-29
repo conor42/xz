@@ -486,12 +486,12 @@ typedef enum {
 } FL2_strategy;
 
 typedef struct {
-    size_t   dictionarySize;   /* largest match distance : larger == more compression, more memory needed during decompression; >= 27 == more memory per byte, slower */
+    size_t   dictionarySize;   /* largest match distance : larger == more compression, more memory needed during decompression; > 64Mb == more memory per byte, slower */
     unsigned overlapFraction;  /* overlap between consecutive blocks in 1/16 units: larger == more compression, slower */
     unsigned chainLog;         /* HC3 sliding window : larger == more compression, slower; hybrid mode only (ultra) */
     unsigned cyclesLog;        /* nb of searches : larger == more compression, slower; hybrid mode only (ultra) */
     unsigned searchDepth;      /* maximum depth for resolving string matches : larger == more compression, slower */
-    unsigned fastLength;       /* acceptable match size for parser : larger == more compression, slower; fast bytes parameter from 7-zip */
+    unsigned fastLength;       /* acceptable match size for parser : larger == more compression, slower; fast bytes parameter from 7-Zip */
     unsigned divideAndConquer; /* split long chains of 2-byte matches into shorter chains with a small overlap : faster, somewhat less compression; enabled by default */
     FL2_strategy strategy;     /* encoder strategy : fast, optimized or ultra (hybrid) */
 } FL2_compressionParameters;
@@ -506,9 +506,7 @@ typedef enum {
                              * Typically provides a poor speed/ratio tradeoff. */
     FL2_p_dictionaryLog,    /* Maximum allowed back-reference distance, expressed as power of 2.
                              * Must be clamped between FL2_DICTLOG_MIN and FL2_DICTLOG_MAX.
-                             * Default = 24
-							 * Setting a dict log >= 26 (64 Mb) reduces bufferLog. Any custom bufferLog
-							 * value must be set after dictionaryLog. */
+                             * Default = 24 */
     FL2_p_dictionarySize,   /* Same as above but expressed as an absolute value. 
                              * Must be clamped between FL2_DICTSIZE_MIN and FL2_DICTSIZE_MAX.
                              * Default = 16 Mb */
