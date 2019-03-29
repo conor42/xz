@@ -65,7 +65,8 @@ in this document, 'multi-threaded mode' refers to the old liblzma multi-block
 method for multi-threading. Multi-threading with the Radix match finder works
 essentially the same way as single-threaded mode.
 .PP
-The compressor is optimized for best speed vs compression ratio. The native
+The compressor is designed to provide an optimal compromise between speed and compression
+ratio. The native
 .B .xz
 file format remains unchanged, and the legacy
 .B .lzma
@@ -713,7 +714,7 @@ tab(;);
 c c c c c
 n n n n n.
 Preset;DictSize;CompCPU;CompMem;DecMem
-\-0;256 KiB;0;23 MiB;1 MiB
+\-0;256 KiB;0;3 MiB;1 MiB
 \-1;1 MiB;1;8 MiB;2 MiB
 \-2;2 MiB;2;13 MiB;3 MiB
 \-3;2 MiB;3;13 MiB;5 MiB
@@ -771,7 +772,7 @@ Use a slower variant of the selected compression preset level
 to hopefully get a little bit better compression ratio,
 but with bad luck this can also make it worse.
 Decompressor memory usage is not affected,
-but compressor memory usage increases by up to 128\ KiB at all preset levels.
+and compressor memory usage increases slightly: up to 128\ KiB at all preset levels.
 .TP
 .BR \-o ", " \-\-original
 Use the original liblzma LZMA2 implementation. This is useful for making the
@@ -1396,12 +1397,12 @@ Minimum value for
 Memory usage:
 .br
 .I dict
-* 5 (if
+* (5 + threads * 0.05) (if
 .I dict
 <= 64 MiB);
 .br
 .I dict
-* 6 (if
+* (6 + threads * 0.025) (if
 .I dict
 > 64 MiB)
 .RE
@@ -2216,8 +2217,8 @@ XZ Utils with FXZ Utils without breaking existing scripts.
 There are some differences in memory usage though,
 which may sometimes cause problems.
 .B fxz
-also produces larger output, typically by < 1% of the compressed size, using
-double the dictionary size.
+also produces larger output, typically by < 1% of the compressed size,
+while using double the dictionary size.
 .B \-\-extreme
 may improve this at some cost in speed.
 .
