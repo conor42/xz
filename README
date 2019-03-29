@@ -28,12 +28,12 @@ FXZ Utils
     using 4 threads:
 
           Preset   Size  Time  MiB/s  RAM MiB
-      xz     4    222.6  1:11  10.2      333
-      fxz    4    222.7  0:45  16.0       50
-      xz     6    213.4  1:34   7.6      661
-      fxz    6    214.2  0:52  13.7       92
-      xz     8    195.9  2:02   5.9    2,629
-      fxz    8    196.9  1:06  10.9      336
+      xz     4    222.6  1:06  10.9      333
+      fxz    4    222.8  0:42  16.9       50
+      xz     6    213.4  1:33   7.7      661
+      fxz    6    214.2  0:53  13.6       92
+      xz     8    195.9  1:47   6.7    2,629
+      fxz    8    196.7  1:02  11.5      336
 
     FXZ Utils provide a general-purpose data-compression library plus
     command-line tools. The native file format is the .xz format, but
