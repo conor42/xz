@@ -255,6 +255,8 @@ flzma2_set_options(flzma2_coder *coder, const lzma_options_lzma *options)
 	ret_translate_if_error(FL2_CStream_setParameter(fcs,
 			FL2_p_searchDepth, depth));
 	ret_translate_if_error(FL2_CStream_setParameter(fcs,
+			FL2_p_fastLength, options->nice_len));
+	ret_translate_if_error(FL2_CStream_setParameter(fcs,
 			FL2_p_hybridCycles, options->near_depth));
 	ret_translate_if_error(FL2_CStream_setParameter(fcs,
 			FL2_p_divideAndConquer, options->divide_and_conquer));
