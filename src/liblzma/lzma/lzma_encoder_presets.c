@@ -33,7 +33,7 @@ lzma_lzma_preset_orig(lzma_options_lzma *options, uint32_t level, uint32_t flags
 	else {
 		options->mode = LZMA_MODE_NORMAL;
 		options->mf = LZMA_MF_BT4;
-		options->nice_len = level == 4 ? 16 : level == 5 ? 32 : 64;
+		options->nice_len = level == 4 ? 18 : level == 5 ? 36 : 68;
 		options->depth = 0;
 	}
 
