@@ -839,6 +839,33 @@ lzma_lzma_optimum_normal(lzma_lzma1_encoder *restrict coder,
 	for (cur = 1; cur < len_end; ++cur) {
 		assert(cur < OPTS);
 
+		// Terminate if the farthest calculated price is too near the buffer end
+		if (len_end >= OPTS - MATCH_LEN_MAX) {
+			uint32_t price = coder->opts[cur].price;
+			for (uint32_t i = cur + 1; i <= len_end; ++i) {
+				if (coder->opts[i].price <= price) {
+					price = coder->opts[i].price;
+					mf_skip(mf, i - cur);
+					cur = i;
+				}
+			}
+			break;
+		}
+
+		// Skip ahead if a lower or equal price is available at greater distance
+		uint32_t const end = min(cur + 16, len_end);
+		uint32_t price = coder->opts[cur].price;
+		for (uint32_t j = cur + 1; j <= end; j++) {
+			uint32_t const price2 = coder->opts[j].price;
+			if (price >= price2) {
+				price = price2;
+				mf_skip(mf, j - cur);
+				cur = j;
+				if (cur == len_end)
+					goto reverse;
+			}
+		}
+
 		coder->longest_match_length = mf_find(
 				mf, &coder->matches_count, coder->matches);
 
@@ -849,7 +876,7 @@ lzma_lzma_optimum_normal(lzma_lzma1_encoder *restrict coder,
 				position + cur, cur, mf->nice_len,
 				my_min(mf_avail(mf) + 1, OPTS - 1 - cur));
 	}
-
+reverse:
 	backward(coder, len_res, back_res, cur);
 	return;
 }
