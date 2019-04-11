@@ -19,7 +19,7 @@ FXZ Utils Installation
        2.1. Static vs. dynamic linking of libflzma
        2.2. Optimizing fxzdec and flzmadec
     3. fxzgrep and other scripts
-       3.1. Dependencies
+       3.1. Dependencies 
        3.2. PATH
     4. Troubleshooting
        4.1. "No C99 compiler was found."
