@@ -853,7 +853,7 @@ lzma_lzma_optimum_normal(lzma_lzma1_encoder *restrict coder,
 		}
 
 		// Skip ahead if a lower or equal price is available at greater distance
-		uint32_t const end = min(cur + 16, len_end);
+		uint32_t const end = my_min(cur + 16, len_end);
 		uint32_t price = coder->opts[cur].price;
 		for (uint32_t j = cur + 1; j <= end; j++) {
 			uint32_t const price2 = coder->opts[j].price;
