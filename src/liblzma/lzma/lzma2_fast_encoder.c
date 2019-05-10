@@ -12,14 +12,14 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "lzma2_fast_encoder.h"
-#include "fast-lzma2.h"
-#include "fl2_errors.h"
 #include "lzma2_enc.h"
 #include "radix_mf.h"
 
+#define DEBUGLOG(n, ...)
+
 typedef struct {
 	LZMA2_ECtx enc;
-	lzma2_data_block block;
+	lzma_data_block block;
 	size_t out_size;
 } lzma2_thread;
 
@@ -30,8 +30,11 @@ typedef struct {
 	/// LZMA options currently in use.
 	lzma_options_lzma opt_cur;
 
+	/// Allocated dictionary size
+	size_t dict_size;
+
 	/// Dictionary buffer of dict_size bytes
-	lzma2_data_block dict_block;
+	lzma_data_block dict_block;
 
 	/// Next coder in the chain
 	lzma_next_coder next;
@@ -53,55 +56,11 @@ typedef struct {
 } lzma2_fast_coder;
 
 
-extern lzma_ret
-flzma2_translate_error(const size_t ret)
-{
-	if (FL2_isTimedOut(ret))
-		return LZMA_TIMED_OUT;
-
-	switch (FL2_getErrorCode(ret)) {
-
-	case FL2_error_no_error:
-		return LZMA_OK;
-
-	case FL2_error_corruption_detected:
-	case FL2_error_checksum_wrong:
-		return LZMA_DATA_ERROR;
-
-	case FL2_error_parameter_unsupported:
-	case FL2_error_parameter_outOfBound:
-	case FL2_error_lclpMax_exceeded:
-		return LZMA_OPTIONS_ERROR;
-
-	case FL2_error_memory_allocation:
-		return LZMA_MEM_ERROR;
-
-	case FL2_error_buffer:
-		return LZMA_BUF_ERROR;
-
-	case FL2_error_GENERIC:
-	case FL2_error_canceled:
-	case FL2_error_stage_wrong:
-	case FL2_error_init_missing:
-	case FL2_error_internal:
-	default:
-		return LZMA_PROG_ERROR;
-	}
-}
-
-
 #define return_if_fl2_error(expr) \
 do { \
 	const size_t ret_ = (expr); \
 	if (FL2_isError(ret_)) \
 		return ret_; \
-} while (0)
-
-#define ret_translate_if_error(expr) \
-do { \
-	const size_t ret_ = (expr); \
-	if (FL2_isError(ret_)) \
-		return flzma2_translate_error(ret_); \
 } while (0)
 
 
@@ -122,15 +81,30 @@ static bool lzma2_fast_encoder_create(lzma2_fast_coder *coder,
 	params.match_buffer_resize = RMF_DEFAULT_BUF_RESIZE;
 	params.depth = coder->opt_cur.depth;
 	params.divide_and_conquer = coder->opt_cur.divide_and_conquer;
-	coder->match_table = RMF_createMatchTable(&params, 0, coder->thread_count);
-	if (!coder->match_table)
-		return false;
-	reset_dict(coder);
-	coder->dict_block.data = lzma_alloc(coder->opt_cur.dict_size, allocator);
-	if (!coder->dict_block.data) {
+	/* Free unsuitable match table before reallocating anything else */
+	if (coder->match_table && !RMF_compatibleParameters(coder->match_table, &params, 0)) {
 		RMF_freeMatchTable(coder->match_table);
 		coder->match_table = NULL;
 	}
+	if (coder->dict_block.data && coder->dict_size < coder->opt_cur.dict_size) {
+		lzma_free(coder->dict_block.data, allocator);
+		coder->dict_block.data = NULL;
+	}
+
+	if (LZMA2_hashAlloc(&coder->encoders[0], &coder->opt_cur))
+		return false;
+
+	if (!coder->match_table) {
+		coder->match_table = RMF_createMatchTable(&params, 0, coder->thread_count);
+		if (!coder->match_table)
+			return false;
+	}
+	reset_dict(coder);
+	if (!coder->dict_block.data) {
+		coder->dict_size = coder->opt_cur.dict_size;
+		coder->dict_block.data = lzma_alloc(coder->dict_size, allocator);
+	}
+
 	return coder->dict_block.data != NULL;
 }
 
@@ -143,6 +117,7 @@ compress(lzma2_fast_coder *coder)
 	if (out_size == (size_t)-1)
 		return LZMA_PROG_ERROR;
 	coder->encoders[0].out_size = out_size;
+	coder->dict_block.start = coder->dict_block.end;
 	return LZMA_OK;
 }
 
@@ -150,8 +125,8 @@ static lzma_ret
 update_dictionary(lzma2_fast_coder *coder, size_t size)
 {
 	coder->dict_block.end += size;
-	assert(coder->dict_block.end <= coder->opt_cur.dict_size);
-	if (coder->dict_block.end == coder->opt_cur.dict_size)
+	assert(coder->dict_block.end <= coder->dict_size);
+	if (coder->dict_block.end == coder->dict_size)
 		return compress(coder);
 	return LZMA_OK;
 }
@@ -168,13 +143,13 @@ copy_output(lzma2_fast_coder *coder,
 {
 	for (; coder->out_thread < coder->thread_count; ++coder->out_thread)
 	{
-		const BYTE* const outBuf = RMF_getTableAsOutputBuffer(coder->match_table, coder->encoders[coder->out_thread].block.start) + coder->out_pos;
+		const uint8_t* const outBuf = RMF_getTableAsOutputBuffer(coder->match_table, coder->encoders[coder->out_thread].block.start) + coder->out_pos;
 		size_t const dstCapacity = out_size - *out_pos;
 		size_t toWrite = coder->encoders[coder->out_thread].out_size;
 
 		toWrite = MIN(toWrite - coder->out_pos, dstCapacity);
 
-		DEBUGLOG(5, "CStream : writing %u bytes", (U32)toWrite);
+		DEBUGLOG(5, "CStream : writing %u bytes", (uint32_t)toWrite);
 
 		memcpy(out + *out_pos, outBuf, toWrite);
 		coder->out_pos += toWrite;
@@ -187,6 +162,41 @@ copy_output(lzma2_fast_coder *coder,
 		coder->out_pos = 0;
 	}
 	return false;
+}
+
+#define ALIGNMENT_SIZE 16U
+#define ALIGNMENT_MASK (~(size_t)(ALIGNMENT_SIZE-1))
+
+static void
+dict_shift(lzma2_fast_coder *coder)
+{
+    if (coder->dict_block.start < coder->dict_block.end)
+        return;
+
+    size_t overlap = OVERLAP_FROM_DICT_SIZE(coder->dict_size, coder->opt_cur.overlap_fraction);
+
+	if (overlap == 0) {
+		coder->dict_block.start = 0;
+		coder->dict_block.end = 0;
+    }
+    else if (coder->dict_block.end >= overlap + ALIGNMENT_SIZE) {
+        size_t const from = (coder->dict_block.end - overlap) & ALIGNMENT_MASK;
+        const uint8_t *const data = coder->dict_block.data;
+
+        overlap = coder->dict_block.end - from;
+
+        if (overlap <= from) {
+            DEBUGLOG(5, "Copy overlap data : %u bytes from %u", (unsigned)overlap, (unsigned)from);
+            memcpy(data, data + from, overlap);
+        }
+        else if (from != 0) {
+            DEBUGLOG(5, "Move overlap data : %u bytes from %u", (unsigned)overlap, (unsigned)from);
+            memmove(data, data + from, overlap);
+        }
+        /* New data will be written after the overlap */
+        coder->dict_block.start = overlap;
+        coder->dict_block.end = overlap;
+    }
 }
 
 /// \brief      Tries to fill the input window (coder->fcs internal buffer)
@@ -206,12 +216,14 @@ fill_window(lzma2_fast_coder *coder, const lzma_allocator *allocator,
 	// Copy any output pending in the internal buffer
 	copy_output(coder, out, out_pos, out_size);
 
+	dict_shift(coder);
+
 	size_t write_pos = 0;
 	lzma_ret ret;
 	if (coder->next.code == NULL) {
 		// Not using a filter, simply memcpy() as much as possible.
-		lzma_bufcpy(in, in_pos, in_size, coder->dict_block.data + coder->dict_block.end,
-				&write_pos, coder->opt_cur.dict_size);
+		lzma_bufcpy(in, in_pos, in_size, coder->dict_block.data,
+				&coder->dict_block.end, coder->dict_size);
 
 		ret = action != LZMA_RUN && *in_pos == in_size
 			? LZMA_STREAM_END : LZMA_OK;
@@ -219,8 +231,8 @@ fill_window(lzma2_fast_coder *coder, const lzma_allocator *allocator,
 	} else {
 		ret = coder->next.code(coder->next.coder, allocator,
 				in, in_pos, in_size,
-				coder->dict_block.data, &write_pos,
-				coder->opt_cur.dict_size, action);
+				coder->dict_block.data, &coder->dict_block.end,
+				coder->dict_size, action);
 	}
 
 	coder->ending = (ret == LZMA_STREAM_END);
@@ -251,9 +263,10 @@ end_stream(lzma2_fast_coder *coder,
 {
 	return_if_error(flush_stream(coder, out, out_pos, out_size));
 
-	if (!have_output(coder) && *out_pos < out_size) {
+	if (*out_pos < out_size) {
 		out[*out_pos] = LZMA2_END_MARKER;
 		++(*out_pos);
+		return LZMA_STREAM_END;
 	}
 
 	return LZMA_OK;
@@ -317,10 +330,8 @@ flzma2_encode(void *coder_ptr,
 
 	case LZMA_FINISH:
 		if (coder->ending) {
-			return_if_error(end_stream(coder, out, out_pos, out_size));
-
-			if (!have_output(coder))
-				ret = LZMA_STREAM_END;
+			ret = end_stream(coder, out, out_pos, out_size);
+			return_if_error(ret);
 		}
 		break;
 	}
@@ -336,6 +347,9 @@ flzma2_encoder_end(void *coder_ptr, const lzma_allocator *allocator)
 
 	lzma_next_end(&coder->next, allocator);
 
+	lzma_free(coder->dict_block.data, allocator);
+	RMF_freeMatchTable(coder->match_table);
+
 	for(size_t i = 0; i < coder->thread_count; ++i)
 		LZMA2_freeECtx(&coder->encoders[i].enc);
 
@@ -350,7 +364,7 @@ get_progress(void *coder_ptr, uint64_t *progress_in, uint64_t *progress_out)
 
 	*progress_out = 0;// fcs->streamCsize + fcs->progressOut;
 #if 0
-	U64 const encodeSize = coder->dict_block.end - coder->dict_block.start;
+	uint64_t const encodeSize = coder->dict_block.end - coder->dict_block.start;
 
 	if (fcs->progressIn == 0 && fcs->curBlock.end != 0)
 		return fcs->streamTotal + ((fcs->matchTable->progress * encodeSize / fcs->curBlock.end * fcs->rmfWeight) >> 4);
@@ -407,12 +421,13 @@ lzma_flzma2_encoder_init(lzma_next_coder *next,
 
 	lzma2_fast_coder *coder = next->coder;
 	if (coder == NULL) {
-		coder = lzma_alloc(sizeof(lzma2_fast_coder) + (options->threads - 1) * sizeof(lzma2_thread), allocator);
+		coder = lzma_alloc_zero(sizeof(lzma2_fast_coder) + (options->threads - 1) * sizeof(lzma2_thread), allocator);
 		if (coder == NULL)
 			return LZMA_MEM_ERROR;
 
-		if(!lzma2_fast_encoder_create(coder, allocator))
-			return LZMA_MEM_ERROR;
+		coder->dict_block.data = NULL;
+		coder->match_table = NULL;
+		LZMA2_constructECtx(&coder->encoders[0]);
 
 		next->coder = coder;
 		next->code = &flzma2_encode;
@@ -423,10 +438,12 @@ lzma_flzma2_encoder_init(lzma_next_coder *next,
 		coder->next = LZMA_NEXT_CODER_INIT;
 	}
 
+	if (!lzma2_fast_encoder_create(coder, allocator))
+		return LZMA_MEM_ERROR;
+
 	coder->opt_cur = *options;
 	if (options->depth == 0)
 		coder->opt_cur.depth = 42 + (options->dict_size >> 25) * 4U;
-	LZMA2_hashAlloc(&coder->encoders[0], options);
 
 	coder->ending = false;
 
