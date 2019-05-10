@@ -138,8 +138,12 @@ static lzma_ret
 compress(lzma2_fast_coder *coder)
 {
 	int canceled = 0;
-	return LZMA2_encode(&coder->encoders[0], coder->match_table, coder->dict_block, &coder->opt_cur,
+	size_t out_size = LZMA2_encode(&coder->encoders[0], coder->match_table, coder->dict_block, &coder->opt_cur,
 		-1, NULL, NULL, &canceled);
+	if (out_size == (size_t)-1)
+		return LZMA_PROG_ERROR;
+	coder->encoders[0].out_size = out_size;
+	return LZMA_OK;
 }
 
 static lzma_ret
@@ -422,6 +426,7 @@ lzma_flzma2_encoder_init(lzma_next_coder *next,
 	coder->opt_cur = *options;
 	if (options->depth == 0)
 		coder->opt_cur.depth = 42 + (options->dict_size >> 25) * 4U;
+	LZMA2_hashAlloc(&coder->encoders[0], options);
 
 	coder->ending = false;
 
