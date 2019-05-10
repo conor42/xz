@@ -7,13 +7,11 @@ Public domain
 #include <stdlib.h>
 #include <math.h>
 
-#include "fl2_errors.h"
-#include "fl2_internal.h"
+#include "flzma.h"
 #include "lzma2_enc.h"
-#include "fl2_compress_internal.h"
-#include "mem.h"
 #include "count.h"
 #include "radix_mf.h"
+#include "radix_internal.h"
 #include "range_enc.h"
 
 #ifdef FL2_XZ_BUILD
@@ -26,68 +24,6 @@ Public domain
 
 #endif
 
-#define kNumReps 4U
-#define kNumStates 12U
-
-#define kNumLiterals 0x100U
-#define kNumLitTables 3U
-
-#define kNumLenToPosStates 4U
-#define kNumPosSlotBits 6U
-#define kDicLogSizeMin 18U
-#define kDicLogSizeMax 31U
-#define kDistTableSizeMax (kDicLogSizeMax * 2U)
-
-#define kNumAlignBits 4U
-#define kAlignTableSize (1U << kNumAlignBits)
-#define kAlignMask (kAlignTableSize - 1U)
-#define kMatchRepriceFrequency 64U
-#define kRepLenRepriceFrequency 64U
-
-#define kStartPosModelIndex 4U
-#define kEndPosModelIndex 14U
-#define kNumPosModels (kEndPosModelIndex - kStartPosModelIndex)
-
-#define kNumFullDistancesBits (kEndPosModelIndex >> 1U)
-#define kNumFullDistances (1U << kNumFullDistancesBits)
-
-#define kNumPositionBitsMax 4U
-#define kNumPositionStatesMax (1U << kNumPositionBitsMax)
-#define kNumLiteralContextBitsMax 4U
-#define kNumLiteralPosBitsMax 4U
-#define kLcLpMax 4U
-
-
-#define kLenNumLowBits 3U
-#define kLenNumLowSymbols (1U << kLenNumLowBits)
-#define kLenNumHighBits 8U
-#define kLenNumHighSymbols (1U << kLenNumHighBits)
-
-#define kLenNumSymbolsTotal (kLenNumLowSymbols * 2 + kLenNumHighSymbols)
-
-#define kMatchLenMin 2U
-#define kMatchLenMax (kMatchLenMin + kLenNumSymbolsTotal - 1U)
-
-#define kMatchesMax 65U /* Doesn't need to be larger than FL2_HYBRIDCYCLES_MAX + 1 */
-
-#define kOptimizerEndSize 32U
-#define kOptimizerBufferSize (kMatchLenMax * 2U + kOptimizerEndSize)
-#define kOptimizerSkipSize 16U
-#define kInfinityPrice (1UL << 30U)
-#define kNullDist (U32)-1
-
-#define kMaxMatchEncodeSize 20
-
-#define kMaxChunkCompressedSize (1UL << 16U)
-/* Need to leave sufficient space for expanded output from a full opt buffer with bad starting probs */
-#define kChunkSize (kMaxChunkCompressedSize - 2048U)
-#define kSqrtChunkSize 252U
-
-/* Hard to define where the match table read pos definitely catches up with the output size, but
- * 64 bytes of input expanding beyond 256 bytes right after an encoder reset is most likely impossible.
- * The encoder will error out if this happens. */
-#define kTempMinOutput 256U
-#define kTempBufferSize (kTempMinOutput + kOptimizerBufferSize + kOptimizerBufferSize / 4U)
 
 #define kMaxChunkUncompressedSize (1UL << 21U)
 
@@ -101,10 +37,6 @@ Public domain
 #define kChunkStatePropertiesReset (2U << kChunkResetShift)
 #define kChunkAllReset (3U << kChunkResetShift)
 
-#define kMaxHashDictBits 14U
-#define kHash3Bits 14U
-#define kNullLink -1
-
 #define kMinTestChunkSize 0x4000U
 #define kRandomFilterMarginBits 8U
 
@@ -112,6 +44,9 @@ Public domain
 #define kState_LitAfterRep   5
 #define kState_MatchAfterLit 7
 #define kState_RepAfterLit   8
+
+#define MARK_LITERAL(node) (node).dist = kNullDist; (node).extra = 0;
+#define MARK_SHORT_REP(node) (node).dist = 0; (node).extra = 0;
 
 static const BYTE kLiteralNextStates[kNumStates] = { 0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 4, 5 };
 #define LIT_NEXT_STATE(s) kLiteralNextStates[s]
@@ -124,119 +59,6 @@ static const BYTE kShortRepNextStates[kNumStates] = { 9, 9, 9, 9, 9, 9, 9, 11, 1
 
 #include "fastpos_table.h"
 #include "radix_get.h"
-
-/* Probabilities and prices for encoding match lengths.
- * Two objects of this type are needed, one for normal matches
- * and another for rep matches.
- */
-typedef struct 
-{
-    size_t table_size;
-    unsigned prices[kNumPositionStatesMax][kLenNumSymbolsTotal];
-    LZMA2_prob choice; /* low[0] is choice_2. Must be consecutive for speed */
-    LZMA2_prob low[kNumPositionStatesMax << (kLenNumLowBits + 1)];
-    LZMA2_prob high[kLenNumHighSymbols];
-} LZMA2_lenStates;
-
-/* All probabilities for the encoder. This is a separate from the encoder object
- * so the state can be saved and restored in case a chunk is not compressible.
- */
-typedef struct
-{
-    /* Fields are ordered for speed */
-    LZMA2_lenStates rep_len_states;
-    LZMA2_prob is_rep0_long[kNumStates][kNumPositionStatesMax];
-
-    size_t state;
-    U32 reps[kNumReps];
-
-    LZMA2_prob is_match[kNumStates][kNumPositionStatesMax];
-    LZMA2_prob is_rep[kNumStates];
-    LZMA2_prob is_rep_G0[kNumStates];
-    LZMA2_prob is_rep_G1[kNumStates];
-    LZMA2_prob is_rep_G2[kNumStates];
-
-    LZMA2_lenStates len_states;
-
-    LZMA2_prob dist_slot_encoders[kNumLenToPosStates][1 << kNumPosSlotBits];
-    LZMA2_prob dist_align_encoders[1 << kNumAlignBits];
-    LZMA2_prob dist_encoders[kNumFullDistances - kEndPosModelIndex];
-
-    LZMA2_prob literal_probs[(kNumLiterals * kNumLitTables) << kLcLpMax];
-} LZMA2_encStates;
-
-/* 
- * Linked list item for optimal parsing
- */
-typedef struct
-{
-    size_t state;
-    U32 price;
-    unsigned extra; /*  0   : normal
-                     *  1   : LIT : MATCH
-                     *  > 1 : MATCH (extra-1) : LIT : REP0 (len) */
-    unsigned len;
-    U32 dist;
-    U32 reps[kNumReps];
-} LZMA2_node;
-
-#define MARK_LITERAL(node) (node).dist = kNullDist; (node).extra = 0;
-#define MARK_SHORT_REP(node) (node).dist = 0; (node).extra = 0;
-
-/*
- * Table and chain for 3-byte hash. Extra elements in hash_chain_3 are malloced.
- */
-typedef struct {
-    S32 table_3[1 << kHash3Bits];
-    S32 hash_chain_3[1];
-} LZMA2_hc3;
-
-/*
- * LZMA2 encoder.
- */
-struct LZMA2_ECtx_s
-{
-    unsigned lc;
-    unsigned lp;
-    unsigned pb;
-    unsigned fast_length;
-    size_t len_end_max;
-    size_t lit_pos_mask;
-    size_t pos_mask;
-    unsigned match_cycles;
-    FL2_strategy strategy;
-
-    RC_encoder rc;
-    /* Finish writing the chunk at this size */
-    size_t chunk_size;
-    /* Don't encode a symbol beyond this limit (used by fast mode) */
-    size_t chunk_limit;
-
-    LZMA2_encStates states;
-
-    unsigned match_price_count;
-    unsigned rep_len_price_count;
-    size_t dist_price_table_size;
-    unsigned align_prices[kAlignTableSize];
-    unsigned dist_slot_prices[kNumLenToPosStates][kDistTableSizeMax];
-    unsigned distance_prices[kNumLenToPosStates][kNumFullDistances];
-
-    RMF_match base_match; /* Allows access to matches[-1] in LZMA_optimalParse */
-    RMF_match matches[kMatchesMax];
-    size_t match_count;
-
-    LZMA2_node opt_buf[kOptimizerBufferSize];
-
-    LZMA2_hc3* hash_buf;
-    ptrdiff_t chain_mask_2;
-    ptrdiff_t chain_mask_3;
-    ptrdiff_t hash_dict_3;
-    ptrdiff_t hash_prev_index;
-    ptrdiff_t hash_alloc_3;
-
-    /* Temp output buffer before space frees up in the match table */
-    BYTE out_buf[kTempBufferSize];
-};
 
 LZMA2_ECtx* LZMA2_createECtx(void)
 {
@@ -272,7 +94,8 @@ void LZMA2_freeECtx(LZMA2_ECtx *const enc)
     FL2_free(enc);
 }
 
-#define LITERAL_PROBS(enc, pos, prev_symbol) (enc->states.literal_probs + ((((pos) & enc->lit_pos_mask) << enc->lc) + ((prev_symbol) >> (8 - enc->lc))) * kNumLiterals * kNumLitTables)
+#define LITERAL_PROBS(enc, pos, prev_symbol) (enc->states.literal_probs + \
+	((((pos) & enc->lit_pos_mask) << enc->lc) + ((prev_symbol) >> (8 - enc->lc))) * kNumLiterals * kNumLitTables)
 
 #define LEN_TO_DIST_STATE(len) (((len) < kNumLenToPosStates + 1) ? (len) - 2 : kNumLenToPosStates - 1)
 
@@ -577,7 +400,7 @@ void LZMA_encodeNormalMatch(LZMA2_ECtx *const enc, unsigned const len, U32 const
 
 FORCE_INLINE_TEMPLATE
 size_t LZMA_encodeChunkFast(LZMA2_ECtx *const enc,
-    FL2_dataBlock const block,
+    lzma2_data_block const block,
     FL2_matchTable* const tbl,
     int const struct_tbl,
     size_t pos,
@@ -864,10 +687,10 @@ static int LZMA_hashCreate(LZMA2_ECtx *const enc, unsigned const dictionary_bits
  * Used for allocating before compression begins. Any existing table will be reused if
  * it is at least as large as required.
  */
-int LZMA2_hashAlloc(LZMA2_ECtx *const enc, const FL2_lzma2Parameters* const options)
+int LZMA2_hashAlloc(LZMA2_ECtx *const enc, const lzma_options_lzma* const options)
 {
-    if (enc->strategy == FL2_ultra && enc->hash_alloc_3 < ((ptrdiff_t)1 << options->second_dict_bits))
-        return LZMA_hashCreate(enc, options->second_dict_bits);
+    if (enc->strategy == FL2_ultra && enc->hash_alloc_3 < ((ptrdiff_t)1 << options->near_dict_size_log))
+        return LZMA_hashCreate(enc, options->near_dict_size_log);
 
     return 0;
 }
@@ -878,7 +701,7 @@ int LZMA2_hashAlloc(LZMA2_ECtx *const enc, const FL2_lzma2Parameters* const opti
  * the RMF match (most likely), insert that match at the end of the list.
  */
 HINT_INLINE
-size_t LZMA_hashGetMatches(LZMA2_ECtx *const enc, FL2_dataBlock const block,
+size_t LZMA_hashGetMatches(LZMA2_ECtx *const enc, lzma2_data_block const block,
     ptrdiff_t const pos,
     size_t const length_limit,
     RMF_match const match)
@@ -946,7 +769,7 @@ size_t LZMA_hashGetMatches(LZMA2_ECtx *const enc, FL2_dataBlock const block,
 * If is_hybrid != 0, this method works in hybrid mode, using the
 * hash chain to find shorter matches at near distances. */
 FORCE_INLINE_TEMPLATE
-size_t LZMA_optimalParse(LZMA2_ECtx* const enc, FL2_dataBlock const block,
+size_t LZMA_optimalParse(LZMA2_ECtx* const enc, lzma2_data_block const block,
     RMF_match match,
     size_t const pos,
     size_t const cur,
@@ -1285,7 +1108,7 @@ static void LZMA_initMatchesPos0(LZMA2_ECtx *const enc,
 }
 
 FORCE_NOINLINE
-static size_t LZMA_initMatchesPos0Best(LZMA2_ECtx *const enc, FL2_dataBlock const block,
+static size_t LZMA_initMatchesPos0Best(LZMA2_ECtx *const enc, lzma2_data_block const block,
     RMF_match const match,
     size_t const pos,
     size_t start_len,
@@ -1346,7 +1169,7 @@ static size_t LZMA_initMatchesPos0Best(LZMA2_ECtx *const enc, FL2_dataBlock cons
 * This function must not be called at a position where no match is
 * available. */
 FORCE_INLINE_TEMPLATE
-size_t LZMA_initOptimizerPos0(LZMA2_ECtx *const enc, FL2_dataBlock const block,
+size_t LZMA_initOptimizerPos0(LZMA2_ECtx *const enc, lzma2_data_block const block,
     RMF_match const match,
     size_t const pos,
     int const is_hybrid,
@@ -1440,7 +1263,7 @@ size_t LZMA_initOptimizerPos0(LZMA2_ECtx *const enc, FL2_dataBlock const block,
 }
 
 FORCE_INLINE_TEMPLATE
-size_t LZMA_encodeOptimumSequence(LZMA2_ECtx *const enc, FL2_dataBlock const block,
+size_t LZMA_encodeOptimumSequence(LZMA2_ECtx *const enc, lzma2_data_block const block,
     FL2_matchTable* const tbl,
     int const struct_tbl,
     int const is_hybrid,
@@ -1649,7 +1472,7 @@ static void FORCE_NOINLINE LZMA_fillDistancesPrices(LZMA2_ECtx *const enc)
 
 FORCE_INLINE_TEMPLATE
 size_t LZMA_encodeChunkBest(LZMA2_ECtx *const enc,
-    FL2_dataBlock const block,
+    lzma2_data_block const block,
     FL2_matchTable* const tbl,
     int const struct_tbl,
     size_t pos,
@@ -1818,7 +1641,7 @@ static U32 LZMA2_isqrt(U32 op)
 }
 
 static BYTE LZMA2_isChunkIncompressible(const FL2_matchTable* const tbl,
-    FL2_dataBlock const block, size_t const start,
+    lzma2_data_block const block, size_t const start,
 	unsigned const strategy)
 {
 	if (block.end - start >= kMinTestChunkSize) {
@@ -1908,7 +1731,7 @@ static BYTE LZMA2_isChunkIncompressible(const FL2_matchTable* const tbl,
 
 static size_t LZMA2_encodeChunk(LZMA2_ECtx *const enc,
     FL2_matchTable* const tbl,
-    FL2_dataBlock const block,
+    lzma2_data_block const block,
     size_t const pos, size_t const uncompressed_end)
 {
     /* Template-like inline functions */
@@ -1935,13 +1758,12 @@ static size_t LZMA2_encodeChunk(LZMA2_ECtx *const enc,
 }
 
 size_t LZMA2_encode(LZMA2_ECtx *const enc,
-    FL2_matchTable* const tbl,
-    FL2_dataBlock const block,
-    const FL2_lzma2Parameters* const options,
-    int stream_prop,
-    FL2_atomic *const progress_in,
-    FL2_atomic *const progress_out,
-    int *const canceled)
+	FL2_matchTable* const tbl,
+	lzma2_data_block const block,
+	const lzma_options_lzma* const options,
+	FL2_atomic *const progress_in,
+	FL2_atomic *const progress_out,
+	int *const canceled)
 {
     size_t const start = block.start;
 
@@ -1956,7 +1778,7 @@ size_t LZMA2_encode(LZMA2_ECtx *const enc,
     BYTE incompressible = 0;
 
     if (block.end <= block.start)
-        return 0;
+        return LZMA_OK;
 
     enc->lc = options->lc;
     enc->lp = MIN(options->lp, kNumLiteralPosBitsMax);
@@ -1965,21 +1787,14 @@ size_t LZMA2_encode(LZMA2_ECtx *const enc,
         enc->lc = kLcLpMax - enc->lp;
 
     enc->pb = MIN(options->pb, kNumPositionBitsMax);
-    enc->strategy = options->strategy;
-    enc->fast_length = MIN(options->fast_length, kMatchLenMax);
-    enc->match_cycles = MIN(options->match_cycles, kMatchesMax - 1);
+    enc->strategy = options->mode - 1;
+    enc->fast_length = MIN(options->nice_len, kMatchLenMax);
+    enc->match_cycles = MIN(options->near_depth, kMatchesMax - 1);
 
     LZMA2_reset(enc, block.end);
 
     if (enc->strategy == FL2_ultra) {
-        /* Create a hash chain to put the encoder into hybrid mode */
-        if (enc->hash_alloc_3 < ((ptrdiff_t)1 << options->second_dict_bits)) {
-            if(LZMA_hashCreate(enc, options->second_dict_bits) != 0)
-                return FL2_ERROR(memory_allocation);
-        }
-        else {
-            LZMA_hashReset(enc, options->second_dict_bits);
-        }
+        LZMA_hashReset(enc, options->near_dict_size_log);
         enc->hash_prev_index = (start >= (size_t)enc->hash_dict_3) ? (ptrdiff_t)(start - enc->hash_dict_3) : (ptrdiff_t)-1;
     }
     enc->len_end_max = kOptimizerBufferSize - 1;
@@ -1988,7 +1803,7 @@ size_t LZMA2_encode(LZMA2_ECtx *const enc,
     RMF_limitLengths(tbl, block.end);
 
     for (size_t pos = start; pos < block.end;) {
-        size_t header_size = (stream_prop >= 0) + (encode_properties ? kChunkHeaderSize + 1 : kChunkHeaderSize);
+        size_t header_size = encode_properties ? kChunkHeaderSize + 1 : kChunkHeaderSize;
         LZMA2_encStates saved_states;
         size_t next_index;
 
@@ -2014,7 +1829,7 @@ size_t LZMA2_encode(LZMA2_ECtx *const enc,
                 cur = LZMA2_encodeChunk(enc, tbl, block, cur, end);
 
 				if (header_size + enc->rc.out_index > kTempBufferSize)
-					return FL2_ERROR(internal);
+					return (size_t)-1;
 
                 /* Switch to the match table as output buffer */
                 out_dest = RMF_getTableAsOutputBuffer(tbl, start);
@@ -2035,14 +1850,9 @@ size_t LZMA2_encode(LZMA2_ECtx *const enc,
         size_t uncompressed_size = next_index - pos;
 
         if (compressed_size > kMaxChunkCompressedSize || uncompressed_size > kMaxChunkUncompressedSize)
-            return FL2_ERROR(internal);
+            return (size_t)-1;
 
         BYTE* header = out_dest;
-
-        if (stream_prop >= 0) {
-            *header++ = (BYTE)stream_prop;
-            stream_prop = -1;
-        }
 
         header[1] = (BYTE)((uncompressed_size - 1) >> 8);
         header[2] = (BYTE)(uncompressed_size - 1);
@@ -2093,7 +1903,7 @@ size_t LZMA2_encode(LZMA2_ECtx *const enc,
         pos = next_index;
 
         if (*canceled)
-            return FL2_ERROR(canceled);
+            return LZMA_OK;
     }
     return out_dest - RMF_getTableAsOutputBuffer(tbl, start);
 }
