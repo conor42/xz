@@ -24,6 +24,8 @@ typedef struct FL2_matchTable_s FL2_matchTable;
 
 #define RMF_MIN_BYTES_PER_THREAD 1024
 
+#define RMF_DEFAULT_BUF_RESIZE 2
+
 typedef struct
 {
     size_t dictionary_size;
