@@ -46,14 +46,14 @@ typedef struct
     size_t unpackPos;
     size_t unpackSize;
     size_t res;
-    ELzmaFinishMode finish;
-} BlockDecMt;
+    LZMA2_finishMode finish;
+} FL2_blockDecMt;
 
 struct FL2_DCtx_s
 {
     LZMA2_DCtx dec;
 #ifndef FL2_SINGLETHREAD
-    BlockDecMt *blocks;
+    FL2_blockDecMt *blocks;
     FL2POOL_ctx *factory;
     size_t nbThreads;
 #endif
@@ -92,7 +92,7 @@ FL2LIB_API FL2_DCtx *FL2LIB_CALL FL2_createDCtxMt(unsigned nbThreads)
 {
     DEBUGLOG(3, "FL2_createDCtx");
 
-    FL2_DCtx* const dctx = malloc(sizeof(FL2_DCtx));
+    FL2_DCtx* const dctx = FL2_malloc(sizeof(FL2_DCtx));
 
     if (dctx == NULL)
         return NULL;
@@ -109,7 +109,7 @@ FL2LIB_API FL2_DCtx *FL2LIB_CALL FL2_createDCtxMt(unsigned nbThreads)
     dctx->factory = NULL;
 
     if (nbThreads > 1) {
-        dctx->blocks = malloc(nbThreads * sizeof(BlockDecMt));
+        dctx->blocks = FL2_malloc(nbThreads * sizeof(FL2_blockDecMt));
         dctx->factory = FL2POOL_create(nbThreads - 1);
 
         if (dctx->blocks == NULL || dctx->factory == NULL) {
@@ -120,7 +120,7 @@ FL2LIB_API FL2_DCtx *FL2LIB_CALL FL2_createDCtxMt(unsigned nbThreads)
 
         for (; dctx->nbThreads < nbThreads; ++dctx->nbThreads) {
 
-            dctx->blocks[dctx->nbThreads].dec = malloc(sizeof(LZMA2_DCtx));
+            dctx->blocks[dctx->nbThreads].dec = FL2_malloc(sizeof(LZMA2_DCtx));
 
             if (dctx->blocks[dctx->nbThreads].dec == NULL) {
                 FL2_freeDCtx(dctx);
@@ -147,13 +147,13 @@ FL2LIB_API size_t FL2LIB_CALL FL2_freeDCtx(FL2_DCtx* dctx)
     if (dctx->blocks != NULL) {
         for (unsigned thread = 1; thread < dctx->nbThreads; ++thread) {
             LZMA_destructDCtx(dctx->blocks[thread].dec);
-            free(dctx->blocks[thread].dec);
+            FL2_free(dctx->blocks[thread].dec);
         }
-        free(dctx->blocks);
+        FL2_free(dctx->blocks);
     }
     FL2POOL_free(dctx->factory);
 #endif
-    free(dctx);
+    FL2_free(dctx);
 
     return FL2_error_no_error;
 }
@@ -168,7 +168,7 @@ FL2LIB_API unsigned FL2LIB_CALL FL2_getDCtxThreadCount(const FL2_DCtx * dctx)
 /* FL2_decompressCtxBlock() : FL2POOL_function type */
 static void FL2_decompressCtxBlock(void* const jobDescription, ptrdiff_t const n)
 {
-    BlockDecMt* const blocks = (BlockDecMt*)jobDescription;
+    FL2_blockDecMt* const blocks = (FL2_blockDecMt*)jobDescription;
     size_t srcLen = blocks[n].packSize;
 
     DEBUGLOG(4, "Thread %u: decoding block of input size %u, output size %u", (unsigned)n, (unsigned)srcLen, (unsigned)blocks[n].unpackSize);
@@ -182,7 +182,7 @@ static void FL2_decompressCtxBlock(void* const jobDescription, ptrdiff_t const n
 
 static size_t FL2_decompressCtxBlocksMt(FL2_DCtx* const dctx, const BYTE *const src, BYTE *const dst, size_t const dstCapacity, size_t const nbThreads)
 {
-    BlockDecMt* const blocks = dctx->blocks;
+    FL2_blockDecMt* const blocks = dctx->blocks;
 
     /* Initial check for block 0. The others are uncalculated */
     if (dstCapacity < blocks[0].unpackSize)
@@ -241,7 +241,7 @@ static size_t FL2_decompressDCtxMt(FL2_DCtx* const dctx,
     FL2_resetMtBlocks(dctx);
 
     size_t unpackSize = 0;
-    BlockDecMt* const blocks = dctx->blocks;
+    FL2_blockDecMt* const blocks = dctx->blocks;
     size_t thread = 0;
     size_t pos = 0;
     while (pos < srcSize) {
@@ -301,7 +301,7 @@ static size_t FL2_decompressDCtxMt(FL2_DCtx* const dctx,
     return FL2_ERROR(srcSize_wrong);
 }
 
-#endif
+#endif /* !defined FL2_SINGLETHREAD */
 
 FL2LIB_API size_t FL2LIB_CALL FL2_initDCtx(FL2_DCtx * dctx, unsigned char prop)
 {
@@ -341,7 +341,7 @@ FL2LIB_API size_t FL2LIB_CALL FL2_decompressDCtx(FL2_DCtx* dctx,
         dctx->lzma2prop = prop;
         res = FL2_decompressDCtxMt(dctx, dst, dstCapacity, srcBuf, &srcPos);
     }
-    else 
+    else
 #endif
     {
         CHECK_F(LZMA2_initDecoder(&dctx->dec, prop, dst, dstCapacity));
@@ -394,6 +394,7 @@ typedef enum
 } FL2_decStage;
 
 #ifndef FL2_SINGLETHREAD
+
 typedef struct FL2_decInbuf_s FL2_decInbuf;
 
 struct FL2_decInbuf_s
@@ -442,7 +443,8 @@ typedef struct
 #endif
     FL2_decJob threads[1];
 } FL2_decMt;
-#endif
+
+#endif /* !defined FL2_SINGLETHREAD */
 
 #define LZMA_OVERLAP_SIZE (LZMA_REQUIRED_INPUT_MAX * 2)
 
@@ -543,7 +545,7 @@ static void LZMA2_freeInbufNodeChain(FL2_decMt *const decmt, FL2_decInbuf *node,
         FL2_decInbuf *const next = node->next;
         if (node != keep) {
             decmt->memTotal -= sizeof(FL2_decInbuf) + LZMA2_MT_INPUT_SIZE - 1;
-            free(node);
+            FL2_free(node);
         }
         else {
             node->next = NULL;
@@ -565,7 +567,7 @@ static void FL2_freeOutputBuffers(FL2_decMt *const decmt)
     for (size_t thread = 0; thread < decmt->maxThreads; ++thread)
         if(decmt->threads[thread].outBuf != NULL) {
             decmt->memTotal -= decmt->threads[thread].bufSize;
-            free(decmt->threads[thread].outBuf);
+            FL2_large_free(decmt->threads[thread].outBuf);
             decmt->threads[thread].outBuf = NULL;
         }
     decmt->numThreads = 0;
@@ -585,7 +587,7 @@ static void FL2_lzma2DecMt_free(FL2_decMt *const decmt)
         FL2_freeOutputBuffers(decmt);
         LZMA2_freeInbufNodeChain(decmt, decmt->head, NULL);
         FL2POOL_free(decmt->factory);
-        free(decmt);
+        FL2_free(decmt);
     }
 }
 
@@ -627,7 +629,7 @@ static FL2_decInbuf * FL2_createInbufNode(FL2_decMt *const decmt, FL2_decInbuf *
     if (decmt->memTotal > decmt->memLimit)
         return NULL;
 
-    FL2_decInbuf *const node = malloc(sizeof(FL2_decInbuf) + LZMA2_MT_INPUT_SIZE - 1);
+    FL2_decInbuf *const node = FL2_malloc(sizeof(FL2_decInbuf) + LZMA2_MT_INPUT_SIZE - 1);
     if (node == NULL)
         return NULL;
 
@@ -646,17 +648,18 @@ static FL2_decMt *FL2_lzma2DecMt_create(unsigned maxThreads)
 {
     maxThreads += !maxThreads;
 
-    FL2_decMt *const decmt = malloc(sizeof(FL2_decMt) + (maxThreads - 1) * sizeof(FL2_decJob));
+    FL2_decMt *const decmt = FL2_malloc(sizeof(FL2_decMt) + (maxThreads - 1) * sizeof(FL2_decJob));
     if (decmt == NULL)
         return NULL;
 
     decmt->memTotal = 0;
     decmt->memLimit = (size_t)1 << 29;
+    decmt->maxThreads = 0;
 
     /* The head always exists and is only freed on deallocation */
     decmt->head = FL2_createInbufNode(decmt, NULL);
     if (decmt->head == NULL) {
-        free(decmt);
+        FL2_free(decmt);
         return NULL;
     }
 
@@ -849,7 +852,7 @@ static size_t FL2_handleFinalChunkMt(FL2_decMt *const decmt, size_t res)
         return FL2_ERROR(memory_allocation);
 
     /* Decompressed data will be stored in outBuf */
-    done->outBuf = malloc(done->bufSize);
+    done->outBuf = FL2_large_malloc(done->bufSize);
     if (done->outBuf == NULL)
         return FL2_ERROR(memory_allocation);
 
@@ -897,9 +900,9 @@ static size_t FL2_loadInputMt(FL2_decMt *const decmt, FL2_inBuffer* const input)
                 if (end != 0) {
                     inBlock = &decmt->threads[decmt->numThreads - 1].inBlock;
                     /* rewind input in case data beyond terminator was read. Required for xxhash and container formats */
-                    size_t rewind = MIN(input->pos, inBlock->last->length - inBlock->endPos);
-                    input->pos -= rewind;
-                    inBlock->last->length -= rewind;
+                    size_t back = MIN(input->pos, inBlock->last->length - inBlock->endPos);
+                    input->pos -= back;
+                    inBlock->last->length -= back;
                     return end;
                 }
                 inBlock = &decmt->threads[decmt->numThreads].inBlock;
@@ -910,9 +913,9 @@ static size_t FL2_loadInputMt(FL2_decMt *const decmt, FL2_inBuffer* const input)
             FL2_decInbuf *const next = FL2_createInbufNode(decmt, inBlock->last);
             if (next == NULL) {
                 if (inBlock->endPos < inBlock->last->length) {
-                    ptrdiff_t rewind = MIN(input->pos, inBlock->last->length - inBlock->endPos);
-                    input->pos -= rewind;
-                    inBlock->last->length -= rewind;
+                    size_t back = MIN(input->pos, inBlock->last->length - inBlock->endPos);
+                    input->pos -= back;
+                    inBlock->last->length -= back;
                 }
                 return FL2_ERROR(memory_allocation);
             }
@@ -1016,7 +1019,100 @@ static size_t FL2_decompressStreamMt(FL2_DStream* const fds, FL2_outBuffer* cons
     return fds->stage != FL2DEC_STAGE_FINISHED;
 }
 
-#endif /* FL2_SINGLETHREAD */
+FL2LIB_API void FL2LIB_CALL FL2_setDStreamMemoryLimitMt(FL2_DStream * fds, size_t limit)
+{
+    if (fds->decmt != NULL)
+        fds->decmt->memLimit = limit;
+}
+
+FL2LIB_API size_t FL2LIB_CALL FL2_setDStreamTimeout(FL2_DStream * fds, unsigned timeout)
+{
+    /* decompressThread is only used if a timeout is specified */
+    if (timeout != 0) {
+        if (fds->decompressThread == NULL) {
+            fds->decompressThread = FL2POOL_create(1);
+            if (fds->decompressThread == NULL)
+                return FL2_ERROR(memory_allocation);
+        }
+    }
+    else if (!fds->wait) {
+        /* Only free the thread if decompression not underway */
+        FL2POOL_free(fds->decompressThread);
+        fds->decompressThread = NULL;
+    }
+    fds->timeout = timeout;
+    return FL2_error_no_error;
+}
+
+FL2LIB_API size_t FL2LIB_CALL FL2_waitDStream(FL2_DStream * fds)
+{
+    if (FL2POOL_waitAll(fds->decompressThread, fds->timeout) != 0)
+        return FL2_ERROR(timedOut);
+    /* decompressThread writes the result into asyncRes before sleeping */
+    return fds->asyncRes;
+}
+
+FL2LIB_API void FL2LIB_CALL FL2_cancelDStream(FL2_DStream *fds)
+{
+    if (fds->decompressThread != NULL) {
+        fds->decmt->canceled = 1;
+
+        FL2POOL_waitAll(fds->decompressThread, 0);
+
+        fds->decmt->canceled = 0;
+    }
+    FL2_lzma2DecMt_cleanup(fds->decmt);
+}
+
+static inline void FL2_createDStream_threads(FL2_DStream *fds, unsigned nbThreads)
+{
+    fds->decompressThread = NULL;
+    fds->decmt = (nbThreads > 1) ? FL2_lzma2DecMt_create(nbThreads) : NULL;
+}
+
+static inline void FL2_freeDStream_threads(FL2_DStream* fds)
+{
+    FL2POOL_free(fds->decompressThread);
+    FL2_lzma2DecMt_free(fds->decmt);
+}
+
+#else /* FL2_SINGLETHREAD */
+
+FL2LIB_API void FL2LIB_CALL FL2_setDStreamMemoryLimitMt(FL2_DStream * fds, size_t limit)
+{
+    (void)fds;
+    (void)limit;
+}
+
+FL2LIB_API size_t FL2LIB_CALL FL2_setDStreamTimeout(FL2_DStream * fds, unsigned timeout)
+{
+    (void)fds;
+    (void)timeout;
+    return FL2_error_no_error;
+}
+
+FL2LIB_API size_t FL2LIB_CALL FL2_waitDStream(FL2_DStream * fds)
+{
+    return fds->asyncRes;
+}
+
+FL2LIB_API void FL2LIB_CALL FL2_cancelDStream(FL2_DStream *fds)
+{
+    (void)fds;
+}
+
+static inline void FL2_createDStream_threads(FL2_DStream *fds, unsigned nbThreads)
+{
+    (void)fds;
+    (void)nbThreads;
+}
+
+static inline void FL2_freeDStream_threads(FL2_DStream* fds)
+{
+    (void)fds;
+}
+
+#endif /* !defined FL2_SINGLETHREAD */
 
 FL2LIB_API FL2_DStream* FL2LIB_CALL FL2_createDStream(void)
 {
@@ -1039,7 +1135,7 @@ static void FL2_resetDStream(FL2_DStream *fds)
 
 FL2LIB_API FL2_DStream *FL2LIB_CALL FL2_createDStreamMt(unsigned nbThreads)
 {
-    FL2_DStream* const fds = malloc(sizeof(FL2_DStream));
+    FL2_DStream* const fds = FL2_malloc(sizeof(FL2_DStream));
     DEBUGLOG(3, "FL2_createDStream");
 
     if (fds != NULL) {
@@ -1050,10 +1146,7 @@ FL2LIB_API FL2_DStream *FL2LIB_CALL FL2_createDStreamMt(unsigned nbThreads)
         FL2_resetDStream(fds);
         fds->timeout = 0;
 
-#ifndef FL2_SINGLETHREAD
-        fds->decompressThread = NULL;
-        fds->decmt = (nbThreads > 1) ? FL2_lzma2DecMt_create(nbThreads) : NULL;
-#endif
+        FL2_createDStream_threads(fds, nbThreads);
 
 #ifndef NO_XXHASH
         fds->xxh = NULL;
@@ -1069,24 +1162,13 @@ FL2LIB_API size_t FL2LIB_CALL FL2_freeDStream(FL2_DStream* fds)
     if (fds != NULL) {
         DEBUGLOG(3, "FL2_freeDStream");
         LZMA_destructDCtx(&fds->dec);
-#ifndef FL2_SINGLETHREAD
-        FL2POOL_free(fds->decompressThread);
-        FL2_lzma2DecMt_free(fds->decmt);
-#endif
+        FL2_freeDStream_threads(fds);
 #ifndef NO_XXHASH
         XXH32_freeState(fds->xxh);
 #endif
-        free(fds);
+        FL2_free(fds);
     }
     return 0;
-}
-
-FL2LIB_API void FL2LIB_CALL FL2_setDStreamMemoryLimitMt(FL2_DStream * fds, size_t limit)
-{
-#ifndef FL2_SINGLETHREAD
-    if (fds->decmt != NULL)
-        fds->decmt->memLimit = limit;
-#endif
 }
 
 FL2LIB_API size_t FL2LIB_CALL FL2_initDStream(FL2_DStream* fds)
@@ -1102,51 +1184,6 @@ FL2LIB_API size_t FL2LIB_CALL FL2_initDStream(FL2_DStream* fds)
     FL2_lzma2DecMt_init(fds->decmt);
 #endif
     return FL2_error_no_error;
-}
-
-FL2LIB_API size_t FL2LIB_CALL FL2_setDStreamTimeout(FL2_DStream * fds, unsigned timeout)
-{
-#ifndef FL2_SINGLETHREAD
-    /* decompressThread is only used if a timeout is specified */
-    if (timeout != 0) {
-        if (fds->decompressThread == NULL) {
-            fds->decompressThread = FL2POOL_create(1);
-            if (fds->decompressThread == NULL)
-                return FL2_ERROR(memory_allocation);
-        }
-    }
-    else if (!fds->wait) {
-        /* Only free the thread if decompression not underway */
-        FL2POOL_free(fds->decompressThread);
-        fds->decompressThread = NULL;
-    }
-    fds->timeout = timeout;
-#endif
-    return FL2_error_no_error;
-}
-
-FL2LIB_API size_t FL2LIB_CALL FL2_waitDStream(FL2_DStream * fds)
-{
-#ifndef FL2_SINGLETHREAD
-    if (FL2POOL_waitAll(fds->decompressThread, fds->timeout) != 0)
-        return FL2_ERROR(timedOut);
-#endif
-    /* decompressThread writes the result into asyncRes before sleeping */
-    return fds->asyncRes;
-}
-
-FL2LIB_API void FL2LIB_CALL FL2_cancelDStream(FL2_DStream *fds)
-{
-#ifndef FL2_SINGLETHREAD
-    if (fds->decompressThread != NULL) {
-        fds->decmt->canceled = 1;
-
-        FL2POOL_waitAll(fds->decompressThread, 0);
-
-        fds->decmt->canceled = 0;
-    }
-    FL2_lzma2DecMt_cleanup(fds->decmt);
-#endif
 }
 
 FL2LIB_API unsigned long long FL2LIB_CALL FL2_getDStreamProgress(const FL2_DStream * fds)
@@ -1315,7 +1352,7 @@ FL2LIB_API size_t FL2LIB_CALL FL2_estimateDCtxSize(unsigned nbThreads)
 {
     nbThreads = FL2_checkNbThreads(nbThreads);
     if (nbThreads > 1)
-        return nbThreads * (sizeof(BlockDecMt) + sizeof(FL2_DCtx));
+        return nbThreads * (sizeof(FL2_blockDecMt) + sizeof(FL2_DCtx));
 
     return sizeof(FL2_DCtx);
 }
