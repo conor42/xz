@@ -14,6 +14,7 @@
 /*-*************************************
 *  Dependencies
 ***************************************/
+#include <stdlib.h>
 #include "fast-lzma2.h"
 #include "fl2_errors.h"
 #include "fl2_internal.h"
@@ -26,6 +27,79 @@
 FL2LIB_API unsigned FL2LIB_CALL FL2_versionNumber(void) { return FL2_VERSION_NUMBER; }
 
 FL2LIB_API const char* FL2LIB_CALL FL2_versionString(void) { return FL2_VERSION_STRING; }
+
+
+/*-****************************************
+*  Custom allocator handlers
+******************************************/
+void* (*FL2_g_alloc)(size_t size);
+void  (*FL2_g_free)(void* address);
+void* (*FL2_g_large_alloc)(size_t size);
+void  (*FL2_g_large_free)(void* address);
+unsigned char FL2_g_alloc_called;
+
+void *FL2_malloc(size_t size)
+{
+    FL2_g_alloc_called = 1;
+    char *address = (FL2_g_alloc != NULL) ? FL2_g_alloc(size) : malloc(size);
+    DEBUGLOG(3, "FL2_malloc: %lu bytes at 0x%lX", (long)size, (long)(address - (char*)0));
+    return address;
+}
+
+void *FL2_calloc(size_t count, size_t size)
+{
+    size *= count;
+    void *block = FL2_malloc(size);
+    if (block != NULL)
+        memset(block, 0, size);
+    return block;
+}
+
+void FL2_free(void *address)
+{
+    DEBUGLOG(3, "FL2_free: 0x%lX", (long)((char*)address - (char*)0));
+    if (FL2_g_free != NULL)
+        FL2_g_free(address);
+    else
+        free(address);
+}
+
+void *FL2_large_malloc(size_t size)
+{
+    FL2_g_alloc_called = 1;
+    char *address = (FL2_g_large_alloc != NULL) ? FL2_g_large_alloc(size) : FL2_malloc(size);
+    DEBUGLOG(3, "FL2_large_malloc: %lu bytes at 0x%lX", (long)size, (long)(address - (char*)0));
+    return address;
+}
+
+void FL2_large_free(void *address)
+{
+    DEBUGLOG(3, "FL2_large_free: 0x%lX", (long)((char*)address - (char*)0));
+    if (FL2_g_large_free != NULL)
+        FL2_g_large_free(address);
+    else
+        FL2_free(address);
+}
+
+FL2LIB_API size_t FL2LIB_CALL FL2_setAllocator(void* (*allocFunction)(size_t size),
+    void(*freeFunction)(void* address))
+{
+    if (FL2_g_alloc_called)
+        return FL2_ERROR(stage_wrong);
+    FL2_g_alloc = allocFunction;
+    FL2_g_free = freeFunction;
+    return FL2_error_no_error;
+}
+
+FL2LIB_API size_t FL2LIB_CALL FL2_setLargeAllocator(void* (*allocFunction)(size_t size),
+    void(*freeFunction)(void* address))
+{
+    if (FL2_g_alloc_called)
+        return FL2_ERROR(stage_wrong);
+    FL2_g_large_alloc = allocFunction;
+    FL2_g_large_free = freeFunction;
+    return FL2_error_no_error;
+}
 
 
 /*-****************************************

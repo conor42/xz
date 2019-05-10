@@ -37,16 +37,16 @@ int DICT_init(DICT_buffer * const buf, size_t const dict_size, size_t const over
     /* Allocate if not yet allocated or existing dict too small */
     if (buf->data[0] == NULL || dict_size > buf->size) {
         /* Free any existing buffers */
-        DICT_destruct(buf);
+        DICT_free(buf);
 
-        buf->data[0] = malloc(dict_size);
+        buf->data[0] = FL2_large_malloc(dict_size);
 
         buf->data[1] = NULL;
         if (buf->async)
-            buf->data[1] = malloc(dict_size);
+            buf->data[1] = FL2_large_malloc(dict_size);
 
         if (buf->data[0] == NULL || (buf->async && buf->data[1] == NULL)) {
-            DICT_destruct(buf);
+            DICT_free(buf);
             return 1;
         }
     }
@@ -63,7 +63,7 @@ int DICT_init(DICT_buffer * const buf, size_t const dict_size, size_t const over
         if (buf->xxh == NULL) {
             buf->xxh = XXH32_createState();
             if (buf->xxh == NULL) {
-                DICT_destruct(buf);
+                DICT_free(buf);
                 return 1;
             }
         }
@@ -80,10 +80,10 @@ int DICT_init(DICT_buffer * const buf, size_t const dict_size, size_t const over
     return 0;
 }
 
-void DICT_destruct(DICT_buffer * const buf)
+void DICT_free(DICT_buffer * const buf)
 {
-    free(buf->data[0]);
-    free(buf->data[1]);
+    FL2_large_free(buf->data[0]);
+    FL2_large_free(buf->data[1]);
     buf->data[0] = NULL;
     buf->data[1] = NULL;
     buf->size = 0;
