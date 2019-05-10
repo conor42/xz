@@ -11,11 +11,15 @@
 #ifndef RADIX_INTERNAL_H
 #define RADIX_INTERNAL_H
 
+#include "common.h"
 #include "atomic.h"
 #include "radix_mf.h"
+#include "lzma_encoder_private.h"
 
-#if defined(FL2_XZ_BUILD) && defined(TUKLIB_FAST_UNALIGNED_ACCESS)
-#  define MEM_read32(a) (*(const U32*)(a))
+#if defined(TUKLIB_FAST_UNALIGNED_ACCESS)
+#  define memcpy32(d, s) d = *(const uint32_t*)(s)
+#else
+#  define memcpy32(d, s) memcpy(&d, s, 4)
 #endif
 
 #if defined (__cplusplus)
@@ -49,38 +53,38 @@ extern "C" {
 
 typedef struct
 {
-    U32 head;
-    U32 count;
+    uint32_t head;
+    uint32_t count;
 } RMF_tableHead;
 
 union src_data_u {
-    BYTE chars[4];
-    U32 u32;
+    uint8_t chars[4];
+    uint32_t u32;
 };
 
 typedef struct
 {
-    U32 from;
+    uint32_t from;
     union src_data_u src;
-    U32 next;
+    uint32_t next;
 } RMF_buildMatch;
 
 typedef struct
 {
-    U32 prev_index;
-    U32 list_count;
+    uint32_t prev_index;
+    uint32_t list_count;
 } RMF_listTail;
 
 typedef struct
 {
-    U32 links[1 << UNIT_BITS];
-    BYTE lengths[1 << UNIT_BITS];
+    uint32_t links[1 << UNIT_BITS];
+    uint8_t lengths[1 << UNIT_BITS];
 } RMF_unit;
 
 typedef struct
 {
     unsigned max_len;
-    U32* table;
+    uint32_t* table;
     size_t match_buffer_size;
     size_t match_buffer_limit;
     RMF_listTail tails_8[RADIX8_TABLE_SIZE];
@@ -100,9 +104,9 @@ struct FL2_matchTable_s
     size_t progress;
     RMF_parameters params;
     RMF_builder** builders;
-    U32 stack[RADIX16_TABLE_SIZE];
+    uint32_t stack[RADIX16_TABLE_SIZE];
     RMF_tableHead list_heads[RADIX16_TABLE_SIZE];
-    U32 table[1];
+    uint32_t table[1];
 };
 
 void RMF_bitpackInit(struct FL2_matchTable_s* const tbl, const void* data, size_t const end);
@@ -110,32 +114,32 @@ void RMF_structuredInit(struct FL2_matchTable_s* const tbl, const void* data, si
 void RMF_bitpackBuildTable(struct FL2_matchTable_s* const tbl,
     size_t const job,
     unsigned const multi_thread,
-    FL2_dataBlock const block);
+    lzma_data_block const block);
 void RMF_structuredBuildTable(struct FL2_matchTable_s* const tbl,
     size_t const job,
     unsigned const multi_thread,
-    FL2_dataBlock const block);
+    lzma_data_block const block);
 void RMF_recurseListChunk(RMF_builder* const tbl,
-    const BYTE* const data_block,
+    const uint8_t* const data_block,
     size_t const block_start,
-    U32 const depth,
-    U32 const max_depth,
-    U32 const list_count,
+    uint32_t const depth,
+    uint32_t const max_depth,
+    uint32_t const list_count,
     size_t const stack_base);
-int RMF_bitpackIntegrityCheck(const struct FL2_matchTable_s* const tbl, const BYTE* const data, size_t pos, size_t const end, unsigned max_depth);
-int RMF_structuredIntegrityCheck(const struct FL2_matchTable_s* const tbl, const BYTE* const data, size_t pos, size_t const end, unsigned max_depth);
+int RMF_bitpackIntegrityCheck(const struct FL2_matchTable_s* const tbl, const uint8_t* const data, size_t pos, size_t const end, unsigned max_depth);
+int RMF_structuredIntegrityCheck(const struct FL2_matchTable_s* const tbl, const uint8_t* const data, size_t pos, size_t const end, unsigned max_depth);
 void RMF_bitpackLimitLengths(struct FL2_matchTable_s* const tbl, size_t const pos);
 void RMF_structuredLimitLengths(struct FL2_matchTable_s* const tbl, size_t const pos);
-BYTE* RMF_bitpackAsOutputBuffer(struct FL2_matchTable_s* const tbl, size_t const pos);
-BYTE* RMF_structuredAsOutputBuffer(struct FL2_matchTable_s* const tbl, size_t const pos);
+uint8_t* RMF_bitpackAsOutputBuffer(struct FL2_matchTable_s* const tbl, size_t const pos);
+uint8_t* RMF_structuredAsOutputBuffer(struct FL2_matchTable_s* const tbl, size_t const pos);
 size_t RMF_bitpackGetMatch(const struct FL2_matchTable_s* const tbl,
-    const BYTE* const data,
+    const uint8_t* const data,
     size_t const pos,
     size_t const limit,
     unsigned const max_depth,
     size_t* const offset_ptr);
 size_t RMF_structuredGetMatch(const struct FL2_matchTable_s* const tbl,
-    const BYTE* const data,
+    const uint8_t* const data,
     size_t const pos,
     size_t const limit,
     unsigned const max_depth,
