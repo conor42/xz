@@ -38,6 +38,13 @@
 
 
 typedef struct {
+	const uint8_t* data;
+	size_t start;
+	size_t end;
+} lzma_data_block;
+
+
+typedef struct {
 	probability choice;
 	probability choice2;
 	probability low[POS_STATES_MAX][LEN_LOW_SYMBOLS];
