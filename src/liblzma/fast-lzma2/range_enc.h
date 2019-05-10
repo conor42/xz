@@ -8,7 +8,7 @@
 #ifndef RANGE_ENCODER_H
 #define RANGE_ENCODER_H
 
-#include "mem.h"
+#include "common.h"
 #include "compiler.h"
 
 #if defined (__cplusplus)
@@ -16,9 +16,9 @@ extern "C" {
 #endif
 
 #ifdef LZMA_ENC_PROB32
-typedef U32 LZMA2_prob;
+typedef uint32_t LZMA2_prob;
 #else
-typedef U16 LZMA2_prob;
+typedef uint16_t LZMA2_prob;
 #endif
 
 #define kNumTopBits 24U
@@ -31,24 +31,24 @@ typedef U16 LZMA2_prob;
 #define kNumBitPriceShiftBits 5U
 #define kPriceTableSize (kBitModelTotal >> kNumMoveReducingBits)
 
-extern BYTE price_table[2][kPriceTableSize];
+extern uint8_t price_table[2][kPriceTableSize];
 #if 0
 void RC_printPriceTable();
 #endif
 
 typedef struct
 {
-	BYTE *out_buffer;
+	uint8_t *out_buffer;
 	size_t out_index;
-	U64 cache_size;
-	U64 low;
-	U32 range;
-	BYTE cache;
+	uint64_t cache_size;
+	uint64_t low;
+	uint32_t range;
+	uint8_t cache;
 } RC_encoder;
 
 void RC_reset(RC_encoder* const rc);
 
-void RC_setOutputBuffer(RC_encoder* const rc, BYTE *const out_buffer);
+void RC_setOutputBuffer(RC_encoder* const rc, uint8_t *const out_buffer);
 
 void FORCE_NOINLINE RC_shiftLow(RC_encoder* const rc);
 
@@ -75,7 +75,7 @@ HINT_INLINE
 void RC_encodeBit1(RC_encoder* const rc, LZMA2_prob *const rprob)
 {
 	unsigned prob = *rprob;
-	U32 new_bound = (rc->range >> kNumBitModelTotalBits) * prob;
+	uint32_t new_bound = (rc->range >> kNumBitModelTotalBits) * prob;
     rc->low += new_bound;
     rc->range -= new_bound;
 	prob -= prob >> kNumMoveBits;
@@ -91,7 +91,7 @@ void RC_encodeBit(RC_encoder* const rc, LZMA2_prob *const rprob, unsigned const 
 {
 	unsigned prob = *rprob;
 	if (bit != 0) {
-		U32 const new_bound = (rc->range >> kNumBitModelTotalBits) * prob;
+		uint32_t const new_bound = (rc->range >> kNumBitModelTotalBits) * prob;
         rc->low += new_bound;
         rc->range -= new_bound;
 		prob -= prob >> kNumMoveBits;

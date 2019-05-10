@@ -7,7 +7,7 @@ Public domain
 #ifndef RADYX_LZMA2_ENCODER_H
 #define RADYX_LZMA2_ENCODER_H
 
-#include "mem.h"
+#include "lzma_encoder_private.h"
 #include "data_block.h"
 #include "radix_mf.h"
 #include "atomic.h"
@@ -69,7 +69,7 @@ extern "C" {
 #define kOptimizerBufferSize (kMatchLenMax * 2U + kOptimizerEndSize)
 #define kOptimizerSkipSize 16U
 #define kInfinityPrice (1UL << 30U)
-#define kNullDist (U32)-1
+#define kNullDist (uint32_t)-1
 
 #define kMaxMatchEncodeSize 20
 
@@ -96,9 +96,9 @@ typedef struct
 {
     size_t table_size;
     unsigned prices[kNumPositionStatesMax][kLenNumSymbolsTotal];
-    LZMA2_prob choice; /* low[0] is choice_2. Must be consecutive for speed */
-    LZMA2_prob low[kNumPositionStatesMax << (kLenNumLowBits + 1)];
-    LZMA2_prob high[kLenNumHighSymbols];
+    probability choice; /* low[0] is choice_2. Must be consecutive for speed */
+    probability low[kNumPositionStatesMax << (kLenNumLowBits + 1)];
+    probability high[kLenNumHighSymbols];
 } LZMA2_lenStates;
 
 /* All probabilities for the encoder. This is a separate from the encoder object
@@ -108,24 +108,24 @@ typedef struct
 {
     /* Fields are ordered for speed */
     LZMA2_lenStates rep_len_states;
-    LZMA2_prob is_rep0_long[kNumStates][kNumPositionStatesMax];
+    probability is_rep0_long[kNumStates][kNumPositionStatesMax];
 
     size_t state;
-    U32 reps[kNumReps];
+    uint32_t reps[kNumReps];
 
-    LZMA2_prob is_match[kNumStates][kNumPositionStatesMax];
-    LZMA2_prob is_rep[kNumStates];
-    LZMA2_prob is_rep_G0[kNumStates];
-    LZMA2_prob is_rep_G1[kNumStates];
-    LZMA2_prob is_rep_G2[kNumStates];
+    probability is_match[kNumStates][kNumPositionStatesMax];
+    probability is_rep[kNumStates];
+    probability is_rep_G0[kNumStates];
+    probability is_rep_G1[kNumStates];
+    probability is_rep_G2[kNumStates];
 
     LZMA2_lenStates len_states;
 
-    LZMA2_prob dist_slot_encoders[kNumLenToPosStates][1 << kNumPosSlotBits];
-    LZMA2_prob dist_align_encoders[1 << kNumAlignBits];
-    LZMA2_prob dist_encoders[kNumFullDistances - kEndPosModelIndex];
+    probability dist_slot_encoders[kNumLenToPosStates][1 << kNumPosSlotBits];
+    probability dist_align_encoders[1 << kNumAlignBits];
+    probability dist_encoders[kNumFullDistances - kEndPosModelIndex];
 
-    LZMA2_prob literal_probs[(kNumLiterals * kNumLitTables) << kLcLpMax];
+    probability literal_probs[(kNumLiterals * kNumLitTables) << kLcLpMax];
 } LZMA2_encStates;
 
 /* 
@@ -134,21 +134,21 @@ typedef struct
 typedef struct
 {
     size_t state;
-    U32 price;
+    uint32_t price;
     unsigned extra; /*  0   : normal
                      *  1   : LIT : MATCH
                      *  > 1 : MATCH (extra-1) : LIT : REP0 (len) */
     unsigned len;
-    U32 dist;
-    U32 reps[kNumReps];
+    uint32_t dist;
+    uint32_t reps[kNumReps];
 } LZMA2_node;
 
 /*
  * Table and chain for 3-byte hash. Extra elements in hash_chain_3 are malloced.
  */
 typedef struct {
-    S32 table_3[1 << kHash3Bits];
-    S32 hash_chain_3[1];
+    int32_t table_3[1 << kHash3Bits];
+    int32_t hash_chain_3[1];
 } LZMA2_hc3;
 
 /*
@@ -195,16 +195,10 @@ typedef struct
     ptrdiff_t hash_alloc_3;
 
     /* Temp output buffer before space frees up in the match table */
-    BYTE out_buf[kTempBufferSize];
+    uint8_t out_buf[kTempBufferSize];
 } LZMA2_ECtx;
 
-typedef struct {
-	const BYTE* data;
-	size_t start;
-	size_t end;
-} lzma2_data_block;
-
-LZMA2_ECtx* LZMA2_createECtx(void);
+void LZMA2_constructECtx(LZMA2_ECtx *const enc);
 
 void LZMA2_freeECtx(LZMA2_ECtx *const enc);
 
@@ -212,13 +206,13 @@ int LZMA2_hashAlloc(LZMA2_ECtx *const enc, const lzma_options_lzma* const option
 
 size_t LZMA2_encode(LZMA2_ECtx *const enc,
     FL2_matchTable* const tbl,
-	lzma2_data_block const block,
+	lzma_data_block const block,
 	const lzma_options_lzma* const options,
 	FL2_atomic *const progress_in,
     FL2_atomic *const progress_out,
     int *const canceled);
 
-BYTE LZMA2_getDictSizeProp(size_t const dictionary_size);
+uint8_t LZMA2_getDictSizeProp(size_t const dictionary_size);
 
 size_t LZMA2_compressBound(size_t src_size);
 

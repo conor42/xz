@@ -5,13 +5,11 @@
 * Public domain
 */
 
-#include "fl2_internal.h"
-#include "mem.h"
-#include "platform.h"
+#include "common.h"
 #include "range_enc.h"
 
 /* The first and last elements of these tables are never used */
-BYTE price_table[2][kPriceTableSize] = { {
+uint8_t price_table[2][kPriceTableSize] = { {
    0, 193, 182, 166, 154, 145, 137, 131,
  125, 120, 115, 111, 107, 103, 100,  97,
   94,  91,  89,  86,  84,  82,  80,  78,
@@ -56,7 +54,7 @@ void RC_printPriceTable()
 {
     static const unsigned test_size = 0x4000;
     const unsigned test_div = test_size >> 8;
-    BYTE buf[0x3062];
+    uint8_t buf[0x3062];
     unsigned table0[kPriceTableSize];
     unsigned table1[kPriceTableSize];
     unsigned count[kPriceTableSize];
@@ -87,7 +85,7 @@ void RC_printPriceTable()
         table0[i] = (table0[i] / count[i]) / test_div;
         table1[i] = (table1[i] / count[i]) / test_div;
     }
-    fputs("const BYTE price_table[2][kPriceTableSize] = {\r\n", stdout);
+    fputs("const uint8_t price_table[2][kPriceTableSize] = {\r\n", stdout);
     for (int i = 0; i < kPriceTableSize;) {
         for (int j = 0; j < 8; ++j, ++i)
             printf("%4d,", table0[i]);
@@ -104,7 +102,7 @@ void RC_printPriceTable()
 
 #endif
 
-void RC_setOutputBuffer(RC_encoder* const rc, BYTE *const out_buffer)
+void RC_setOutputBuffer(RC_encoder* const rc, uint8_t *const out_buffer)
 {
     rc->out_buffer = out_buffer;
     rc->out_index = 0;
@@ -113,7 +111,7 @@ void RC_setOutputBuffer(RC_encoder* const rc, BYTE *const out_buffer)
 void RC_reset(RC_encoder* const rc)
 {
     rc->low = 0;
-    rc->range = (U32)-1;
+    rc->range = (uint32_t)-1;
     rc->cache_size = 0;
     rc->cache = 0;
 }
@@ -122,13 +120,13 @@ void RC_reset(RC_encoder* const rc)
 
 void FORCE_NOINLINE RC_shiftLow(RC_encoder* const rc)
 {
-    U64 low = rc->low;
-    rc->low = (U32)(low << 8);
+    uint64_t low = rc->low;
+    rc->low = (uint32_t)(low << 8);
     /* VC15 compiles 'if (low < 0xFF000000 || low > 0xFFFFFFFF)' to this single-branch conditional */
     if (low + 0xFFFFFFFF01000000 > 0xFFFFFF) {
-        BYTE high = (BYTE)(low >> 32);
+        uint8_t high = (uint8_t)(low >> 32);
         rc->out_buffer[rc->out_index++] = rc->cache + high;
-        rc->cache = (BYTE)(low >> 24);
+        rc->cache = (uint8_t)(low >> 24);
         if (rc->cache_size != 0) {
             high += 0xFF;
             do {
@@ -145,16 +143,16 @@ void FORCE_NOINLINE RC_shiftLow(RC_encoder* const rc)
 
 void FORCE_NOINLINE RC_shiftLow(RC_encoder* const rc)
 {
-    U32 low = (U32)rc->low;
+    uint32_t low = (uint32_t)rc->low;
     unsigned high = (unsigned)(rc->low >> 32);
     rc->low = low << 8;
-    if (low < (U32)0xFF000000 || high != 0) {
-        rc->out_buffer[rc->out_index++] = rc->cache + (BYTE)high;
-        rc->cache = (BYTE)(low >> 24);
+    if (low < (uint32_t)0xFF000000 || high != 0) {
+        rc->out_buffer[rc->out_index++] = rc->cache + (uint8_t)high;
+        rc->cache = (uint8_t)(low >> 24);
         if (rc->cache_size != 0) {
             high += 0xFF;
             do {
-                rc->out_buffer[rc->out_index++] = (BYTE)high;
+                rc->out_buffer[rc->out_index++] = (uint8_t)high;
             } while (--rc->cache_size != 0);
         }
     }
