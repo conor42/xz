@@ -15,12 +15,6 @@
 extern "C" {
 #endif
 
-typedef struct
-{
-    uint32_t length;
-    uint32_t dist;
-} RMF_match;
-
 static size_t RMF_bitpackExtendMatch(const uint8_t* const data,
     const uint32_t* const table,
     ptrdiff_t const start_index,

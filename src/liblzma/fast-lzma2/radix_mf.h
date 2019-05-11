@@ -11,7 +11,7 @@
 #ifndef RADIX_MF_H
 #define RADIX_MF_H
 
-#include "fast-lzma2.h"
+
 #include "data_block.h"
 
 #if defined (__cplusplus)
@@ -37,6 +37,12 @@ typedef struct
     unsigned use_ref_mf;
 #endif
 } RMF_parameters;
+
+typedef struct
+{
+	uint32_t length;
+	uint32_t dist;
+} RMF_match;
 
 FL2_matchTable* RMF_createMatchTable(const RMF_parameters* const params, size_t const dict_reduce, unsigned const thread_count);
 void RMF_freeMatchTable(FL2_matchTable* const tbl);
