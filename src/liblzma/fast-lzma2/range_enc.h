@@ -8,9 +8,6 @@
 #ifndef RANGE_ENCODER_H
 #define RANGE_ENCODER_H
 
-#include "common.h"
-#include "compiler.h"
-
 #if defined (__cplusplus)
 extern "C" {
 #endif
