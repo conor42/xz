@@ -13,7 +13,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "common.h"
-#include "fast-lzma2.h"
 
 
 static lzma_bool
@@ -82,29 +81,28 @@ lzma_lzma_preset(lzma_options_lzma *options, uint32_t preset)
 		return lzma_lzma_preset_orig(options, level, flags);
 
 	static const uint8_t dict_pow2[]
-			= { 18, 20, 21, 22, 22, 23, 23, 24, 25, 26 };
+		= { 0, 20, 21, 21, 23, 24, 24, 25, 26, 27 };
+	static const unsigned depth[]
+		= { 0, 6, 14, 14, 26, 42, 42, 50, 62, 90 };
 	options->dict_size = UINT32_C(1) << dict_pow2[level];
-
+	options->depth = depth[level];
 	options->mf = LZMA_MF_RAD;
-	FL2_compressionParameters params;
-	if (FL2_isError(FL2_getLevelParameters(level, 0, &params)))
-		return true;
-	options->dict_size = params.dictionarySize;
+
 	if (!(flags & LZMA_PRESET_EXTREME)) {
-		options->overlap_fraction = params.overlapFraction;
-		options->mode = params.strategy + 1;
-		options->nice_len = params.fastLength;
-		options->depth = params.searchDepth;
-		options->near_dict_size_log = params.chainLog;
-		options->near_depth = 1U << params.cyclesLog;
-		options->divide_and_conquer = params.divideAndConquer;
+		options->overlap_fraction = 1 + (level >= 2);
+		options->mode = LZMA_MODE_FAST + (level >= 3) + (level >= 6);
+		options->nice_len = (level < 7 ) ? 32 + 8 * ((level - 1) / 2)
+			: 64 + 32 * (level - 7);
+		options->near_dict_size_log = (level < 5) ? 7 : level + 3;
+		options->near_depth = 1 << ((level < 6) ? 0 : level - 5);
+		options->divide_and_conquer = 1;
 	}
 	else {
 		options->overlap_fraction = 4;
 		options->mode = LZMA_MODE_ULTRA;
 		options->nice_len = 273;
 		options->depth = 254;
-		options->near_dict_size_log = FL2_CHAINLOG_MAX;
+		options->near_dict_size_log = 14;
 		options->near_depth = 16;
 		options->divide_and_conquer = 0;
 	}
