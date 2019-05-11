@@ -47,7 +47,7 @@ typedef struct
 FL2_matchTable* RMF_createMatchTable(const RMF_parameters* const params, size_t const dict_reduce, unsigned const thread_count);
 void RMF_freeMatchTable(FL2_matchTable* const tbl);
 uint8_t RMF_compatibleParameters(const FL2_matchTable* const tbl, const RMF_parameters* const params, size_t const dict_reduce);
-size_t RMF_applyParameters(FL2_matchTable* const tbl, const RMF_parameters* const params, size_t const dict_reduce);
+lzma_ret RMF_applyParameters(FL2_matchTable* const tbl, const RMF_parameters* const params, size_t const dict_reduce);
 size_t RMF_threadCount(const FL2_matchTable * const tbl);
 void RMF_initProgress(FL2_matchTable * const tbl);
 void RMF_initTable(FL2_matchTable* const tbl, const void* const data, size_t const end);
