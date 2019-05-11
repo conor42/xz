@@ -13,7 +13,7 @@
 #include "filter_decoder.h"
 #include "filter_common.h"
 #include "lzma_decoder.h"
-#include "lzma2_fast_decoder.h"
+#include "lzma2_decoder.h"
 #include "simple_decoder.h"
 #include "delta_decoder.h"
 
@@ -54,9 +54,9 @@ static const lzma_filter_decoder decoders[] = {
 #ifdef HAVE_DECODER_LZMA2
 	{
 		.id = LZMA_FILTER_LZMA2,
-		.init = &lzma_flzma2_decoder_init,
-		.memusage = &lzma_flzma2_decoder_memusage,
-		.props_decode = &lzma_flzma2_props_decode,
+		.init = &lzma_lzma2_decoder_init,
+		.memusage = &lzma_lzma2_decoder_memusage,
+		.props_decode = &lzma_lzma2_props_decode,
 	},
 #endif
 #ifdef HAVE_DECODER_X86
