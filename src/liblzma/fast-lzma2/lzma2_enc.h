@@ -10,6 +10,7 @@ Public domain
 #include "lzma_encoder_private.h"
 #include "data_block.h"
 #include "radix_mf.h"
+#include "range_enc.h"
 #include "atomic.h"
 
 #if defined (__cplusplus)
@@ -128,7 +129,7 @@ typedef struct
     probability literal_probs[(kNumLiterals * kNumLitTables) << kLcLpMax];
 } LZMA2_encStates;
 
-/* 
+/*
  * Linked list item for optimal parsing
  */
 typedef struct
@@ -164,7 +165,7 @@ typedef struct
     size_t lit_pos_mask;
     size_t pos_mask;
     unsigned match_cycles;
-    FL2_strategy strategy;
+	lzma_mode strategy;
 
     RC_encoder rc;
     /* Finish writing the chunk at this size */
@@ -216,7 +217,7 @@ uint8_t LZMA2_getDictSizeProp(size_t const dictionary_size);
 
 size_t LZMA2_compressBound(size_t src_size);
 
-size_t LZMA2_encMemoryUsage(unsigned const chain_log, FL2_strategy const strategy, unsigned const thread_count);
+size_t LZMA2_encMemoryUsage(unsigned const chain_log, lzma_mode const strategy, unsigned const thread_count);
 
 #if defined (__cplusplus)
 }
