@@ -13,7 +13,6 @@
 
 #include "lzma2_fast_encoder.h" // flzma2_translate_error
 #include "lzma2_fast_decoder.h"
-#include "fast-lzma2.h"
 
 
 #define ret_translate_if_error(expr) \
