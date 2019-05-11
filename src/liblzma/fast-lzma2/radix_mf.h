@@ -19,6 +19,7 @@ extern "C" {
 #endif
 
 typedef struct FL2_matchTable_s FL2_matchTable;
+typedef struct RMF_builder_s RMF_builder;
 
 #define OVERLAP_FROM_DICT_SIZE(d, o) (((d) >> 4) * (o))
 
@@ -44,16 +45,16 @@ typedef struct
 	uint32_t dist;
 } RMF_match;
 
-FL2_matchTable* RMF_createMatchTable(const RMF_parameters* const params, size_t const dict_reduce, unsigned const thread_count);
+FL2_matchTable* RMF_createMatchTable(const RMF_parameters* const params, size_t const dict_reduce);
 void RMF_freeMatchTable(FL2_matchTable* const tbl);
 uint8_t RMF_compatibleParameters(const FL2_matchTable* const tbl, const RMF_parameters* const params, size_t const dict_reduce);
 lzma_ret RMF_applyParameters(FL2_matchTable* const tbl, const RMF_parameters* const params, size_t const dict_reduce);
-size_t RMF_threadCount(const FL2_matchTable * const tbl);
+RMF_builder* RMF_createBuilder(FL2_matchTable* const tbl, RMF_builder *existing);
 void RMF_initProgress(FL2_matchTable * const tbl);
 void RMF_initTable(FL2_matchTable* const tbl, const void* const data, size_t const end);
 int RMF_buildTable(FL2_matchTable* const tbl,
-    size_t const job,
-    unsigned const multi_thread,
+	RMF_builder* const builder,
+    int const thread,
     lzma_data_block const block);
 void RMF_cancelBuild(FL2_matchTable* const tbl);
 void RMF_resetIncompleteBuild(FL2_matchTable* const tbl);

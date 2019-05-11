@@ -924,9 +924,9 @@ RMF_bitpackBuildTable
 RMF_structuredBuildTable
 #endif
 (FL2_matchTable* const tbl,
-    size_t const job,
-    unsigned const multi_thread,
-    lzma_data_block const block)
+	RMF_builder* const builder,
+	int const thread,
+	lzma_data_block const block)
 {
     if (block.end == 0)
         return;
@@ -935,9 +935,9 @@ RMF_structuredBuildTable
     unsigned const max_depth = MIN(tbl->params.depth, STRUCTURED_MAX_LENGTH) & ~1;
     size_t bounded_start = max_depth + MAX_READ_BEYOND_DEPTH;
     bounded_start = block.end - MIN(block.end, bounded_start);
-    ptrdiff_t next_progress = (job == 0) ? 0 : RADIX16_TABLE_SIZE;
+    ptrdiff_t next_progress = (thread == 0) ? 0 : RADIX16_TABLE_SIZE;
     ptrdiff_t(*getNextList)(FL2_matchTable* const tbl)
-        = multi_thread ? RMF_getNextList_mt : RMF_getNextList_st;
+        = (thread >= 0) ? RMF_getNextList_mt : RMF_getNextList_st;
 
     for (;;)
     {
@@ -965,17 +965,17 @@ RMF_structuredBuildTable
         }
 #endif
         if (list_head.head >= bounded_start) {
-            RMF_recurseListsBound(tbl->builders[job], block.data, block.end, &list_head, max_depth);
+            RMF_recurseListsBound(builder, block.data, block.end, &list_head, max_depth);
             if (list_head.count < 2 || list_head.head < block.start)
                 continue;
         }
-        if (best && list_head.count > tbl->builders[job]->match_buffer_limit)
+        if (best && list_head.count > builder->match_buffer_limit)
         {
             /* Not worth buffering or too long */
-            RMF_recurseLists16(tbl->builders[job], block.data, block.start, list_head.head, list_head.count, max_depth);
+            RMF_recurseLists16(builder, block.data, block.start, list_head.head, list_head.count, max_depth);
         }
         else {
-            RMF_recurseListsBuffered(tbl->builders[job], block.data, block.start, list_head.head, 2, (uint8_t)max_depth, list_head.count, 0);
+            RMF_recurseListsBuffered(builder, block.data, block.start, list_head.head, 2, (uint8_t)max_depth, list_head.count, 0);
         }
     }
 }
