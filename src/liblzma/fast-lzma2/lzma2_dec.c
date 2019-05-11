@@ -3,10 +3,7 @@ Based upon LzmaDec.c 2018-02-28 : Igor Pavlov : Public domain
 Modified for FL2 by Conor McCarthy */
 
 #include <stdlib.h>
-#include "fl2_errors.h"
-#include "fl2_internal.h"
 #include "lzma2_dec.h"
-#include "platform.h"
 
 
 #ifdef HAVE_SMALL
