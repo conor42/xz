@@ -1764,7 +1764,7 @@ size_t LZMA2_encode(LZMA2_ECtx *const enc,
 	const lzma_options_lzma* const options,
 	FL2_atomic *const progress_in,
 	FL2_atomic *const progress_out,
-	int *const canceled)
+	bool *const canceled)
 {
     size_t const start = block.start;
 
