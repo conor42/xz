@@ -1,5 +1,3 @@
-#include "mem.h"
-
 #ifndef FL2_DATA_BLOCK_H_
 #define FL2_DATA_BLOCK_H_
 
@@ -7,11 +5,13 @@
 extern "C" {
 #endif
 
+
 typedef struct {
-    const BYTE* data;
-    size_t start;
-    size_t end;
-} FL2_dataBlock;
+	const uint8_t* data;
+	size_t start;
+	size_t end;
+} lzma_data_block;
+
 
 #if defined (__cplusplus)
 }
