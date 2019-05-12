@@ -17,6 +17,10 @@
 #include "tuklib_cpucores.h"
 #include "mythread.h"
 
+
+#define LZMA2_TIMEOUT 300
+
+
 typedef enum {
 	/// Waiting for work.
 	THR_IDLE,
@@ -55,33 +59,55 @@ typedef struct {
 #endif
 } worker_thread;
 
+
 struct lzma2_fast_coder_s {
-	/// Flag to end reading from upstream filter
+	/// Flag to end reading from upstream filter.
 	bool ending;
 
 	/// LZMA options currently in use.
 	lzma_options_lzma opt_cur;
 
-	/// Allocated dictionary size
+	/// Allocated dictionary size.
 	size_t dict_size;
 
-	/// Dictionary buffer of dict_size bytes
+	/// Dictionary buffer of dict_size bytes.
 	lzma_dict_block dict_block;
 
-	/// Next coder in the chain
+	/// Next coder in the chain.
 	lzma_next_coder next;
 
-	/// Match table allocated with thread_count threads
+	/// Match table allocated with thread_count threads.
 	FL2_matchTable *match_table;
 
-	/// Current source position for output
+	/// Current source position for output.
 	size_t out_pos;
 
-	/// Current source thread for output
+	/// Current source thread for output.
 	size_t out_thread;
 
-	/// Number of encoders allocated
+	/// Number of thread structs allocated.
 	size_t thread_count;
+
+	/// Progress weight of the match-finder stage.
+	unsigned rmf_weight;
+
+	/// Progress weight of the encoder stage.
+	unsigned enc_weight;
+
+	/// Amount of uncompressed data compressed by running encoders.
+	FL2_atomic progress_in;
+
+	/// Amount of compressed data buffered by running encoders.
+	FL2_atomic progress_out;
+
+	/// Amount of uncompressed data that has already been compressed.
+	uint64_t total_in;
+
+	/// Amount of compressed data that is ready.
+	uint64_t total_out;
+
+	/// Flag to indicate that a compression job needs to be retrieved.
+	bool working;
 
 	/// Flag to stop async encoder
 	bool canceled;
@@ -91,14 +117,6 @@ struct lzma2_fast_coder_s {
 };
 
 
-#define return_if_fl2_error(expr) \
-do { \
-	const size_t ret_ = (expr); \
-	if (FL2_isError(ret_)) \
-		return ret_; \
-} while (0)
-
-
 static void
 reset_dict(lzma2_fast_coder *coder)
 {
@@ -106,6 +124,68 @@ reset_dict(lzma2_fast_coder *coder)
 	coder->dict_block.end = 0;
 }
 
+
+static void
+compress_run(lzma2_fast_coder *coder, worker_thread *thr)
+{
+	lzma_data_block block = { coder->dict_block.data, coder->dict_block.start,coder->dict_block.end };
+	RMF_buildTable(coder->match_table, thr->builder, thr != coder->threads, block);
+	if (thr->block.end != 0) {
+		size_t out_size = LZMA2_encode(&thr->enc, coder->match_table, thr->block, &coder->opt_cur,
+			&coder->progress_in, &coder->progress_out, &coder->canceled);
+		thr->out_size = out_size;
+	}
+}
+
+
+static lzma_ret
+create_builders(lzma2_fast_coder *coder, const lzma_allocator *allocator)
+{
+	for (size_t i = 0; i < coder->thread_count; ++i) {
+		coder->threads[i].builder = RMF_createBuilder(coder->match_table, coder->threads[i].builder, allocator);
+		if (!coder->threads[i].builder)
+			return LZMA_MEM_ERROR;
+	}
+	return LZMA_OK;
+}
+
+static void
+free_builders(lzma2_fast_coder *coder, const lzma_allocator *allocator)
+{
+	for (size_t i = 0; i < coder->thread_count; ++i) {
+		lzma_free(coder->threads[i].builder, allocator);
+		coder->threads[i].builder = NULL;
+	}
+}
+
+static void set_weights(lzma2_fast_coder *coder)
+{
+	uint32_t rmf_weight = bsr32((uint32_t)coder->dict_block.end);
+	uint32_t depth_weight = 2 + (coder->opt_cur.depth >= 12) + (coder->opt_cur.depth >= 28);
+	uint32_t enc_weight;
+
+	if (rmf_weight >= 20) {
+		rmf_weight = depth_weight * (rmf_weight - 10) + (rmf_weight - 19) * 12;
+		if (coder->opt_cur.mode == LZMA_MODE_FAST)
+			enc_weight = 20;
+		else if (coder->opt_cur.mode == LZMA_MODE_NORMAL)
+			enc_weight = 50;
+		else
+			enc_weight = 60 + coder->opt_cur.near_dict_size_log + bsr32(coder->opt_cur.nice_len) * 3U;
+		rmf_weight = (rmf_weight << 4) / (rmf_weight + enc_weight);
+		enc_weight = 16 - rmf_weight;
+	}
+	else {
+		rmf_weight = 8;
+		enc_weight = 8;
+	}
+
+	coder->rmf_weight = rmf_weight;
+	coder->enc_weight = enc_weight;
+}
+
+
+#ifdef MYTHREAD_ENABLED
 
 static MYTHREAD_RET_TYPE
 worker_start(void *thr_ptr)
@@ -140,14 +220,8 @@ worker_start(void *thr_ptr)
 		if (state == THR_EXIT)
 			break;
 
-		lzma_data_block block = { coder->dict_block.data, coder->dict_block.start,coder->dict_block.end };
-		RMF_buildTable(coder->match_table, thr->builder, thr != coder->threads, block);
-		if (thr->block.end != 0) {
-			FL2_atomic progress_in = 0, progress_out = 0;
-			size_t out_size = LZMA2_encode(&thr->enc, coder->match_table, thr->block, &coder->opt_cur,
-				&progress_in, &progress_out, &coder->canceled);
-			thr->out_size = out_size;
-		}
+		compress_run(coder, thr);
+
 		if (state == THR_EXIT)
 			break;
 
@@ -171,135 +245,32 @@ worker_start(void *thr_ptr)
 }
 
 
-static void
-free_threads(lzma2_fast_coder *coder, const lzma_allocator *allocator)
-{
-	for (size_t i = 0; i < coder->thread_count; ++i) {
-		coder->threads[i].state = THR_EXIT;
-		mythread_cond_signal(&coder->threads[i].cond);
-		mythread_join(coder->threads[i].thread_id);
-		mythread_mutex_destroy(&coder->threads[i].mutex);
-		mythread_cond_destroy(&coder->threads[i].cond);
-	}
-	coder->thread_count = 0;
-	lzma_free(coder->threads, allocator);
-	coder->threads = NULL;
-}
-
-
 static lzma_ret
-create_threads(lzma2_fast_coder *coder, const lzma_allocator *allocator)
+thread_initialize(lzma2_fast_coder *coder, size_t i)
 {
-	uint32_t thread_count = coder->opt_cur.threads;
-
-	if (coder->threads && coder->thread_count < thread_count)
-		free_threads(coder, allocator);
-
-	if (!coder->threads) {
-		coder->threads = lzma_alloc(thread_count * sizeof(worker_thread), allocator);
-		if (!coder->threads)
-			return LZMA_MEM_ERROR;
-
-		for (coder->thread_count = 0; coder->thread_count < thread_count; ++coder->thread_count) {
-			size_t i = coder->thread_count;
-			coder->threads[i].state = THR_IDLE;
-			if (mythread_create(&coder->threads[i].thread_id,
-				&worker_start, coder->threads + i))
-					return LZMA_MEM_ERROR;
-			mythread_mutex_init(&coder->threads[i].mutex);
-			mythread_cond_init(&coder->threads[i].cond);
-			coder->threads[i].coder = coder;
-			coder->threads[i].builder = NULL;
-			LZMA2_constructECtx(&coder->threads[i].enc);
-		}
-	}
-	coder->out_thread = coder->thread_count;
+	coder->threads[i].state = THR_IDLE;
+	if (mythread_create(&coder->threads[i].thread_id,
+		&worker_start, coder->threads + i))
+		return LZMA_MEM_ERROR;
+	mythread_mutex_init(&coder->threads[i].mutex);
+	mythread_cond_init(&coder->threads[i].cond);
 	return LZMA_OK;
 }
 
-
-static lzma_ret
-create_builders(lzma2_fast_coder *coder, const lzma_allocator *allocator)
-{
-	for (size_t i = 0; i < coder->thread_count; ++i) {
-		coder->threads[i].builder = RMF_createBuilder(coder->match_table, coder->threads[i].builder, allocator);
-		if (!coder->threads[i].builder)
-			return LZMA_MEM_ERROR;
-	}
-	return LZMA_OK;
-}
 
 static void
-free_builders(lzma2_fast_coder *coder, const lzma_allocator *allocator)
+thread_free(lzma2_fast_coder *coder, size_t i)
 {
-	for (size_t i = 0; i < coder->thread_count; ++i) {
-		lzma_free(coder->threads[i].builder, allocator);
-		coder->threads[i].builder = NULL;
-	}
-}
-
-static lzma_ret lzma2_fast_encoder_create(lzma2_fast_coder *coder,
-	const lzma_allocator *allocator)
-{
-	return_if_error(create_threads(coder, allocator));
-
-	RMF_parameters params;
-	params.dictionary_size = coder->opt_cur.dict_size;
-	params.depth = coder->opt_cur.depth;
-	params.divide_and_conquer = coder->opt_cur.divide_and_conquer;
-	/* Free unsuitable match table before reallocating anything else */
-	if (coder->match_table && !RMF_compatibleParameters(coder->match_table, coder->threads[0].builder, &params)) {
-		RMF_freeMatchTable(coder->match_table, allocator);
-		coder->match_table = NULL;
-		free_builders(coder, allocator);
-	}
-	if (coder->dict_block.data && coder->dict_size < coder->opt_cur.dict_size) {
-		lzma_free(coder->dict_block.data, allocator);
-		coder->dict_block.data = NULL;
-	}
-
-	for (size_t i = 0; i < coder->thread_count; ++i)
-		if (LZMA2_hashAlloc(&coder->threads[i].enc, &coder->opt_cur))
-			return LZMA_MEM_ERROR;
-
-	if (!coder->match_table) {
-		coder->match_table = RMF_createMatchTable(&params, allocator);
-		if (!coder->match_table)
-			return LZMA_MEM_ERROR;
-	}
-	else {
-		RMF_applyParameters(coder->match_table, &params);
-	}
-
-	return_if_error(create_builders(coder, allocator));
-
-	reset_dict(coder);
-	if (!coder->dict_block.data) {
-		coder->dict_size = coder->opt_cur.dict_size;
-		coder->dict_block.data = lzma_alloc(coder->dict_size, allocator);
-		if (!coder->dict_block.data)
-			return LZMA_MEM_ERROR;
-	}
-
-	return LZMA_OK;
+	coder->threads[i].state = THR_EXIT;
+	mythread_cond_signal(&coder->threads[i].cond);
+	mythread_join(coder->threads[i].thread_id);
+	mythread_mutex_destroy(&coder->threads[i].mutex);
+	mythread_cond_destroy(&coder->threads[i].cond);
 }
 
 
-static void threads_wait(lzma2_fast_coder *coder)
-{
-	// Wait for the threads to settle in the idle state.
-	for (uint32_t i = 0; i < coder->thread_count; ++i) {
-		mythread_sync(coder->threads[i].mutex)
-		{
-			while (coder->threads[i].state != THR_IDLE)
-				mythread_cond_wait(&coder->threads[i].cond,
-					&coder->threads[i].mutex);
-		}
-	}
-}
-
-
-static inline size_t rmf_thread_count(lzma2_fast_coder *coder)
+static inline size_t
+rmf_thread_count(lzma2_fast_coder *coder)
 {
 	size_t rmf_threads = coder->dict_block.end / RMF_MIN_BYTES_PER_THREAD;
 	rmf_threads = my_min(coder->thread_count, rmf_threads);
@@ -307,7 +278,9 @@ static inline size_t rmf_thread_count(lzma2_fast_coder *coder)
 	return rmf_threads + !rmf_threads;
 }
 
-static inline size_t enc_thread_count(lzma2_fast_coder *coder)
+
+static inline size_t
+enc_thread_count(lzma2_fast_coder *coder)
 {
 	size_t const encode_size = (coder->dict_block.end - coder->dict_block.start);
 	size_t enc_threads = my_min(coder->thread_count, encode_size / ENC_MIN_BYTES_PER_THREAD);
@@ -315,9 +288,115 @@ static inline size_t enc_thread_count(lzma2_fast_coder *coder)
 	return enc_threads + !enc_threads;
 }
 
+
+static inline void
+thread_run(lzma2_fast_coder *coder, size_t i)
+{
+	coder->threads[i].state = THR_RUN;
+	mythread_cond_signal(&coder->threads[i].cond);
+}
+
+
+static lzma_ret
+threads_wait(lzma2_fast_coder *coder)
+{
+	// Wait for the threads to settle in the idle state.
+	for (uint32_t i = 0; i < coder->thread_count; ++i) {
+		if (coder->threads[i].state == THR_IDLE)
+			continue;
+		bool timed_out = false;
+		mythread_condtime wait_abs;
+		mythread_condtime_set(&wait_abs, &coder->threads[i].cond, LZMA2_TIMEOUT);
+		mythread_sync(coder->threads[i].mutex)
+		{
+			while (coder->threads[i].state != THR_IDLE && !timed_out)
+				timed_out = mythread_cond_timedwait(&coder->threads[i].cond,
+						&coder->threads[i].mutex, &wait_abs) != 0;
+		}
+		if(timed_out)
+			return LZMA_TIMED_OUT;
+	}
+	return LZMA_OK;
+}
+
+
+#else
+
+
+static inline lzma_ret
+thread_initialize(lzma2_fast_coder *coder lzma_attribute((__unused__)),
+		size_t i lzma_attribute((__unused__)))
+{
+	return LZMA_OK;
+}
+
+
+static void
+thread_free(lzma2_fast_coder *coder lzma_attribute((__unused__)),
+		size_t i lzma_attribute((__unused__)))
+{
+}
+
+
+static inline size_t
+rmf_thread_count(lzma2_fast_coder *coder lzma_attribute((__unused__)))
+{
+	return 1;
+}
+
+
+static inline size_t
+enc_thread_count(lzma2_fast_coder *coder lzma_attribute((__unused__)))
+{
+	return 1;
+}
+
+
+static inline void
+thread_run(lzma2_fast_coder *coder, size_t i)
+{
+	compress_run(coder, coder->threads + i);
+}
+
+
+static inline lzma_ret
+threads_wait(lzma2_fast_coder *coder lzma_attribute((__unused__)))
+{
+	return LZMA_OK;
+}
+
+
+#endif
+
+
+static lzma_ret
+threads_init_output(lzma2_fast_coder *coder)
+{
+	return_if_error(threads_wait(coder));
+
+	for (size_t i = 0; i < coder->thread_count; ++i)
+		if (coder->threads[i].out_size == (size_t)-1)
+			return LZMA_PROG_ERROR;
+
+	coder->out_thread = 0;
+	coder->dict_block.start = coder->dict_block.end;
+	coder->working = false;
+
+	return LZMA_OK;
+}
+
+
 static lzma_ret
 compress(lzma2_fast_coder *coder)
 {
+	coder->total_in += coder->progress_in;
+	coder->total_out += coder->progress_out;
+	coder->progress_in = 0;
+	coder->progress_out = 0;
+	coder->working = true;
+
+	set_weights(coder);
+
 	size_t const encode_size = (coder->dict_block.end - coder->dict_block.start);
 	size_t enc_threads = enc_thread_count(coder);
 
@@ -333,35 +412,30 @@ compress(lzma2_fast_coder *coder)
 		coder->threads[i].block.end = (i == enc_threads - 1)
 			? coder->dict_block.end
 			: slice_start + slice_size;
-		coder->threads[i].state = THR_RUN;
-		mythread_cond_signal(&coder->threads[i].cond);
+		thread_run(coder, i);
 		slice_start += slice_size;
 	}
 	size_t rmf_threads = rmf_thread_count(coder);
 	for (; i < rmf_threads; ++i) {
 		coder->threads[i].block.end = 0;
 		coder->threads[i].out_size = 0;
+		thread_run(coder, i);
 	}
 	for (; i < coder->thread_count; ++i)
 		coder->threads[i].out_size = 0;
 
-	threads_wait(coder);
-
-	for (size_t i = 0; i < enc_threads; ++i)
-		if (coder->threads[i].out_size == (size_t)-1)
-			return LZMA_PROG_ERROR;
-
-	coder->out_thread = 0;
-	coder->dict_block.start = coder->dict_block.end;
+	return_if_error(threads_init_output(coder));
 
 	return LZMA_OK;
 }
+
 
 static bool
 have_output(lzma2_fast_coder *coder)
 {
 	return coder->out_thread < coder->thread_count;
 }
+
 
 static bool
 copy_output(lzma2_fast_coder *coder,
@@ -390,8 +464,10 @@ copy_output(lzma2_fast_coder *coder,
 	return false;
 }
 
+
 #define ALIGNMENT_SIZE 16U
 #define ALIGNMENT_MASK (~(size_t)(ALIGNMENT_SIZE-1))
+
 
 static void
 dict_shift(lzma2_fast_coder *coder)
@@ -424,6 +500,7 @@ dict_shift(lzma2_fast_coder *coder)
         coder->dict_block.end = overlap;
     }
 }
+
 
 /// \brief      Tries to fill the input window (coder->fcs internal buffer)
 ///
@@ -485,6 +562,7 @@ flush_stream(lzma2_fast_coder *coder,
 	return LZMA_OK;
 }
 
+
 static lzma_ret
 end_stream(lzma2_fast_coder *coder,
 		uint8_t *out, size_t *out_pos, size_t out_size)
@@ -512,6 +590,9 @@ flzma2_encode(void *coder_ptr,
 	lzma2_fast_coder *restrict coder = coder_ptr;
 
 	lzma_ret ret = LZMA_OK;
+
+	if (coder->working)
+		return_if_error(threads_init_output(coder));
 
 	if (!coder->ending)
 		return_if_error(fill_window(coder, allocator,
@@ -564,6 +645,38 @@ flzma2_encode(void *coder_ptr,
 
 
 static void
+get_progress(void *coder_ptr, uint64_t *progress_in, uint64_t *progress_out)
+{
+	lzma2_fast_coder *coder = coder_ptr;
+
+	uint64_t const encode_size = coder->dict_block.end - coder->dict_block.start;
+
+	if (coder->progress_in == 0 && coder->dict_block.end != 0)
+		*progress_in = coder->total_in + ((coder->match_table->progress * encode_size / coder->dict_block.end * coder->rmf_weight) >> 4);
+
+	else
+		*progress_in = coder->total_in + ((coder->rmf_weight * encode_size) >> 4) + ((coder->progress_in * coder->enc_weight) >> 4);
+
+	*progress_out = coder->total_out + coder->progress_out;
+}
+
+
+static void
+free_threads(lzma2_fast_coder *coder, const lzma_allocator *allocator)
+{
+	if (coder->working) {
+		RMF_cancelBuild(coder->match_table);
+		coder->canceled = true;
+	}
+	for (size_t i = 0; i < coder->thread_count; ++i)
+		thread_free(coder, i);
+	coder->thread_count = 0;
+	lzma_free(coder->threads, allocator);
+	coder->threads = NULL;
+}
+
+
+static void
 flzma2_encoder_end(void *coder_ptr, const lzma_allocator *allocator)
 {
 	lzma2_fast_coder *coder = coder_ptr;
@@ -576,36 +689,43 @@ flzma2_encoder_end(void *coder_ptr, const lzma_allocator *allocator)
 	free_builders(coder, allocator);
 	RMF_freeMatchTable(coder->match_table, allocator);
 
-	for(size_t i = 0; i < coder->thread_count; ++i)
+	for (size_t i = 0; i < coder->thread_count; ++i)
 		LZMA2_freeECtx(&coder->threads[i].enc);
 
 	lzma_free(coder, allocator);
 }
 
 
-static void
-get_progress(void *coder_ptr, uint64_t *progress_in, uint64_t *progress_out)
+static lzma_ret
+create_threads(lzma2_fast_coder *coder, const lzma_allocator *allocator)
 {
-	lzma2_fast_coder *coder = coder_ptr;
+	uint32_t thread_count = coder->opt_cur.threads;
 
-	*progress_out = 0;// fcs->streamCsize + fcs->progressOut;
-#if 0
-	uint64_t const encode_size = coder->dict_block.end - coder->dict_block.start;
+	if (coder->threads && coder->thread_count < thread_count)
+		free_threads(coder, allocator);
 
-	if (fcs->progressIn == 0 && fcs->curBlock.end != 0)
-		return fcs->streamTotal + ((fcs->matchTable->progress * encode_size / fcs->curBlock.end * fcs->rmfWeight) >> 4);
+	if (!coder->threads) {
+		coder->threads = lzma_alloc(thread_count * sizeof(worker_thread), allocator);
+		if (!coder->threads)
+			return LZMA_MEM_ERROR;
 
-	return fcs->streamTotal + ((fcs->rmfWeight * encode_size) >> 4) + ((fcs->progressIn * fcs->encWeight) >> 4);
-#endif
-	*progress_in = 0;// FL2_getCStreamProgress(coder->fcs, &out);
-//	*progress_out = out;
+		for (coder->thread_count = 0; coder->thread_count < thread_count; ++coder->thread_count) {
+			size_t i = coder->thread_count;
+			return_if_error(thread_initialize(coder, i));
+			coder->threads[i].coder = coder;
+			coder->threads[i].builder = NULL;
+			LZMA2_constructECtx(&coder->threads[i].enc);
+		}
+	}
+	coder->out_thread = coder->thread_count;
+	return LZMA_OK;
 }
 
 
 static lzma_ret
 flzma2_encoder_options_update(void *coder_ptr, const lzma_allocator *allocator,
-	const lzma_filter *filters lzma_attribute((__unused__)),
-	const lzma_filter *reversed_filters)
+		const lzma_filter *filters lzma_attribute((__unused__)),
+		const lzma_filter *reversed_filters)
 {
 	lzma2_fast_coder *coder = coder_ptr;
 
@@ -632,6 +752,61 @@ flzma2_encoder_options_update(void *coder_ptr, const lzma_allocator *allocator,
 
 	return lzma_next_filter_update(
 		&coder->next, allocator, reversed_filters + 1);
+}
+
+
+static lzma_ret lzma2_fast_encoder_create(lzma2_fast_coder *coder,
+		const lzma_allocator *allocator)
+{
+	return_if_error(create_threads(coder, allocator));
+
+	RMF_parameters params;
+	params.dictionary_size = coder->opt_cur.dict_size;
+	params.depth = coder->opt_cur.depth;
+	params.divide_and_conquer = coder->opt_cur.divide_and_conquer;
+	/* Free unsuitable match table before reallocating anything else */
+	if (coder->match_table && !RMF_compatibleParameters(coder->match_table, coder->threads[0].builder, &params)) {
+		RMF_freeMatchTable(coder->match_table, allocator);
+		coder->match_table = NULL;
+		free_builders(coder, allocator);
+	}
+	if (coder->dict_block.data && coder->dict_size < coder->opt_cur.dict_size) {
+		lzma_free(coder->dict_block.data, allocator);
+		coder->dict_block.data = NULL;
+	}
+
+	for (size_t i = 0; i < coder->thread_count; ++i)
+		if (LZMA2_hashAlloc(&coder->threads[i].enc, &coder->opt_cur))
+			return LZMA_MEM_ERROR;
+
+	if (!coder->match_table) {
+		coder->match_table = RMF_createMatchTable(&params, allocator);
+		if (!coder->match_table)
+			return LZMA_MEM_ERROR;
+	}
+	else {
+		RMF_applyParameters(coder->match_table, &params);
+	}
+
+	return_if_error(create_builders(coder, allocator));
+
+	reset_dict(coder);
+	if (!coder->dict_block.data) {
+		coder->dict_size = coder->opt_cur.dict_size;
+		coder->dict_block.data = lzma_alloc(coder->dict_size, allocator);
+		if (!coder->dict_block.data)
+			return LZMA_MEM_ERROR;
+	}
+
+	return LZMA_OK;
+}
+
+
+static uint32_t check_thread_count(uint32_t threads)
+{
+	threads = (threads == 0) ? tuklib_cpucores() : threads;
+	threads = my_min(threads, LZMA_THREADS_MAX);
+	return threads + !threads;
 }
 
 
@@ -664,14 +839,18 @@ lzma_flzma2_encoder_init(lzma_next_coder *next,
 	}
 
 	coder->opt_cur = *options;
-	coder->opt_cur.threads = (options->threads == 0) ? tuklib_cpucores() : options->threads;
-	coder->opt_cur.threads += !coder->opt_cur.threads;
+	coder->opt_cur.threads = check_thread_count(options->threads);
 	if (options->depth == 0)
 		coder->opt_cur.depth = 42 + (options->dict_size >> 25) * 4U;
 
 	return_if_error(lzma2_fast_encoder_create(coder, allocator));
 
+	coder->working = false;
 	coder->ending = false;
+	coder->progress_in = 0;
+	coder->progress_out = 0;
+	coder->total_in = 0;
+	coder->total_out = 0;
 
 	// Initialize the next filter in the chain, if any.
 	return lzma_next_filter_init(&coder->next, allocator, filters + 1);
@@ -682,6 +861,7 @@ extern uint64_t
 lzma_flzma2_encoder_memusage(const void *options)
 {
 	const lzma_options_lzma *const opt = options;
-
-	return 0;// FL2_estimateCStreamSize_byParams(&params, opt->threads, 0);// opt->dual_buffer);
+	uint32_t threads = check_thread_count(opt->threads);
+	return RMF_memoryUsage(opt->dict_size, threads)
+		+ LZMA2_encMemoryUsage(opt->near_dict_size_log, opt->mode, threads);
 }
