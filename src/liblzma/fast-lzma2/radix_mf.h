@@ -12,20 +12,20 @@
 #define RADIX_MF_H
 
 
+#include "atomic.h"
 #include "data_block.h"
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
-typedef struct FL2_matchTable_s FL2_matchTable;
-typedef struct RMF_builder_s RMF_builder;
-
 #define OVERLAP_FROM_DICT_SIZE(d, o) (((d) >> 4) * (o))
 
 #define RMF_MIN_BYTES_PER_THREAD 1024
 
-#define RMF_DEFAULT_BUF_RESIZE 2
+#define RADIX16_TABLE_SIZE ((size_t)1 << 16)
+#define RADIX8_TABLE_SIZE ((size_t)1 << 8)
+#define STACK_SIZE (RADIX16_TABLE_SIZE * 3)
 
 typedef struct
 {
@@ -39,6 +39,56 @@ typedef struct
 
 typedef struct
 {
+	uint32_t head;
+	uint32_t count;
+} RMF_tableHead;
+
+union src_data_u {
+	uint8_t chars[4];
+	uint32_t u32;
+};
+
+typedef struct
+{
+	uint32_t from;
+	union src_data_u src;
+	uint32_t next;
+} RMF_buildMatch;
+
+typedef struct
+{
+	uint32_t prev_index;
+	uint32_t list_count;
+} RMF_listTail;
+
+typedef struct
+{
+	unsigned max_len;
+	uint32_t* table;
+	size_t match_buffer_size;
+	size_t match_buffer_limit;
+	RMF_listTail tails_8[RADIX8_TABLE_SIZE];
+	RMF_tableHead stack[STACK_SIZE];
+	RMF_listTail tails_16[RADIX16_TABLE_SIZE];
+	RMF_buildMatch match_buffer[1];
+} RMF_builder;
+
+typedef struct
+{
+	FL2_atomic st_index;
+	long end_index;
+	int is_struct;
+	int alloc_struct;
+	size_t unreduced_dict_size;
+	size_t progress;
+	RMF_parameters params;
+	uint32_t stack[RADIX16_TABLE_SIZE];
+	RMF_tableHead list_heads[RADIX16_TABLE_SIZE];
+	uint32_t table[1];
+} FL2_matchTable;
+
+typedef struct
+{
 	uint32_t length;
 	uint32_t dist;
 } RMF_match;
@@ -48,7 +98,6 @@ void RMF_freeMatchTable(FL2_matchTable* const tbl, const lzma_allocator *allocat
 uint8_t RMF_compatibleParameters(const FL2_matchTable* const tbl, const RMF_builder* const builder, const RMF_parameters* const params);
 void RMF_applyParameters(FL2_matchTable* const tbl, const RMF_parameters* const params);
 RMF_builder* RMF_createBuilder(FL2_matchTable* const tbl, RMF_builder *existing, const lzma_allocator *allocator);
-void RMF_initProgress(FL2_matchTable * const tbl);
 void RMF_initTable(FL2_matchTable* const tbl, const void* const data, size_t const end);
 int RMF_buildTable(FL2_matchTable* const tbl,
 	RMF_builder* const builder,
@@ -59,7 +108,7 @@ void RMF_resetIncompleteBuild(FL2_matchTable* const tbl);
 int RMF_integrityCheck(const FL2_matchTable* const tbl, const uint8_t* const data, size_t const pos, size_t const end, unsigned const max_depth);
 void RMF_limitLengths(FL2_matchTable* const tbl, size_t const pos);
 uint8_t* RMF_getTableAsOutputBuffer(FL2_matchTable* const tbl, size_t const pos);
-size_t RMF_memoryUsage(size_t const dict_size, unsigned const buffer_resize, unsigned const thread_count);
+size_t RMF_memoryUsage(size_t const dict_size, unsigned const thread_count);
 
 #if defined (__cplusplus)
 }

@@ -121,9 +121,9 @@ FL2_matchTable* RMF_createMatchTable(const RMF_parameters* const params, const l
     tbl->is_struct = is_struct;
     tbl->alloc_struct = is_struct;
     tbl->params = *params;
+	tbl->progress = 0;
 
     RMF_initListHeads(tbl);
-    RMF_initProgress(tbl);
     
     return tbl;
 }
@@ -155,17 +155,12 @@ RMF_applyParameters(FL2_matchTable* const tbl, const RMF_parameters* const param
 	tbl->is_struct = RMF_isStruct(params->dictionary_size);
 }
 
-void RMF_initProgress(FL2_matchTable * const tbl)
-{
-    if (tbl != NULL)
-        tbl->progress = 0;
-}
-
 void RMF_initTable(FL2_matchTable* const tbl, const void* const data, size_t const end)
 {
     DEBUGLOG(5, "RMF_initTable : size %u", (uint32_t)end);
 
     tbl->st_index = ATOMIC_INITIAL_VALUE;
+	tbl->progress = 0;
 
     if (tbl->is_struct)
         RMF_structuredInit(tbl, data, end);
@@ -611,9 +606,9 @@ uint8_t* RMF_getTableAsOutputBuffer(FL2_matchTable* const tbl, size_t const pos)
         return RMF_bitpackAsOutputBuffer(tbl, pos);
 }
 
-size_t RMF_memoryUsage(size_t const dict_size, unsigned const buffer_resize, unsigned const thread_count)
+size_t RMF_memoryUsage(size_t const dict_size, unsigned const thread_count)
 {
-    size_t size = (size_t)(4U + RMF_isStruct(dict_size)) * dict_size;
+    size_t size = rmf_allocation_size(dict_size, RMF_isStruct(dict_size));
     size_t const buf_size = RMF_calcBufSize(dict_size);
     size += ((buf_size - 1) * sizeof(RMF_buildMatch) + sizeof(RMF_builder)) * thread_count;
     return size;
