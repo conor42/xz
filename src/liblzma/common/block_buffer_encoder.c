@@ -36,24 +36,24 @@ lzma2_bound(uint64_t uncompressed_size)
 	if (uncompressed_size > COMPRESSED_SIZE_MAX)
 		return 0;
 
+	// Fast LZMA2: An average size of half LZMA2_CHUNK_MAX should be assumed
+	// to account for thread_count incomplete end chunks per block. LZMA
+	// expansion is < 2 % so 1 / 16 is a safe overestimate.
+	static const unsigned chunk_min_avg = (LZMA2_CHUNK_MAX
+		- (LZMA2_CHUNK_MAX / 16U)) / 2U;
 	// Calculate the exact overhead of the LZMA2 headers: Round
 	// uncompressed_size up to the next multiple of LZMA2_CHUNK_MAX,
 	// multiply by the size of per-chunk header, and add one byte for
 	// the end marker.
-	const uint64_t overhead = ((uncompressed_size + LZMA2_CHUNK_MAX - 1)
-				/ LZMA2_CHUNK_MAX)
+	uint64_t overhead = ((uncompressed_size + chunk_min_avg - 1)
+			/ chunk_min_avg)
 			* LZMA2_HEADER_UNCOMPRESSED + 1;
 
 	// Catch the possible integer overflow.
 	if (COMPRESSED_SIZE_MAX - overhead < uncompressed_size)
 		return 0;
 
-//FIXME:	uint64_t fl2_bound = FL2_compressBound(uncompressed_size);
-	// Catch the possible integer overflow.
-//	if (fl2_bound < uncompressed_size)
-//		return 0;
-
-	return uncompressed_size + overhead;// my_max(uncompressed_size + overhead, fl2_bound);
+	return uncompressed_size + overhead;
 }
 
 
