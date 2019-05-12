@@ -25,8 +25,8 @@ static size_t RMF_bitpackExtendMatch(const uint8_t* const data,
     ptrdiff_t end_index = start_index + length;
     ptrdiff_t const dist = start_index - link;
 
-    if (limit > start_index + (ptrdiff_t)kMatchLenMax)
-        limit = start_index + kMatchLenMax;
+    if (limit > start_index + (ptrdiff_t)MATCH_LEN_MAX)
+        limit = start_index + MATCH_LEN_MAX;
 
     while (end_index < limit && end_index - (ptrdiff_t)(table[end_index] & RADIX_LINK_MASK) == dist)
         end_index += table[end_index] >> RADIX_LINK_BITS;
@@ -57,8 +57,8 @@ static size_t RMF_structuredExtendMatch(const uint8_t* const data,
     ptrdiff_t end_index = start_index + length;
     ptrdiff_t const dist = start_index - link;
 
-    if (limit > start_index + (ptrdiff_t)kMatchLenMax)
-        limit = start_index + kMatchLenMax;
+    if (limit > start_index + (ptrdiff_t)MATCH_LEN_MAX)
+        limit = start_index + MATCH_LEN_MAX;
 
     while (end_index < limit && end_index - (ptrdiff_t)GetMatchLink(table, end_index) == dist)
         end_index += GetMatchLength(table, end_index);

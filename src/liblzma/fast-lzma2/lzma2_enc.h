@@ -23,51 +23,21 @@ extern "C" {
 #define ENC_MIN_BYTES_PER_THREAD 0x1C000 /* Enough for 8 threads, 1 Mb dict, 2/16 overlap */
 
 #define kNumReps 4U
-#define kNumStates 12U
 
 #define kNumLiterals 0x100U
 #define kNumLitTables 3U
 
-#define kNumLenToPosStates 4U
-#define kNumPosSlotBits 6U
 #define kDicLogSizeMin 18U
 #define kDicLogSizeMax 31U
 #define kDistTableSizeMax (kDicLogSizeMax * 2U)
 
-#define kNumAlignBits 4U
-#define kAlignTableSize (1U << kNumAlignBits)
-#define kAlignMask (kAlignTableSize - 1U)
 #define kMatchRepriceFrequency 64U
 #define kRepLenRepriceFrequency 64U
-
-#define kStartPosModelIndex 4U
-#define kEndPosModelIndex 14U
-#define kNumPosModels (kEndPosModelIndex - kStartPosModelIndex)
-
-#define kNumFullDistancesBits (kEndPosModelIndex >> 1U)
-#define kNumFullDistances (1U << kNumFullDistancesBits)
-
-#define kNumPositionBitsMax 4U
-#define kNumPositionStatesMax (1U << kNumPositionBitsMax)
-#define kNumLiteralContextBitsMax 4U
-#define kNumLiteralPosBitsMax 4U
-#define kLcLpMax 4U
-
-
-#define kLenNumLowBits 3U
-#define kLenNumLowSymbols (1U << kLenNumLowBits)
-#define kLenNumHighBits 8U
-#define kLenNumHighSymbols (1U << kLenNumHighBits)
-
-#define kLenNumSymbolsTotal (kLenNumLowSymbols * 2 + kLenNumHighSymbols)
-
-#define kMatchLenMin 2U
-#define kMatchLenMax (kMatchLenMin + kLenNumSymbolsTotal - 1U)
 
 #define kMatchesMax 65U /* Doesn't need to be larger than FL2_HYBRIDCYCLES_MAX + 1 */
 
 #define kOptimizerEndSize 32U
-#define kOptimizerBufferSize (kMatchLenMax * 2U + kOptimizerEndSize)
+#define kOptimizerBufferSize (MATCH_LEN_MAX * 2U + kOptimizerEndSize)
 #define kOptimizerSkipSize 16U
 #define kInfinityPrice (1UL << 30U)
 #define kNullDist (uint32_t)-1
@@ -96,10 +66,10 @@ extern "C" {
 typedef struct 
 {
     size_t table_size;
-    unsigned prices[kNumPositionStatesMax][kLenNumSymbolsTotal];
+    unsigned prices[POS_STATES_MAX][LEN_SYMBOLS];
     probability choice; /* low[0] is choice_2. Must be consecutive for speed */
-    probability low[kNumPositionStatesMax << (kLenNumLowBits + 1)];
-    probability high[kLenNumHighSymbols];
+    probability low[POS_STATES_MAX << (LEN_LOW_BITS + 1)];
+    probability high[LEN_HIGH_SYMBOLS];
 } LZMA2_lenStates;
 
 /* All probabilities for the encoder. This is a separate from the encoder object
@@ -109,24 +79,24 @@ typedef struct
 {
     /* Fields are ordered for speed */
     LZMA2_lenStates rep_len_states;
-    probability is_rep0_long[kNumStates][kNumPositionStatesMax];
+    probability is_rep0_long[STATES][POS_STATES_MAX];
 
     size_t state;
     uint32_t reps[kNumReps];
 
-    probability is_match[kNumStates][kNumPositionStatesMax];
-    probability is_rep[kNumStates];
-    probability is_rep_G0[kNumStates];
-    probability is_rep_G1[kNumStates];
-    probability is_rep_G2[kNumStates];
+    probability is_match[STATES][POS_STATES_MAX];
+    probability is_rep[STATES];
+    probability is_rep_G0[STATES];
+    probability is_rep_G1[STATES];
+    probability is_rep_G2[STATES];
 
     LZMA2_lenStates len_states;
 
-    probability dist_slot_encoders[kNumLenToPosStates][1 << kNumPosSlotBits];
-    probability dist_align_encoders[1 << kNumAlignBits];
-    probability dist_encoders[kNumFullDistances - kEndPosModelIndex];
+    probability dist_slot_encoders[DIST_STATES][DIST_SLOTS];
+    probability dist_align_encoders[1 << ALIGN_BITS];
+    probability dist_encoders[FULL_DISTANCES - DIST_MODEL_END];
 
-    probability literal_probs[(kNumLiterals * kNumLitTables) << kLcLpMax];
+    probability literal_probs[(kNumLiterals * kNumLitTables) << LZMA_LCLP_MAX];
 } LZMA2_encStates;
 
 /*
@@ -178,9 +148,9 @@ typedef struct
     unsigned match_price_count;
     unsigned rep_len_price_count;
     size_t dist_price_table_size;
-    unsigned align_prices[kAlignTableSize];
-    unsigned dist_slot_prices[kNumLenToPosStates][kDistTableSizeMax];
-    unsigned distance_prices[kNumLenToPosStates][kNumFullDistances];
+    unsigned align_prices[ALIGN_SIZE];
+    unsigned dist_slot_prices[DIST_STATES][kDistTableSizeMax];
+    unsigned distance_prices[DIST_STATES][FULL_DISTANCES];
 
     RMF_match base_match; /* Allows access to matches[-1] in LZMA_optimalParse */
     RMF_match matches[kMatchesMax];
