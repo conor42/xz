@@ -219,10 +219,10 @@ create_threads(lzma2_fast_coder *coder, const lzma_allocator *allocator)
 
 
 static lzma_ret
-create_builders(lzma2_fast_coder *coder)
+create_builders(lzma2_fast_coder *coder, const lzma_allocator *allocator)
 {
 	for (size_t i = 0; i < coder->thread_count; ++i) {
-		coder->threads[i].builder = RMF_createBuilder(coder->match_table, coder->threads[i].builder);
+		coder->threads[i].builder = RMF_createBuilder(coder->match_table, coder->threads[i].builder, allocator);
 		if (!coder->threads[i].builder)
 			return LZMA_MEM_ERROR;
 	}
@@ -230,10 +230,10 @@ create_builders(lzma2_fast_coder *coder)
 }
 
 static void
-free_builders(lzma2_fast_coder *coder)
+free_builders(lzma2_fast_coder *coder, const lzma_allocator *allocator)
 {
 	for (size_t i = 0; i < coder->thread_count; ++i) {
-		free(coder->threads[i].builder);
+		lzma_free(coder->threads[i].builder, allocator);
 		coder->threads[i].builder = NULL;
 	}
 }
@@ -245,15 +245,13 @@ static lzma_ret lzma2_fast_encoder_create(lzma2_fast_coder *coder,
 
 	RMF_parameters params;
 	params.dictionary_size = coder->opt_cur.dict_size;
-	params.overlap_fraction = coder->opt_cur.overlap_fraction;
-	params.match_buffer_resize = RMF_DEFAULT_BUF_RESIZE;
 	params.depth = coder->opt_cur.depth;
 	params.divide_and_conquer = coder->opt_cur.divide_and_conquer;
 	/* Free unsuitable match table before reallocating anything else */
-	if (coder->match_table && !RMF_compatibleParameters(coder->match_table, &params, 0)) {
-		RMF_freeMatchTable(coder->match_table);
+	if (coder->match_table && !RMF_compatibleParameters(coder->match_table, coder->threads[0].builder, &params)) {
+		RMF_freeMatchTable(coder->match_table, allocator);
 		coder->match_table = NULL;
-		free_builders(coder);
+		free_builders(coder, allocator);
 	}
 	if (coder->dict_block.data && coder->dict_size < coder->opt_cur.dict_size) {
 		lzma_free(coder->dict_block.data, allocator);
@@ -265,15 +263,15 @@ static lzma_ret lzma2_fast_encoder_create(lzma2_fast_coder *coder,
 			return LZMA_MEM_ERROR;
 
 	if (!coder->match_table) {
-		coder->match_table = RMF_createMatchTable(&params, 0);
+		coder->match_table = RMF_createMatchTable(&params, allocator);
 		if (!coder->match_table)
 			return LZMA_MEM_ERROR;
 	}
 	else {
-		return_if_error(RMF_applyParameters(coder->match_table, &params, 0));
+		RMF_applyParameters(coder->match_table, &params);
 	}
 
-	return_if_error(create_builders(coder));
+	return_if_error(create_builders(coder, allocator));
 
 	reset_dict(coder);
 	if (!coder->dict_block.data) {
@@ -575,8 +573,8 @@ flzma2_encoder_end(void *coder_ptr, const lzma_allocator *allocator)
 	free_threads(coder, allocator);
 
 	lzma_free(coder->dict_block.data, allocator);
-	free_builders(coder);
-	RMF_freeMatchTable(coder->match_table);
+	free_builders(coder, allocator);
+	RMF_freeMatchTable(coder->match_table, allocator);
 
 	for(size_t i = 0; i < coder->thread_count; ++i)
 		LZMA2_freeECtx(&coder->threads[i].enc);

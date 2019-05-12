@@ -30,8 +30,6 @@ typedef struct RMF_builder_s RMF_builder;
 typedef struct
 {
     size_t dictionary_size;
-    unsigned match_buffer_resize;
-    unsigned overlap_fraction;
     unsigned divide_and_conquer;
     unsigned depth;
 #ifdef RMF_REFERENCE
@@ -45,11 +43,11 @@ typedef struct
 	uint32_t dist;
 } RMF_match;
 
-FL2_matchTable* RMF_createMatchTable(const RMF_parameters* const params, size_t const dict_reduce);
-void RMF_freeMatchTable(FL2_matchTable* const tbl);
-uint8_t RMF_compatibleParameters(const FL2_matchTable* const tbl, const RMF_parameters* const params, size_t const dict_reduce);
-lzma_ret RMF_applyParameters(FL2_matchTable* const tbl, const RMF_parameters* const params, size_t const dict_reduce);
-RMF_builder* RMF_createBuilder(FL2_matchTable* const tbl, RMF_builder *existing);
+FL2_matchTable* RMF_createMatchTable(const RMF_parameters* const params, const lzma_allocator *allocator);
+void RMF_freeMatchTable(FL2_matchTable* const tbl, const lzma_allocator *allocator);
+uint8_t RMF_compatibleParameters(const FL2_matchTable* const tbl, const RMF_builder* const builder, const RMF_parameters* const params);
+void RMF_applyParameters(FL2_matchTable* const tbl, const RMF_parameters* const params);
+RMF_builder* RMF_createBuilder(FL2_matchTable* const tbl, RMF_builder *existing, const lzma_allocator *allocator);
 void RMF_initProgress(FL2_matchTable * const tbl);
 void RMF_initTable(FL2_matchTable* const tbl, const void* const data, size_t const end);
 int RMF_buildTable(FL2_matchTable* const tbl,
