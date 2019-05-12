@@ -41,6 +41,11 @@
 #ifndef TUKLIB_INTEGER_H
 #define TUKLIB_INTEGER_H
 
+#if defined(_MSC_VER) && _MSC_VER >= 1400
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
+
 #include "tuklib_common.h"
 
 
