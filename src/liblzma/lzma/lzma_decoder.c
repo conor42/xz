@@ -156,6 +156,7 @@ case seq ## _CHOICE2: \
 
 #endif // HAVE_SMALL
 
+#define STATES2 16
 
 /// Length decoder probabilities; see comments in lzma_common.h.
 typedef struct {
@@ -173,10 +174,10 @@ typedef struct {
 	///////////////////
 
 	/// Literals; see comments in lzma_common.h.
-	probability literal[LITERAL_CODERS_MAX][LITERAL_CODER_SIZE];
+	probability literal[LITERAL_CODERS_MAX * LITERAL_CODER_SIZE];
 
 	/// If 1, it's a match. Otherwise it's a single 8-bit literal.
-	probability is_match[STATES][POS_STATES_MAX];
+	probability is_match[STATES2][POS_STATES_MAX];
 
 	/// If 1, it's a repeated match. The distance is one of rep0 .. rep3.
 	probability is_rep[STATES];
@@ -194,7 +195,7 @@ typedef struct {
 
 	/// If 1, the repeated match has length of one byte. Otherwise
 	/// the length is decoded from rep_len_decoder.
-	probability is_rep0_long[STATES][POS_STATES_MAX];
+	probability is_rep0_long[STATES2][POS_STATES_MAX];
 
 	/// Probability tree for the highest two bits of the match distance.
 	/// There is a separate probability tree for match lengths of
@@ -203,7 +204,7 @@ typedef struct {
 
 	/// Probability trees for additional bits for match distance when the
 	/// distance is in the range [4, 127].
-	probability pos_special[FULL_DISTANCES - DIST_MODEL_END];
+	probability pos_special[FULL_DISTANCES/* - DIST_MODEL_END*/];
 
 	/// Probability tree for the lowest four bits of a match distance
 	/// that is equal to or greater than 128.
@@ -234,10 +235,6 @@ typedef struct {
 	uint32_t literal_context_bits;
 	uint32_t literal_pos_mask;
 
-	/// Uncompressed size as bytes, or LZMA_VLI_UNKNOWN if end of
-	/// payload marker is expected.
-	lzma_vli uncompressed_size;
-
 	////////////////////////////////
 	// State of incomplete symbol //
 	////////////////////////////////
@@ -265,10 +262,11 @@ typedef struct {
 		SEQ_COPY,
 	} sequence;
 
-	/// Base of the current probability tree
-	probability *probs;
+    /// If decoding a literal: match byte.
+    /// If decoding a match: length of the match.
+    uint32_t len;
 
-	/// Symbol being decoded. This is also used as an index variable in
+    /// Symbol being decoded. This is also used as an index variable in
 	/// bittree decoders: probs[symbol]
 	uint32_t symbol;
 
@@ -280,9 +278,12 @@ typedef struct {
 	/// Bittree reverse decoders: Offset of the next bit: 1 << offset
 	uint32_t offset;
 
-	/// If decoding a literal: match byte.
-	/// If decoding a match: length of the match.
-	uint32_t len;
+	/// Base of the current probability tree
+	probability *probs;
+
+	/// Uncompressed size as bytes, or LZMA_VLI_UNKNOWN if end of
+	/// payload marker is expected.
+	lzma_vli uncompressed_size;
 } lzma_lzma1_decoder;
 
 
@@ -871,7 +872,7 @@ lzma_decoder_reset(void *coder_ptr, const void *opt)
 	literal_init(coder->literal, options->lc, options->lp);
 
 	coder->literal_context_bits = options->lc;
-	coder->literal_pos_mask = (1U << options->lp) - 1;
+	coder->literal_pos_mask = ((unsigned)0x100 << options->lp) - ((unsigned)0x100 >> options->lc);
 
 	// State
 	coder->state = STATE_LIT_LIT;
