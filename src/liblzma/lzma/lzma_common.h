@@ -122,11 +122,11 @@ typedef enum {
 ///     byte; and
 ///   - the highest literal_context_bits bits of the previous byte.
 #define literal_subcoder(probs, lc, lp_mask, pos, prev_byte) \
-	((probs)[(((pos) & lp_mask) << lc) + ((prev_byte) >> (8 - lc))])
+	((probs) + (3 * ((((pos << 8) + prev_byte) & lp_mask) << lc)))
 
 
 static inline void
-literal_init(probability (*probs)[LITERAL_CODER_SIZE],
+literal_init(probability *probs,
 		uint32_t lc, uint32_t lp)
 {
 	assert(lc + lp <= LZMA_LCLP_MAX);
@@ -135,7 +135,7 @@ literal_init(probability (*probs)[LITERAL_CODER_SIZE],
 
 	for (uint32_t i = 0; i < coders; ++i)
 		for (uint32_t j = 0; j < LITERAL_CODER_SIZE; ++j)
-			bit_reset(probs[i][j]);
+			bit_reset(probs[i * LITERAL_CODER_SIZE + j]);
 
 	return;
 }
