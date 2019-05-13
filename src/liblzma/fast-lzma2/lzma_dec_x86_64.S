@@ -8,7 +8,7 @@
 # CLzmaDec structure, (probs) array layout, input and output of
 # LZMA_decodeReal_*() must be equal in both versions (C / ASM).
 
-	.intel_syntax noprefix
+    .intel_syntax noprefix
 
 # 7zAsm.asm -- ASM macros
 # 2018-02-03 : Igor Pavlov : Public domain
@@ -89,8 +89,8 @@
     pop     r14
     pop     r13
     pop     r12
-    pop		r7 # WIN64
-    pop		r6 # WIN64
+    pop     r7 # WIN64
+    pop     r6 # WIN64
     pop     r5
     pop     r3
 .endm
@@ -143,13 +143,23 @@
 
 # .equ _LZMA_SIZE_OPT, 1
 
-        .equ PSHIFT, 2
-        .macro PLOAD dest, mem
-                mov     \dest, dword ptr [\mem]
-        .endm
-        .macro PSTORE src, mem
-                mov     dword ptr [\mem], \src
-        .endm
+.ifdef _LZMA_PROB32
+    .equ PSHIFT, 2
+    .macro PLOAD dest, mem
+        mov     \dest, dword ptr [\mem]
+    .endm
+    .macro PSTORE src, mem
+        mov     dword ptr [\mem], \src
+    .endm
+.else
+    .equ PSHIFT, 1
+    .macro PLOAD dest, mem
+        movzx   \dest, word ptr [\mem]
+    .endm
+    .macro PSTORE src, mem
+        mov     word ptr [\mem], \src()_W
+    .endm
+.endif
 
 .equ PMULT, (1 SHL PSHIFT)
 .equ PMULT_HALF, (1 SHL (PSHIFT - 1))
@@ -548,12 +558,16 @@
 .equ kLenNumLowSymbols, (1 SHL kLenNumLowBits)
 .equ kLenNumHighBits, 8
 .equ kLenNumHighSymbols, (1 SHL kLenNumHighBits)
-.equ kNumLenProbs, (2 * kLenNumLowSymbols * kNumPosStatesMax + kLenNumHighSymbols)
+.equ kNumLenProbs, (2 + 2 * kLenNumLowSymbols * kNumPosStatesMax + kLenNumHighSymbols)
 
-.equ LenLow, 0
-.equ LenChoice, LenLow
-.equ LenChoice2, (LenLow + kLenNumLowSymbols)
+.equ LenChoice, 0
+.equ LenChoice2, 1
+.equ LenLow, (LenChoice2 + 1)
 .equ LenHigh, (LenLow + 2 * kLenNumLowSymbols * kNumPosStatesMax)
+
+.equ kLcLpMax, 4
+.equ kLiteralCodersMax, (1 SHL kLcLpMax)
+.equ kLiteralCoderSize, 0x300
 
 .equ kNumStates, 12
 .equ kNumStates2, 16
@@ -572,52 +586,48 @@
 .equ kMatchMinLen, 2
 .equ kMatchSpecLenStart, (kMatchMinLen + kLenNumLowSymbols * 2 + kLenNumHighSymbols)
 
-.equ kStartOffset, 1664
-.equ SpecPos, (-kStartOffset)
-.equ IsRep0Long, (SpecPos + kNumFullDistances)
-.equ RepLenCoder, (IsRep0Long + (kNumStates2 SHL kNumPosBitsMax))
-.equ LenCoder, (RepLenCoder + kNumLenProbs)
-.equ IsMatch, (LenCoder + kNumLenProbs)
-.equ kAlign, (IsMatch + (kNumStates2 SHL kNumPosBitsMax))
-.equ IsRep, (kAlign + kAlignTableSize)
+.equ SEQ_COPY 100
+
+.equ Literal, 0
+.equ IsMatch, (Literal + kLiteralCodersMax * kLiteralCoderSize)
+.equ IsRep, (IsMatch + (kNumStates2 SHL kNumPosBitsMax))
 .equ IsRepG0, (IsRep + kNumStates)
 .equ IsRepG1, (IsRepG0 + kNumStates)
 .equ IsRepG2, (IsRepG1 + kNumStates)
-.equ PosSlot, (IsRepG2 + kNumStates)
-.equ Literal, (PosSlot + (kNumLenToPosStates SHL kNumPosSlotBits))
-.equ NUM_BASE_PROBS, (Literal + kStartOffset)
+.equ IsRep0Long, (IsRepG2 + kNumStates)
+.equ PosSlot, (IsRep0Long + (kNumStates2 SHL kNumPosBitsMax))
+.equ SpecPos, (PosSlot + (kNumLenToPosStates SHL kNumPosSlotBits))
+.equ kAlign, (SpecPos + kNumFullDistances)
+.equ LenCoder, (kAlign + kAlignTableSize)
+.equ RepLenCoder, (LenCoder + kNumLenProbs)
+.equ NUM_BASE_PROBS, (RepLenCoder + kNumLenProbs)
 
-.if kAlign ne 0
-  .err <Stop_Compiling_Bad_LZMA_kAlign>
-.endif
-
-.if NUM_BASE_PROBS ne 1984
+.if NUM_BASE_PROBS ne 1986
   .err <Stop_Compiling_Bad_LZMA_PROBS>
 .endif
 
+# lzma_dict:
+    .equ dict_buf, 0
+    .equ dict_pos, 8
+    .equ dict_full, 16
+    .equ dict_limit, 24
+    .equ dict_size, 32
+
 
 # CLzmaDec_Asm:
-    .equ lc, 0
-    .equ lp, 1
-    .equ pb, 2
-    .equ dicSize, 4
-
-    .equ dic_Spec, 8
-    .equ dicPos_Spec, 16
-    .equ dicBufSize, 24
-    .equ buf_Spec, 32
-    .equ probs_1664, 40
-	.equ range_Spec, 48
-    .equ code_Spec, 52
-    .equ processedPos_Spec, 56
-    .equ checkDicSize, 60
-    .equ rep0, 64
-    .equ rep1, 68
-    .equ rep2, 72
-    .equ rep3, 76
-    .equ state_Spec, 80
-    .equ state2, 84
-    .equ remainLen, 88
+    .equ range_Spec, 0
+    .equ code_Spec, 4
+    .equ init_count, 8
+    .equ state_Spec, 12
+    .equ rep0, 16
+    .equ rep1, 20
+    .equ rep2, 24
+    .equ rep3, 28
+    .equ pbMask_Spec, 32
+    .equ lc, 36
+    .equ lpMask_Spec, 40
+    .equ sequence, 44
+    .equ remainLen, 48
 
 
 # CLzmaDec_Asm_Loc:
@@ -626,26 +636,28 @@
     .equ _pad0_, 16
     .equ _pad1_, 24
     .equ _pad2_, 32
-    .equ dicBufSize_Loc, 40
+    .equ dicBufSize, 40
     .equ probs_Spec, 48
     .equ dic_Spec_Loc, 56
         
     .equ limit, 64
-    .equ bufLimit, 72
-    .equ lc2, 80
-    .equ lpMask, 84
-    .equ pbMask, 88
-    .equ checkDicSize_Loc, 92
+    .equ bufPosPtr, 72
+    .equ bufLimit, 80
+    .equ lc2, 88
+    .equ lpMask, 92
+    .equ pbMask, 96
 
-#   .equ _pad_, 96
     .equ remainLen_Loc, 100
     .equ dicPos_Spec_Loc, 104
     .equ rep0_Loc, 112
     .equ rep1_Loc, 116
     .equ rep2_Loc, 120
     .equ rep3_Loc, 124
+    .equ buf_Loc, 128
+    .equ dict, 136
+    .equ full, 144
 
-	.equ Sizeof_CLzmaDec_Asm_Loc, 128
+    .equ Sizeof_CLzmaDec_Asm_Loc, 152
 
 .equ GLOB_2,  sym_R
 .equ GLOB,    r1
@@ -681,14 +693,15 @@
 # .equ LocalSize, ((((SIZEOF CLzmaDec_Asm_Loc) + 7) / 16 * 16) + 8)
 
 .equ PARAM_lzma, REG_PARAM_0
-.equ PARAM_limit, REG_PARAM_1
-.equ PARAM_bufLimit, REG_PARAM_2
+.equ PARAM_dict, REG_PARAM_1
+.equ PARAM_buf, REG_PARAM_2
+.equ PARAM_bufPosPtr, REG_PARAM_3
 
-		.text
+        .text
 
 # MY_ALIGN_64
-		.balign 16, 0x90
-		.global LZMA_decodeReal_3
+        .balign 16, 0x90
+        .global LZMA_decodeReal_3
 LZMA_decodeReal_3:
 MY_PUSH_PRESERVED_REGS
 
@@ -697,34 +710,48 @@ MY_PUSH_PRESERVED_REGS
         mov     r5, RSP
         mov     RSP, r0
         mov     [LOC_0 + Old_RSP], r5
+        mov     t0, [r5 + 8]
+        add     t0, PARAM_buf
+        mov     [LOC_0 + bufLimit], t0
         mov     [LOC_0 + lzmaPtr], PARAM_lzma
-        
-        mov     dword ptr [LOC_0 + remainLen_Loc], 0  # remainLen must be ZERO
-
-        mov     [LOC_0 + bufLimit], PARAM_bufLimit
-        mov     sym_R, PARAM_lzma  #  CLzmaDec_Asm_Loc pointer for GLOB_2
-        mov     dic, [GLOB_2 + dic_Spec]
-        add     PARAM_limit, dic
-        mov     [LOC_0 + limit], PARAM_limit
-
-		mov     t0, [GLOB_2 + rep0]
-        mov     [LOC_0 + rep0_Loc], t0
-		mov     t0, [GLOB_2 + rep1]
-        mov     [LOC_0 + rep1_Loc], t0
-		mov     t0, [GLOB_2 + rep2]
-        mov     [LOC_0 + rep2_Loc], t0
-		mov     t0, [GLOB_2 + rep3]
-        mov     [LOC_0 + rep3_Loc], t0
-
-        mov     dicPos, [GLOB_2 + dicPos_Spec]
+        mov     [LOC_0 + dict], PARAM_dict
+        mov     [LOC_0 + bufPosPtr], PARAM_bufPosPtr
+        mov     [LOC_0 + buf_Loc], PARAM_buf
+        mov     buf, [PARAM_bufPosPtr]
+        add     buf, PARAM_buf
+        mov     dic, [PARAM_dict + dict_buf]
+        mov     dicPos, [PARAM_dict + dict_pos]
         add     dicPos, dic
         mov     [LOC_0 + dicPos_Spec_Loc], dicPos
         mov     [LOC_0 + dic_Spec_Loc], dic
         
-        mov     x1_L, [GLOB_2 + pb]
-        mov     t0, 1
-        shl     t0, x1_L
-        dec     t0
+        mov     t0_R, [PARAM_dict + dict_limit]
+        add     t0_R, dic
+        mov     [LOC_0 + limit], t0_R
+
+        mov     t0_R, [PARAM_dict + dict_size]
+        mov     [LOC_0 + dicBufSize], t0_R
+        mov     t0_R, [PARAM_dict + dict_full]
+        add     t0_R, dic
+        mov     [LOC_0 + full], t0_R
+
+        mov     dword ptr [LOC_0 + remainLen_Loc], 0  # remainLen must be ZERO
+
+        mov     sym_R, PARAM_lzma  #  CLzmaDec_Asm_Loc pointer for GLOB_2
+        mov     [LOC_0 + probs_Spec], sym_R
+
+        add     sym_R, (NUM_BASE_PROBS SHL PSHIFT)
+
+        mov     t0, [GLOB_2 + rep0]
+        mov     [LOC_0 + rep0_Loc], t0
+        mov     t0, [GLOB_2 + rep1]
+        mov     [LOC_0 + rep1_Loc], t0
+        mov     t0, [GLOB_2 + rep2]
+        mov     [LOC_0 + rep2_Loc], t0
+        mov     t0, [GLOB_2 + rep3]
+        mov     [LOC_0 + rep3_Loc], t0
+
+        mov     t0, [GLOB_2 + pbMask_Spec]
         mov     [LOC_0 + pbMask], t0
 
         # unsigned pbMask = ((unsigned)1 << (p->prop.pb)) - 1#
@@ -732,23 +759,12 @@ MY_PUSH_PRESERVED_REGS
         # unsigned lpMask = ((unsigned)0x100 << p->prop.lp) - ((unsigned)0x100 >> lc)#
 
         mov     x1_L, [GLOB_2 + lc]
-        mov     x2, 0x100
-        mov     t0, x2
-        shr     x2, x1_L
-        # inc     x1
         add     x1_L, PSHIFT
         mov     [LOC_0 + lc2], x1
-        mov     x1_L, [GLOB_2 + lp]
-        shl     t0, x1_L
-        sub     t0, x2
+        mov     t0, [GLOB_2 + lpMask_Spec]
         mov     [LOC_0 + lpMask], t0
         mov     lpMask_reg, t0
         
-        mov     probs, [GLOB_2 + probs_1664]
-        mov     [LOC_0 + probs_Spec], probs
-
-        mov     t0_R, [GLOB_2 + dicBufSize]
-        mov     [LOC_0 + dicBufSize_Loc], t0_R
        
         mov     x1, [GLOB_2 + checkDicSize]
         mov     [LOC_0 + checkDicSize_Loc], x1
@@ -758,7 +774,6 @@ MY_PUSH_PRESERVED_REGS
         mov     state, [GLOB_2 + state_Spec]
         shl     state, PSHIFT
 
-        mov     buf,   [GLOB_2 + buf_Spec]
         mov     range, [GLOB_2 + range_Spec]
         mov     cod,   [GLOB_2 + code_Spec]
         mov     kBitModelTotal_reg, kBitModelTotal
@@ -768,6 +783,7 @@ MY_PUSH_PRESERVED_REGS
         or      x1, processedPos
         jz      1f
         
+        mov     t0_R, [LOC_0 + dicBufSize]
         add     t0_R, dic
         cmp     dicPos, dic
         cmovnz  t0_R, dicPos
@@ -821,7 +837,11 @@ lit_loop:
         IsMatchBranch_Pre
         mov     byte ptr[dicPos], sym_L
         inc     dicPos
-                
+        mov     t0_R, [LOC + full]
+        cmp     dicPos, t0_R
+        cmova   t0_R, dicPos
+        mov     [LOC + full], t0_R
+
         CheckLimits
 lit_end:
         IF_BIT_0_NOUP probs_state_R, pbPos_R, IsMatch, lit_start
@@ -1020,10 +1040,14 @@ copy_match:
         cmovae  cnt, sym # 32-bit
 
         mov     dic, [LOC + dic_Spec_Loc]
-        mov     x1, [LOC + rep0_Loc]
 
         mov     t0_R, dicPos
         add     dicPos, cnt_R
+        mov     r1, [LOC + full]
+        cmp     dicPos, r1
+        cmova   r1, dicPos
+        mov     [LOC + full], r1
+        mov     x1, [LOC + rep0_Loc]
         # processedPos += curLen#
         add     processedPos, cnt
         # len -= curLen#
@@ -1036,7 +1060,7 @@ copy_match:
         sub     t0_R, r1
         jae     1f
 
-        mov     r1, [LOC + dicBufSize_Loc]
+        mov     r1, [LOC + dicBufSize]
         add     t0_R, r1
         sub     r1, t0_R
         cmp     cnt_R, r1
@@ -1106,11 +1130,11 @@ lz_end:
         sub     dicPos, dic
         sub     dicPos, r1
         jae     1f
-        add     dicPos, [LOC + dicBufSize_Loc]
+        add     dicPos, [LOC + dicBufSize]
 1:
 #        xor     t0, t0
 #        sub     dicPos, r1
-#        cmovb   t0_R, [LOC + dicBufSize_Loc]
+#        cmovb   t0_R, [LOC + dicBufSize]
         
         movzx   match, byte ptr[dic + dicPos * 1]
 
@@ -1176,7 +1200,7 @@ IsRep0Short_label:
        
         sub     t0_R, probBranch_R
         jae     1f
-        add     t0_R, [LOC + dicBufSize_Loc]
+        add     t0_R, [LOC + dicBufSize]
 1:
         movzx   sym, byte ptr[dic + t0_R * 1]
         jmp     lz_end_match
@@ -1271,7 +1295,7 @@ copy_match_cross:
 
         mov     t1_R, t0_R         # srcPos
         mov     t0_R, dic
-        mov     r1, [LOC + dicBufSize_Loc]   #
+        mov     r1, [LOC + dicBufSize]   #
         neg     cnt_R
 1:
         movzx   sym, byte ptr[t1_R * 1 + t0_R]
@@ -1309,9 +1333,15 @@ fin:
 
         mov     r1, [LOC + lzmaPtr]
 
+        mov     t0, [LOC_0 + dict]
         sub     dicPos, [LOC + dic_Spec_Loc]
-        mov     [GLOB + dicPos_Spec], dicPos
-        mov     [GLOB + buf_Spec], buf
+        mov     [t0 + dict_pos], dicPos
+        mov     t1_R, [LOC + full]
+        sub     t1_R, [LOC + dic_Spec_Loc]
+        mov     [t0 + dict_full], t1_R
+        mov     t0, [LOC + bufPosPtr]
+        sub     buf, [LOC + buf_Loc]
+        mov     [t0], buf
         mov     [GLOB + range_Spec], range
         mov     [GLOB + code_Spec], cod
         shr     state, PSHIFT
@@ -1335,7 +1365,7 @@ fin:
 
 MY_POP_PRESERVED_REGS
 
-		ret
+        ret
 # _TEXT$LZMADECOPT ENDS
 
 .end
