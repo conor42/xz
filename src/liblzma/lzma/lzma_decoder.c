@@ -40,21 +40,21 @@
 #define len_decode(target, ld, pos_state, seq) \
 do { \
 case seq ## _CHOICE: \
-	rc_if_0(ld.choice, seq ## _CHOICE) { \
-		rc_update_0(ld.choice); \
+	rc_if_0(ld.low[0][0], seq ## _CHOICE) { \
+		rc_update_0(ld.low[0][0]); \
 		probs = ld.low[pos_state];\
 		limit = LEN_LOW_SYMBOLS; \
 		target = MATCH_LEN_MIN; \
 	} else { \
-		rc_update_1(ld.choice); \
+		rc_update_1(ld.low[0][0]); \
 case seq ## _CHOICE2: \
-		rc_if_0(ld.choice2, seq ## _CHOICE2) { \
-			rc_update_0(ld.choice2); \
-			probs = ld.mid[pos_state]; \
-			limit = LEN_MID_SYMBOLS; \
+		rc_if_0(ld.low[0][LEN_LOW_SYMBOLS], seq ## _CHOICE2) { \
+			rc_update_0(ld.low[0][LEN_LOW_SYMBOLS]); \
+			probs = ld.low[pos_state] + LEN_LOW_SYMBOLS; \
+			limit = LEN_LOW_SYMBOLS; \
 			target = MATCH_LEN_MIN + LEN_LOW_SYMBOLS; \
 		} else { \
-			rc_update_1(ld.choice2); \
+			rc_update_1(ld.low[0][LEN_LOW_SYMBOLS]); \
 			probs = ld.high; \
 			limit = LEN_HIGH_SYMBOLS; \
 			target = MATCH_LEN_MIN + LEN_LOW_SYMBOLS \
@@ -118,27 +118,27 @@ case seq ## _BITTREE: \
 do { \
 	symbol = 1; \
 case seq ## _CHOICE: \
-	rc_if_0(ld.choice, seq ## _CHOICE) { \
-		rc_update_0(ld.choice); \
+	rc_if_0(ld.low[0][0], seq ## _CHOICE) { \
+		rc_update_0(ld.low[0][0]); \
 		rc_bit_case(ld.low[pos_state][symbol], , , seq ## _LOW0); \
 		rc_bit_case(ld.low[pos_state][symbol], , , seq ## _LOW1); \
 		rc_bit_case(ld.low[pos_state][symbol], , , seq ## _LOW2); \
 		target = symbol - LEN_LOW_SYMBOLS + MATCH_LEN_MIN; \
 	} else { \
-		rc_update_1(ld.choice); \
+		rc_update_1(ld.low[0][0]); \
 case seq ## _CHOICE2: \
-		rc_if_0(ld.choice2, seq ## _CHOICE2) { \
-			rc_update_0(ld.choice2); \
-			rc_bit_case(ld.mid[pos_state][symbol], , , \
+		rc_if_0(ld.low[0][LEN_LOW_SYMBOLS], seq ## _CHOICE2) { \
+			rc_update_0(ld.low[0][LEN_LOW_SYMBOLS]); \
+			rc_bit_case(ld.low[pos_state][symbol + LEN_LOW_SYMBOLS], , , \
 					seq ## _MID0); \
-			rc_bit_case(ld.mid[pos_state][symbol], , , \
+			rc_bit_case(ld.low[pos_state][symbol + LEN_LOW_SYMBOLS], , , \
 					seq ## _MID1); \
-			rc_bit_case(ld.mid[pos_state][symbol], , , \
+			rc_bit_case(ld.low[pos_state][symbol + LEN_LOW_SYMBOLS], , , \
 					seq ## _MID2); \
 			target = symbol - LEN_MID_SYMBOLS \
 					+ MATCH_LEN_MIN + LEN_LOW_SYMBOLS; \
 		} else { \
-			rc_update_1(ld.choice2); \
+			rc_update_1(ld.low[0][LEN_LOW_SYMBOLS]); \
 			rc_bit_case(ld.high[symbol], , , seq ## _HIGH0); \
 			rc_bit_case(ld.high[symbol], , , seq ## _HIGH1); \
 			rc_bit_case(ld.high[symbol], , , seq ## _HIGH2); \
@@ -160,10 +160,7 @@ case seq ## _CHOICE2: \
 
 /// Length decoder probabilities; see comments in lzma_common.h.
 typedef struct {
-	probability choice;
-	probability choice2;
-	probability low[POS_STATES_MAX][LEN_LOW_SYMBOLS];
-	probability mid[POS_STATES_MAX][LEN_MID_SYMBOLS];
+	probability low[POS_STATES_MAX][LEN_LOW_SYMBOLS * 2];
 	probability high[LEN_HIGH_SYMBOLS];
 } lzma_length_decoder;
 
@@ -177,7 +174,7 @@ typedef struct {
 	probability literal[LITERAL_CODERS_MAX * LITERAL_CODER_SIZE];
 
 	/// If 1, it's a match. Otherwise it's a single 8-bit literal.
-	probability is_match[STATES2][POS_STATES_MAX];
+	probability is_match[POS_STATES_MAX][STATES2];
 
 	/// If 1, it's a repeated match. The distance is one of rep0 .. rep3.
 	probability is_rep[STATES];
@@ -195,7 +192,7 @@ typedef struct {
 
 	/// If 1, the repeated match has length of one byte. Otherwise
 	/// the length is decoded from rep_len_decoder.
-	probability is_rep0_long[STATES2][POS_STATES_MAX];
+	probability is_rep0_long[POS_STATES_MAX][STATES2];
 
 	/// Probability tree for the highest two bits of the match distance.
 	/// There is a separate probability tree for match lengths of
@@ -309,7 +306,7 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 			return ret;
 	}
 
-    if (*in_pos + 20 < in_size) {
+    if (0){//*in_pos + 20 < in_size) {
         return LZMA_decodeReal_asm_5(coder_ptr, dictptr, in, in_pos, in_size);
     }
     
@@ -373,8 +370,8 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 		if (unlikely(no_eopm && dict.pos == dict.limit))
 			break;
 
-		rc_if_0(coder->is_match[state][pos_state], SEQ_IS_MATCH) {
-			rc_update_0(coder->is_match[state][pos_state]);
+		rc_if_0(coder->is_match[pos_state][state], SEQ_IS_MATCH) {
+			rc_update_0(coder->is_match[pos_state][state]);
 
 			// It's a literal i.e. a single 8-bit byte.
 
@@ -503,7 +500,7 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 		// (distance and length) which will be repeated from our
 		// output history.
 
-		rc_update_1(coder->is_match[state][pos_state]);
+		rc_update_1(coder->is_match[pos_state][state]);
 
 	case SEQ_IS_REP:
 		rc_if_0(coder->is_rep[state], SEQ_IS_REP) {
@@ -715,10 +712,10 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 				// The distance is rep0.
 
 	case SEQ_IS_REP0_LONG:
-				rc_if_0(coder->is_rep0_long[state][pos_state],
+				rc_if_0(coder->is_rep0_long[pos_state][state],
 						SEQ_IS_REP0_LONG) {
 					rc_update_0(coder->is_rep0_long[
-							state][pos_state]);
+							pos_state][state]);
 
 					update_short_rep(state);
 
@@ -735,7 +732,7 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 				// Repeating more than one byte at
 				// distance of rep0.
 				rc_update_1(coder->is_rep0_long[
-						state][pos_state]);
+						pos_state][state]);
 
 			} else {
 				rc_update_1(coder->is_rep0[state]);
@@ -894,12 +891,13 @@ lzma_decoder_reset(void *coder_ptr, const void *opt)
 	rc_reset(coder->rc);
 
 	// Bit and bittree decoders
-	for (uint32_t i = 0; i < STATES; ++i) {
+	for (uint32_t i = 0; i < STATES2; ++i) {
 		for (uint32_t j = 0; j <= coder->pos_mask; ++j) {
-			bit_reset(coder->is_match[i][j]);
-			bit_reset(coder->is_rep0_long[i][j]);
+			bit_reset(coder->is_match[j][i]);
+			bit_reset(coder->is_rep0_long[j][i]);
 		}
-
+	}
+	for (uint32_t i = 0; i < STATES; ++i) {
 		bit_reset(coder->is_rep[i]);
 		bit_reset(coder->is_rep0[i]);
 		bit_reset(coder->is_rep1[i]);
@@ -909,28 +907,20 @@ lzma_decoder_reset(void *coder_ptr, const void *opt)
 	for (uint32_t i = 0; i < DIST_STATES; ++i)
 		bittree_reset(coder->dist_slot[i], DIST_SLOT_BITS);
 
-	for (uint32_t i = 0; i < FULL_DISTANCES - DIST_MODEL_END; ++i)
+	for (uint32_t i = 0; i < FULL_DISTANCES /*- DIST_MODEL_END*/; ++i)
 		bit_reset(coder->pos_special[i]);
 
 	bittree_reset(coder->pos_align, ALIGN_BITS);
 
 	// Len decoders (also bit/bittree)
 	const uint32_t num_pos_states = 1U << options->pb;
-	bit_reset(coder->match_len_decoder.choice);
-	bit_reset(coder->match_len_decoder.choice2);
-	bit_reset(coder->rep_len_decoder.choice);
-	bit_reset(coder->rep_len_decoder.choice2);
 
 	for (uint32_t pos_state = 0; pos_state < num_pos_states; ++pos_state) {
 		bittree_reset(coder->match_len_decoder.low[pos_state],
-				LEN_LOW_BITS);
-		bittree_reset(coder->match_len_decoder.mid[pos_state],
-				LEN_MID_BITS);
+				LEN_LOW_BITS + 1);
 
 		bittree_reset(coder->rep_len_decoder.low[pos_state],
-				LEN_LOW_BITS);
-		bittree_reset(coder->rep_len_decoder.mid[pos_state],
-				LEN_MID_BITS);
+				LEN_LOW_BITS + 1);
 	}
 
 	bittree_reset(coder->match_len_decoder.high, LEN_HIGH_BITS);
