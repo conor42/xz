@@ -157,7 +157,7 @@
         movzx   \dest, word ptr [\mem]
     .endm
     .macro PSTORE src, mem
-        mov     word ptr [\mem], \src()_W
+        mov     word ptr [\mem], \src\()_W
     .endm
 .endif
 
@@ -558,12 +558,12 @@
 .equ kLenNumLowSymbols, (1 SHL kLenNumLowBits)
 .equ kLenNumHighBits, 8
 .equ kLenNumHighSymbols, (1 SHL kLenNumHighBits)
-.equ kNumLenProbs, (2 + 2 * kLenNumLowSymbols * kNumPosStatesMax + kLenNumHighSymbols)
 
 .equ LenChoice, 0
 .equ LenChoice2, 1
 .equ LenLow, (LenChoice2 + 1)
 .equ LenHigh, (LenLow + 2 * kLenNumLowSymbols * kNumPosStatesMax)
+.equ kNumLenProbs, (LenHigh + kLenNumHighSymbols)
 
 .equ kLcLpMax, 4
 .equ kLiteralCodersMax, (1 SHL kLcLpMax)
@@ -586,8 +586,6 @@
 .equ kMatchMinLen, 2
 .equ kMatchSpecLenStart, (kMatchMinLen + kLenNumLowSymbols * 2 + kLenNumHighSymbols)
 
-.equ SEQ_COPY 100
-
 .equ Literal, 0
 .equ IsMatch, (Literal + kLiteralCodersMax * kLiteralCoderSize)
 .equ IsRep, (IsMatch + (kNumStates2 SHL kNumPosBitsMax))
@@ -600,11 +598,7 @@
 .equ kAlign, (SpecPos + kNumFullDistances)
 .equ LenCoder, (kAlign + kAlignTableSize)
 .equ RepLenCoder, (LenCoder + kNumLenProbs)
-.equ NUM_BASE_PROBS, (RepLenCoder + kNumLenProbs)
-
-.if NUM_BASE_PROBS ne 1986
-  .err <Stop_Compiling_Bad_LZMA_PROBS>
-.endif
+.equ NUM_PROBS, (RepLenCoder + kNumLenProbs)
 
 # lzma_dict:
     .equ dict_buf, 0
@@ -710,9 +704,9 @@ MY_PUSH_PRESERVED_REGS
         mov     r5, RSP
         mov     RSP, r0
         mov     [LOC_0 + Old_RSP], r5
-        mov     t0, [r5 + 8]
-        add     t0, PARAM_buf
-        mov     [LOC_0 + bufLimit], t0
+        mov     t0_R, [r5 + 8]
+        add     t0_R, PARAM_buf
+        mov     [LOC_0 + bufLimit], t0_R
         mov     [LOC_0 + lzmaPtr], PARAM_lzma
         mov     [LOC_0 + dict], PARAM_dict
         mov     [LOC_0 + bufPosPtr], PARAM_bufPosPtr
@@ -721,6 +715,8 @@ MY_PUSH_PRESERVED_REGS
         add     buf, PARAM_buf
         mov     dic, [PARAM_dict + dict_buf]
         mov     dicPos, [PARAM_dict + dict_pos]
+        mov     processedPos, [PARAM_dict + dict_pos]
+
         add     dicPos, dic
         mov     [LOC_0 + dicPos_Spec_Loc], dicPos
         mov     [LOC_0 + dic_Spec_Loc], dic
@@ -739,8 +735,9 @@ MY_PUSH_PRESERVED_REGS
 
         mov     sym_R, PARAM_lzma  #  CLzmaDec_Asm_Loc pointer for GLOB_2
         mov     [LOC_0 + probs_Spec], sym_R
+        mov     probs, sym_R
 
-        add     sym_R, (NUM_BASE_PROBS SHL PSHIFT)
+        add     sym_R, (NUM_PROBS SHL PSHIFT)
 
         mov     t0, [GLOB_2 + rep0]
         mov     [LOC_0 + rep0_Loc], t0
@@ -765,12 +762,6 @@ MY_PUSH_PRESERVED_REGS
         mov     [LOC_0 + lpMask], t0
         mov     lpMask_reg, t0
         
-       
-        mov     x1, [GLOB_2 + checkDicSize]
-        mov     [LOC_0 + checkDicSize_Loc], x1
-
-        mov     processedPos, [GLOB_2 + processedPos_Spec]
-
         mov     state, [GLOB_2 + state_Spec]
         shl     state, PSHIFT
 
@@ -779,11 +770,11 @@ MY_PUSH_PRESERVED_REGS
         mov     kBitModelTotal_reg, kBitModelTotal
         xor     sym, sym
 
-        ## if (processedPos != 0 || checkDicSize != 0)
-        or      x1, processedPos
+        ## if (processedPos != 0)
+        or      processedPos, processedPos
         jz      1f
         
-        mov     t0_R, [LOC_0 + dicBufSize]
+        mov     t0_R, [LOC + dicBufSize]
         add     t0_R, dic
         cmp     dicPos, dic
         cmovnz  t0_R, dicPos
@@ -990,10 +981,7 @@ decode_dist_end:
 
         ## if (distance >= (checkDicSize == 0 ? processedPos: checkDicSize))
 
-        mov     t0, [LOC + checkDicSize_Loc]
-        test    t0, t0
-        cmove   t0, processedPos
-        cmp     sym, t0
+        cmp     sym, processedPos
         jae     end_of_payload
         
         # rep3 = rep2#
@@ -1333,20 +1321,19 @@ fin:
 
         mov     r1, [LOC + lzmaPtr]
 
-        mov     t0, [LOC_0 + dict]
+        mov     t0_R, [LOC + dict]
         sub     dicPos, [LOC + dic_Spec_Loc]
-        mov     [t0 + dict_pos], dicPos
+        mov     [t0_R + dict_pos], dicPos
         mov     t1_R, [LOC + full]
         sub     t1_R, [LOC + dic_Spec_Loc]
-        mov     [t0 + dict_full], t1_R
-        mov     t0, [LOC + bufPosPtr]
+        mov     [t0_R + dict_full], t1_R
+        mov     t0_R, [LOC + bufPosPtr]
         sub     buf, [LOC + buf_Loc]
-        mov     [t0], buf
+        mov     [t0_R], buf
         mov     [GLOB + range_Spec], range
         mov     [GLOB + code_Spec], cod
         shr     state, PSHIFT
         mov     [GLOB + state_Spec], state
-        mov     [GLOB + processedPos_Spec], processedPos
 
         mov     t0, [LOC + remainLen_Loc]
         mov     [GLOB + remainLen], t0
