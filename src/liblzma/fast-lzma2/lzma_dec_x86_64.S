@@ -559,9 +559,9 @@
 .equ kLenNumHighBits, 8
 .equ kLenNumHighSymbols, (1 SHL kLenNumHighBits)
 
-.equ LenChoice, 0
-.equ LenChoice2, 1
-.equ LenLow, (LenChoice2 + 1)
+.equ LenLow, 0
+.equ LenChoice, LenLow
+.equ LenChoice2, (LenLow + kLenNumLowSymbols)
 .equ LenHigh, (LenLow + 2 * kLenNumLowSymbols * kNumPosStatesMax)
 .equ kNumLenProbs, (LenHigh + kLenNumHighSymbols)
 
