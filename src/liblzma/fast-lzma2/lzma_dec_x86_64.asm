@@ -112,7 +112,7 @@ endm
 
 ; _LZMA_SIZE_OPT  equ 1
 
-; _LZMA_PROB16 equ 1
+_LZMA_PROB16 equ 1
 
 ifdef _LZMA_PROB16
         PSHIFT  equ 1
@@ -525,12 +525,16 @@ kLenNumLowBits          equ 3
 kLenNumLowSymbols       equ (1 SHL kLenNumLowBits)
 kLenNumHighBits         equ 8
 kLenNumHighSymbols      equ (1 SHL kLenNumHighBits)
-kNumLenProbs            equ (2 * kLenNumLowSymbols * kNumPosStatesMax + kLenNumHighSymbols)
 
-LenLow                  equ 0
-LenChoice               equ LenLow
-LenChoice2              equ (LenLow + kLenNumLowSymbols)
+LenChoice               equ 0
+LenChoice2              equ 1
+LenLow                  equ (LenChoice2 + 1)
 LenHigh                 equ (LenLow + 2 * kLenNumLowSymbols * kNumPosStatesMax)
+kNumLenProbs			equ (LenHigh + kLenNumHighSymbols)
+
+kLcLpMax equ 4
+kLiteralCodersMax equ (1 SHL kLcLpMax)
+kLiteralCoderSize equ 300h
 
 kNumStates              equ 12
 kNumStates2             equ 16
@@ -549,55 +553,44 @@ kAlignTableSize         equ (1 SHL kNumAlignBits)
 kMatchMinLen            equ 2
 kMatchSpecLenStart      equ (kMatchMinLen + kLenNumLowSymbols * 2 + kLenNumHighSymbols)
 
-kStartOffset    equ 1664
-SpecPos         equ (-kStartOffset)
-IsRep0Long      equ (SpecPos + kNumFullDistances)
-RepLenCoder     equ (IsRep0Long + (kNumStates2 SHL kNumPosBitsMax))
-LenCoder        equ (RepLenCoder + kNumLenProbs)
-IsMatch         equ (LenCoder + kNumLenProbs)
-kAlign          equ (IsMatch + (kNumStates2 SHL kNumPosBitsMax))
-IsRep           equ (kAlign + kAlignTableSize)
-IsRepG0         equ (IsRep + kNumStates)
-IsRepG1         equ (IsRepG0 + kNumStates)
-IsRepG2         equ (IsRepG1 + kNumStates)
-PosSlot         equ (IsRepG2 + kNumStates)
-Literal         equ (PosSlot + (kNumLenToPosStates SHL kNumPosSlotBits))
-NUM_BASE_PROBS  equ (Literal + kStartOffset)
-
-if kAlign ne 0
-  .err <Stop_Compiling_Bad_LZMA_kAlign>
-endif
-
-if NUM_BASE_PROBS ne 1984
-  .err <Stop_Compiling_Bad_LZMA_PROBS>
-endif
+Literal equ 0
+IsMatch equ (Literal + kLiteralCodersMax * kLiteralCoderSize)
+IsRep equ (IsMatch + (kNumStates2 SHL kNumPosBitsMax))
+IsRepG0 equ (IsRep + kNumStates)
+IsRepG1 equ (IsRepG0 + kNumStates)
+IsRepG2 equ (IsRepG1 + kNumStates)
+IsRep0Long equ (IsRepG2 + kNumStates)
+PosSlot equ (IsRep0Long + (kNumStates2 SHL kNumPosBitsMax))
+SpecPos equ (PosSlot + (kNumLenToPosStates SHL kNumPosSlotBits))
+kAlign equ (SpecPos + kNumFullDistances)
+LenCoder equ (kAlign + kAlignTableSize)
+RepLenCoder equ (LenCoder + kNumLenProbs)
+NUM_PROBS equ (RepLenCoder + kNumLenProbs)
 
 
 PTR_FIELD equ dq ?
 
+lzma_dict_asm struct
+	dict_buf PTR_FIELD
+	dict_pos PTR_FIELD
+	dict_full PTR_FIELD
+	dict_limit PTR_FIELD
+	dict_size PTR_FIELD
+lzma_dict_asm ends
+
 CLzmaDec_Asm struct
-        lc      db ?
-        lp      db ?
-        pb      db ?
-        _pad_   db ?
-        dicSize dd ?
-
-        dic_Spec        PTR_FIELD
-        dicPos_Spec     PTR_FIELD
-        dicBufSize      PTR_FIELD
-        buf_Spec        PTR_FIELD
-        probs_1664      PTR_FIELD
-
         range_Spec      dd ?
         code_Spec       dd ?
-        processedPos_Spec  dd ?
-        checkDicSize    dd ?
+		init_count	dd ?
+        state_Spec      dd ?
         rep0    dd ?
         rep1    dd ?
         rep2    dd ?
         rep3    dd ?
-        state_Spec      dd ?
-        state2      dd ?
+		pbMask	dd ?
+        lc      dd ?
+        lpMask_Spec      dd ?
+        sequence   dd ?
         remainLen dd ?
 CLzmaDec_Asm ends
 
@@ -613,19 +606,21 @@ CLzmaDec_Asm_Loc struct
         dic_Spec   PTR_FIELD
         
         limit      PTR_FIELD
+		bufPosPtr  PTR_FIELD
         bufLimit   PTR_FIELD
         lc2       dd ?
         lpMask    dd ?
         pbMask    dd ?
-        checkDicSize   dd ?
 
-        _pad_     dd ?
         remainLen dd ?
         dicPos_Spec     PTR_FIELD
         rep0      dd ?
         rep1      dd ?
         rep2      dd ?
         rep3      dd ?
+        buf_Loc     PTR_FIELD
+        dict    PTR_FIELD
+        full    PTR_FIELD
 CLzmaDec_Asm_Loc ends
 
 
@@ -673,14 +668,15 @@ endm
 
 
 PARAM_lzma      equ REG_PARAM_0
-PARAM_limit     equ REG_PARAM_1
-PARAM_bufLimit  equ REG_PARAM_2
+PARAM_dict     equ REG_PARAM_1
+PARAM_buf  equ REG_PARAM_2
+PARAM_bufPosPtr equ REG_PARAM_3
 
 		.code
 
 _TEXT$LZMADECOPT SEGMENT ALIGN(64) 'CODE'
 
-LZMA_decodeReal_3 PROC
+LZMA_decodeReal_asm_5 PROC
 MY_PUSH_PRESERVED_REGS
 
 ; RSP is (16x + 8) bytes aligned in WIN64-x64
@@ -691,72 +687,71 @@ MY_PUSH_PRESERVED_REGS
         mov     r5, RSP
         mov     RSP, r0
         mov     LOC_0 Old_RSP, r5
-        mov     LOC_0 lzmaPtr, PARAM_lzma
+        mov     t0_R, [r5 + 68h]
+        add     t0_R, PARAM_buf
+        mov     LOC_0 bufLimit, t0_R
+        mov     LOC_0 dict, PARAM_dict
+        mov     LOC_0 bufPosPtr, PARAM_bufPosPtr
+        mov     LOC_0 buf_Loc, PARAM_buf
+        mov     buf, [PARAM_bufPosPtr]
+        add     buf, PARAM_buf
+        mov     dic, [PARAM_dict].lzma_dict_asm.dict_buf
+        mov     dicPos, [PARAM_dict].lzma_dict_asm.dict_pos
+        mov     r13, [PARAM_dict].lzma_dict_asm.dict_pos
+
+        add     dicPos, dic
+        mov     LOC_0 dicPos_Spec, dicPos
+        mov     LOC_0 dic_Spec, dic
         
+        mov     t0_R, [PARAM_dict].lzma_dict_asm.dict_limit
+        add     t0_R, dic
+        mov     LOC_0 limit, t0_R
+
+        mov     t0_R, [PARAM_dict].lzma_dict_asm.dict_size
+        mov     LOC_0 dicBufSize, t0_R
+        mov     t0_R, [PARAM_dict].lzma_dict_asm.dict_full
+        add     t0_R, dic
+        mov     LOC_0 full, t0_R
+
         mov     LOC_0 remainLen, 0  ; remainLen must be ZERO
 
-        mov     LOC_0 bufLimit, PARAM_bufLimit
         mov     sym_R, PARAM_lzma  ;  CLzmaDec_Asm_Loc pointer for GLOB_2
-        mov     dic, GLOB_2 dic_Spec
-        add     PARAM_limit, dic
-        mov     LOC_0 limit, PARAM_limit
+        mov     LOC_0 probs_Spec, sym_R
+        mov     probs, sym_R
+
+        add     sym_R, (NUM_PROBS SHL PSHIFT)
+        mov     LOC_0 lzmaPtr, sym_R      
 
         COPY_VAR(rep0)
         COPY_VAR(rep1)
         COPY_VAR(rep2)
         COPY_VAR(rep3)
+        COPY_VAR(pbMask)
         
-        mov     dicPos, GLOB_2 dicPos_Spec
-        add     dicPos, dic
-        mov     LOC_0 dicPos_Spec, dicPos
-        mov     LOC_0 dic_Spec, dic
-        
-        mov     x1_L, GLOB_2 pb
-        mov     t0, 1
-        shl     t0, x1_L
-        dec     t0
-        mov     LOC_0 pbMask, t0
-
         ; unsigned pbMask = ((unsigned)1 << (p->prop.pb)) - 1;
         ; unsigned lc = p->prop.lc;
         ; unsigned lpMask = ((unsigned)0x100 << p->prop.lp) - ((unsigned)0x100 >> lc);
 
-        mov     x1_L, GLOB_2 lc
-        mov     x2, 100h
-        mov     t0, x2
-        shr     x2, x1_L
+        mov     x1, GLOB_2 lc
         add     x1_L, PSHIFT
         mov     LOC_0 lc2, x1
-        mov     x1_L, GLOB_2 lp
-        shl     t0, x1_L
-        sub     t0, x2
+        mov     t0, GLOB_2 lpMask_Spec
         mov     LOC_0 lpMask, t0
         mov     lpMask_reg, t0
         
-        mov     probs, GLOB_2 probs_1664
-        mov     LOC_0 probs_Spec, probs
-
-        mov     t0_R, GLOB_2 dicBufSize
-        mov     LOC_0 dicBufSize, t0_R
-       
-        mov     x1, GLOB_2 checkDicSize
-        mov     LOC_0 checkDicSize, x1
-
-        mov     processedPos, GLOB_2 processedPos_Spec
-
         mov     state, GLOB_2 state_Spec
         shl     state, PSHIFT
 
-        mov     buf,   GLOB_2 buf_Spec
         mov     range, GLOB_2 range_Spec
         mov     cod,   GLOB_2 code_Spec
         mov     kBitModelTotal_reg, kBitModelTotal
-        xor     sym, sym
+        xor     sym_R, sym_R
 
         ; if (processedPos != 0 || checkDicSize != 0)
-        or      x1, processedPos
+        or      processedPos, processedPos
         jz      @f
         
+        mov     t0_R, LOC dicBufSize
         add     t0_R, dic
         cmp     dicPos, dic
         cmovnz  t0_R, dicPos
@@ -809,6 +804,10 @@ lit_loop:
         IsMatchBranch_Pre
         mov     byte ptr[dicPos], sym_L
         inc     dicPos
+        mov     t0_R, LOC full
+        cmp     dicPos, t0_R
+        cmova   t0_R, dicPos
+        mov     LOC full, t0_R
                 
         CheckLimits
 lit_end:
@@ -945,10 +944,7 @@ decode_dist_end:
 
         ; if (distance >= (checkDicSize == 0 ? processedPos: checkDicSize))
 
-        mov     t0, LOC checkDicSize
-        test    t0, t0
-        cmove   t0, processedPos
-        cmp     sym, t0
+        cmp     sym, processedPos
         jae     end_of_payload
         
         ; rep3 = rep2;
@@ -991,10 +987,14 @@ copy_match:
         cmovae  cnt, sym ; 32-bit
 
         mov     dic, LOC dic_Spec
-        mov     x1, LOC rep0
 
         mov     t0_R, dicPos
         add     dicPos, cnt_R
+        mov     r1, LOC full
+        cmp     dicPos, r1
+        cmova   r1, dicPos
+        mov     LOC full, r1
+        mov     x1, LOC rep0
         ; processedPos += curLen;
         add     processedPos, cnt
         ; len -= curLen;
@@ -1257,14 +1257,19 @@ fin:
 
         mov     r1, LOC lzmaPtr
 
+        mov     t0_R, LOC dict
         sub     dicPos, LOC dic_Spec
-        mov     GLOB dicPos_Spec, dicPos
-        mov     GLOB buf_Spec, buf
+        mov     [t0_R].lzma_dict_asm.dict_pos, dicPos
+        mov     t1_R, LOC full
+        sub     t1_R, LOC dic_Spec
+        mov     [t0_R].lzma_dict_asm.dict_full, t1_R
+        mov     t0_R, LOC bufPosPtr
+        sub     buf, LOC buf_Loc
+        mov     [t0_R], buf
         mov     GLOB range_Spec, range
         mov     GLOB code_Spec, cod
         shr     state, PSHIFT
         mov     GLOB state_Spec, state
-        mov     GLOB processedPos_Spec, processedPos
 
         RESTORE_VAR(remainLen)
         RESTORE_VAR(rep0)
@@ -1278,7 +1283,7 @@ fin:
 
 		MY_POP_PRESERVED_REGS
 		ret
-LZMA_decodeReal_3 ENDP
+LZMA_decodeReal_asm_5 ENDP
 
 _TEXT$LZMADECOPT ENDS
 
