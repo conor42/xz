@@ -286,6 +286,10 @@ typedef struct {
 	lzma_vli uncompressed_size;
 } lzma_lzma1_decoder;
 
+extern lzma_ret
+LZMA_decodeReal_asm_5(void *coder_ptr, lzma_dict *dictptr,
+    const uint8_t *in,
+    size_t *in_pos, size_t in_size);
 
 static lzma_ret
 lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
@@ -294,7 +298,7 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 {
 	lzma_lzma1_decoder *restrict coder = coder_ptr;
 
-	////////////////////
+    ////////////////////
 	// Initialization //
 	////////////////////
 
@@ -305,7 +309,11 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 			return ret;
 	}
 
-	///////////////
+    if (*in_pos + 20 < in_size) {
+        return LZMA_decodeReal_asm_5(coder_ptr, dictptr, in, in_pos, in_size);
+    }
+    
+    ///////////////
 	// Variables //
 	///////////////
 
