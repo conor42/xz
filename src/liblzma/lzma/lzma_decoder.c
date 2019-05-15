@@ -306,11 +306,7 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 			return ret;
 	}
 
-    if (0){//*in_pos + 20 < in_size) {
-        return LZMA_decodeReal_asm_5(coder_ptr, dictptr, in, in_pos, in_size);
-    }
-    
-    ///////////////
+	///////////////
 	// Variables //
 	///////////////
 
@@ -319,7 +315,21 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 
 	lzma_dict dict = *dictptr;
 
+	// If uncompressed size is known, there must be no end of payload
+	// marker.
+	const bool no_eopm = coder->uncompressed_size
+		!= LZMA_VLI_UNKNOWN;
+	if (no_eopm && coder->uncompressed_size < dict.limit - dict.pos)
+		dict.limit = dict.pos + (size_t)(coder->uncompressed_size);
+
 	const size_t dict_start = dict.pos;
+
+#if 1
+	if (*in_pos + 20 < in_size && dict.pos < dict.size && coder->sequence == SEQ_IS_MATCH) {
+		if(LZMA_decodeReal_asm_5(coder, &dict, in, in_pos, in_size - 20))
+			return LZMA_DATA_ERROR;
+	}
+#endif
 
 	// Range decoder
 	rc_to_local(coder->rc, *in_pos);
@@ -348,13 +358,6 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 	uint32_t pos_state = dict.pos & pos_mask;
 
 	lzma_ret ret = LZMA_OK;
-
-	// If uncompressed size is known, there must be no end of payload
-	// marker.
-	const bool no_eopm = coder->uncompressed_size
-			!= LZMA_VLI_UNKNOWN;
-	if (no_eopm && coder->uncompressed_size < dict.limit - dict.pos)
-		dict.limit = dict.pos + (size_t)(coder->uncompressed_size);
 
 	// The main decoder loop. The "switch" is used to restart the decoder at
 	// correct location. Once restarted, the "switch" is no longer used.
@@ -881,10 +884,17 @@ lzma_decoder_reset(void *coder_ptr, const void *opt)
 
 	// State
 	coder->state = STATE_LIT_LIT;
+#if 0
 	coder->rep0 = 0;
 	coder->rep1 = 0;
 	coder->rep2 = 0;
 	coder->rep3 = 0;
+#else
+	coder->rep0 = 1;
+	coder->rep1 = 1;
+	coder->rep2 = 1;
+	coder->rep3 = 1;
+#endif
 	coder->pos_mask = (1U << options->pb) - 1;
 
 	// Range decoder
