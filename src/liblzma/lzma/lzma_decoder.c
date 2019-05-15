@@ -21,7 +21,7 @@
 #if TUKLIB_GNUC_REQ(7, 0)
 #	pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
 #endif
-
+//#undef LZMA_ASM_OPT_64
 
 #ifdef HAVE_SMALL
 
@@ -290,18 +290,18 @@ LZMA_decodeReal_asm_5(void *coder_ptr, lzma_dict *dictptr,
 
 static lzma_ret
 lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
-		const uint8_t *restrict in,
-		size_t *restrict in_pos, size_t in_size)
+	const uint8_t *restrict in,
+	size_t *restrict in_pos, size_t in_size)
 {
 	lzma_lzma1_decoder *restrict coder = coder_ptr;
 
-    ////////////////////
+	////////////////////
 	// Initialization //
 	////////////////////
 
 	{
 		const lzma_ret ret = rc_read_init(
-				&coder->rc, in, in_pos, in_size);
+			&coder->rc, in, in_pos, in_size);
 		if (ret != LZMA_STREAM_END)
 			return ret;
 	}
@@ -323,11 +323,17 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 		dict.limit = dict.pos + (size_t)(coder->uncompressed_size);
 
 	const size_t dict_start = dict.pos;
+	size_t loop_count = (size_t)-1;
 
-#if 1
-	if (*in_pos + 20 < in_size && dict.pos < dict.size && coder->sequence == SEQ_IS_MATCH) {
-		if(LZMA_decodeReal_asm_5(coder, &dict, in, in_pos, in_size - 20))
-			return LZMA_DATA_ERROR;
+#ifdef LZMA_ASM_OPT_64
+	if (*in_pos + 20 < in_size && dict.pos < dict.limit) {
+		if (coder->sequence == SEQ_IS_MATCH) {
+			if (LZMA_decodeReal_asm_5(coder, &dict, in, in_pos, in_size - 20))
+				return LZMA_DATA_ERROR;
+		}
+		else {
+			loop_count = 1;
+		}
 	}
 #endif
 
@@ -362,7 +368,7 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 	// The main decoder loop. The "switch" is used to restart the decoder at
 	// correct location. Once restarted, the "switch" is no longer used.
 	switch (coder->sequence)
-	while (true) {
+	do {
 		// Calculate new pos_state. This is skipped on the first loop
 		// since we already calculated it when setting up the local
 		// variables.
@@ -380,7 +386,7 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 
 			probs = literal_subcoder(coder->literal,
 					literal_context_bits, literal_pos_mask,
-					dict.pos, dict_get(&dict, 0));
+					dict.pos, dict_get(&dict, 1));
 			symbol = 1;
 
 			if (is_literal_state(state)) {
@@ -570,56 +576,20 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 							>= -1);
 					assert((int32_t)(rep0 - symbol - 1)
 							<= 82);
-					probs = coder->pos_special + rep0
-							- symbol - 1;
-					symbol = 1;
-					offset = 0;
+					probs = coder->pos_special;
+					symbol = rep0 + 1;
+					offset = 1;
 	case SEQ_DIST_MODEL:
-#ifdef HAVE_SMALL
 					do {
-						rc_bit(probs[symbol], ,
-							rep0 += 1 << offset,
+						assert(symbol < FULL_DISTANCES);
+						rc_bit_last(probs[symbol],
+							symbol += offset,
+							symbol += offset << 1,
 							SEQ_DIST_MODEL);
-					} while (++offset < limit);
-#else
-					switch (limit) {
-					case 5:
-						assert(offset == 0);
-						rc_bit(probs[symbol], ,
-							rep0 += 1,
-							SEQ_DIST_MODEL);
-						++offset;
-						--limit;
-					case 4:
-						rc_bit(probs[symbol], ,
-							rep0 += 1 << offset,
-							SEQ_DIST_MODEL);
-						++offset;
-						--limit;
-					case 3:
-						rc_bit(probs[symbol], ,
-							rep0 += 1 << offset,
-							SEQ_DIST_MODEL);
-						++offset;
-						--limit;
-					case 2:
-						rc_bit(probs[symbol], ,
-							rep0 += 1 << offset,
-							SEQ_DIST_MODEL);
-						++offset;
-						--limit;
-					case 1:
-						// We need "symbol" only for
-						// indexing the probability
-						// array, thus we can use
-						// rc_bit_last() here to omit
-						// the unneeded updating of
-						// "symbol".
-						rc_bit_last(probs[symbol], ,
-							rep0 += 1 << offset,
-							SEQ_DIST_MODEL);
-					}
-#endif
+						offset <<= 1;
+					} while (--limit);
+					rep0 = symbol - offset;
+
 				} else {
 					// The distance is >= 128. Decode the
 					// lower bits without probabilities
@@ -691,6 +661,8 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 				ret = LZMA_DATA_ERROR;
 				goto out;
 			}
+
+			++rep0;
 
 		} else {
 			rc_update_1(coder->is_rep[state]);
@@ -800,10 +772,23 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 			coder->sequence = SEQ_COPY;
 			goto out;
 		}
-	}
+#ifdef LZMA_ASM_OPT_64
+	} while (--loop_count);
+#else
+	} while (true);
+#endif
 
 	rc_normalize(SEQ_NORMALIZE);
 	coder->sequence = SEQ_IS_MATCH;
+
+#ifdef LZMA_ASM_OPT_64
+	if (rc_in_pos + 20 < in_size && dict.pos < dict.limit) {
+		rc_from_local(coder->rc, *in_pos);
+		if(LZMA_decodeReal_asm_5(coder, &dict, in, in_pos, in_size - 20))
+			return LZMA_DATA_ERROR;
+		rc_to_local(coder->rc, *in_pos);
+	}
+#endif
 
 out:
 	// Save state
@@ -884,17 +869,10 @@ lzma_decoder_reset(void *coder_ptr, const void *opt)
 
 	// State
 	coder->state = STATE_LIT_LIT;
-#if 0
-	coder->rep0 = 0;
-	coder->rep1 = 0;
-	coder->rep2 = 0;
-	coder->rep3 = 0;
-#else
 	coder->rep0 = 1;
 	coder->rep1 = 1;
 	coder->rep2 = 1;
 	coder->rep3 = 1;
-#endif
 	coder->pos_mask = (1U << options->pb) - 1;
 
 	// Range decoder
