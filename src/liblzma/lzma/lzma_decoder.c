@@ -619,20 +619,25 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 					} while (++offset < ALIGN_BITS);
 #else
 	case SEQ_ALIGN0:
-					rc_bit(coder->pos_align[symbol], ,
-							rep0 += 1, SEQ_ALIGN0);
+					rc_bit_last(coder->pos_align[symbol],
+							symbol += 1,
+							symbol += 2, SEQ_ALIGN0);
 	case SEQ_ALIGN1:
-					rc_bit(coder->pos_align[symbol], ,
-							rep0 += 2, SEQ_ALIGN1);
+					rc_bit_last(coder->pos_align[symbol],
+							symbol += 2,
+							symbol += 4, SEQ_ALIGN1);
 	case SEQ_ALIGN2:
-					rc_bit(coder->pos_align[symbol], ,
-							rep0 += 4, SEQ_ALIGN2);
+					rc_bit_last(coder->pos_align[symbol],
+							symbol += 4,
+							symbol += 8, SEQ_ALIGN2);
 	case SEQ_ALIGN3:
 					// Like in SEQ_DIST_MODEL, we don't
 					// need "symbol" for anything else
 					// than indexing the probability array.
-					rc_bit_last(coder->pos_align[symbol], ,
-							rep0 += 8, SEQ_ALIGN3);
+					rc_bit_last(coder->pos_align[symbol],
+							rep0 -= 8,
+							, SEQ_ALIGN3);
+					rep0 += symbol;
 #endif
 
 					if (rep0 == UINT32_MAX) {
