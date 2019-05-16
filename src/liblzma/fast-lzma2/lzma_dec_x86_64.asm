@@ -679,7 +679,7 @@ PARAM_bufPosPtr equ REG_PARAM_3
 
 _TEXT$LZMADECOPT SEGMENT ALIGN(64) 'CODE'
 
-LZMA_decodeReal_asm_5 PROC
+lzma_decode_asm_5 PROC
 MY_PUSH_PRESERVED_REGS
 
 ; RSP is (16x + 8) bytes aligned in WIN64-x64
@@ -1291,7 +1291,7 @@ fin:
 
 		MY_POP_PRESERVED_REGS
 		ret
-LZMA_decodeReal_asm_5 ENDP
+lzma_decode_asm_5 ENDP
 
 _TEXT$LZMADECOPT ENDS
 
