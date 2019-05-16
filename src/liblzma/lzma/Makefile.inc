@@ -45,7 +45,14 @@ endif
 if COND_DECODER_LZMA2
 libflzma_la_SOURCES += \
 	lzma/lzma2_decoder.c \
-	lzma/lzma2_decoder.h \
-	lzma/lzma2_fast_decoder.c \
-	lzma/lzma2_fast_decoder.h
+	lzma/lzma2_decoder.h
+endif
+
+if COND_ASM_X86_64
+libflzma_la_CPPFLAGS += -DLZMA_ASM_OPT_64
+if COND_W32
+libflzma_la_CPPFLAGS += -DMS_x64_CALL=1
+else
+libflzma_la_CPPFLAGS += -DMS_x64_CALL=0
+endif
 endif
