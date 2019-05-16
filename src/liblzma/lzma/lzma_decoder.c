@@ -172,11 +172,26 @@ typedef struct {
 	// Probabilities //
 	///////////////////
 
-	/// Literals; see comments in lzma_common.h.
-	probability literal[LITERAL_CODERS_MAX * LITERAL_CODER_SIZE];
+	/// Probability trees for additional bits for match distance when the
+	/// distance is in the range [4, 127].
+	probability pos_special[FULL_DISTANCES];
+
+	/// If 1, the repeated match has length of one byte. Otherwise
+	/// the length is decoded from rep_len_decoder.
+	probability is_rep0_long[POS_STATES_MAX][STATES2];
+
+	/// Length of a repeated match
+	lzma_length_decoder rep_len_decoder;
+
+	/// Length of a normal match
+	lzma_length_decoder match_len_decoder;
 
 	/// If 1, it's a match. Otherwise it's a single 8-bit literal.
 	probability is_match[POS_STATES_MAX][STATES2];
+
+	/// Probability tree for the lowest four bits of a match distance
+	/// that is equal to or greater than 128.
+	probability pos_align[ALIGN_SIZE];
 
 	/// If 1, it's a repeated match. The distance is one of rep0 .. rep3.
 	probability is_rep[STATES];
@@ -192,28 +207,13 @@ typedef struct {
 	/// If 0, distance of a repeated match is rep2. Otherwise it is rep3.
 	probability is_rep2[STATES];
 
-	/// If 1, the repeated match has length of one byte. Otherwise
-	/// the length is decoded from rep_len_decoder.
-	probability is_rep0_long[POS_STATES_MAX][STATES2];
-
 	/// Probability tree for the highest two bits of the match distance.
 	/// There is a separate probability tree for match lengths of
 	/// 2 (i.e. MATCH_LEN_MIN), 3, 4, and [5, 273].
 	probability dist_slot[DIST_STATES][DIST_SLOTS];
 
-	/// Probability trees for additional bits for match distance when the
-	/// distance is in the range [4, 127].
-	probability pos_special[FULL_DISTANCES];
-
-	/// Probability tree for the lowest four bits of a match distance
-	/// that is equal to or greater than 128.
-	probability pos_align[ALIGN_SIZE];
-
-	/// Length of a normal match
-	lzma_length_decoder match_len_decoder;
-
-	/// Length of a repeated match
-	lzma_length_decoder rep_len_decoder;
+	/// Literals; see comments in lzma_common.h.
+	probability literal[LITERAL_CODERS_MAX * LITERAL_CODER_SIZE];
 
 	///////////////////
 	// Decoder state //
@@ -338,6 +338,7 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 		if (coder->sequence == SEQ_IS_MATCH) {
 			if (lzma_decode_asm_5(coder, &dict, in, in_pos, in_size - LZMA_REQUIRED_INPUT_MAX))
 				return LZMA_DATA_ERROR;
+			coder->sequence = (coder->len != 0) ? SEQ_COPY : SEQ_IS_MATCH;
 		}
 		else {
 			loop_count = 1;
@@ -822,6 +823,7 @@ out:
 		if (lzma_decode_asm_5(coder, &dict, in, in_pos,
 				in_size - LZMA_REQUIRED_INPUT_MAX))
 			return LZMA_DATA_ERROR;
+		coder->sequence = (coder->len != 0) ? SEQ_COPY : SEQ_IS_MATCH;
 		dictptr->pos = dict.pos;
 		dictptr->full = dict.full;
 	}
