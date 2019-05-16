@@ -21,9 +21,11 @@
 #if TUKLIB_GNUC_REQ(7, 0)
 #	pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
 #endif
-//#undef LZMA_ASM_OPT_64
 
 #ifdef HAVE_SMALL
+
+// Assembler decoder is an extra function which enlarges the code
+#undef LZMA_ASM_OPT_64
 
 // Macros for (somewhat) size-optimized code.
 #define seq_4(seq) seq
@@ -201,7 +203,7 @@ typedef struct {
 
 	/// Probability trees for additional bits for match distance when the
 	/// distance is in the range [4, 127].
-	probability pos_special[FULL_DISTANCES/* - DIST_MODEL_END*/];
+	probability pos_special[FULL_DISTANCES];
 
 	/// Probability tree for the lowest four bits of a match distance
 	/// that is equal to or greater than 128.
@@ -283,10 +285,16 @@ typedef struct {
 	lzma_vli uncompressed_size;
 } lzma_lzma1_decoder;
 
+#ifdef LZMA_ASM_OPT_64
+
+#define LZMA_REQUIRED_INPUT_MAX 20
+
 extern lzma_ret
-LZMA_decodeReal_asm_5(void *coder_ptr, lzma_dict *dictptr,
+lzma_decode_asm_5(void *coder_ptr, lzma_dict *dictptr,
     const uint8_t *in,
     size_t *in_pos, size_t in_size);
+
+#endif
 
 static lzma_ret
 lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
@@ -326,9 +334,9 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 	size_t loop_count = (size_t)-1;
 
 #ifdef LZMA_ASM_OPT_64
-	if (*in_pos + 20 < in_size && dict.pos < dict.limit) {
+	if (*in_pos + LZMA_REQUIRED_INPUT_MAX < in_size && dict.pos < dict.limit) {
 		if (coder->sequence == SEQ_IS_MATCH) {
-			if (LZMA_decodeReal_asm_5(coder, &dict, in, in_pos, in_size - 20))
+			if (lzma_decode_asm_5(coder, &dict, in, in_pos, in_size - LZMA_REQUIRED_INPUT_MAX))
 				return LZMA_DATA_ERROR;
 		}
 		else {
@@ -588,6 +596,7 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 							SEQ_DIST_MODEL);
 						offset <<= 1;
 					} while (--limit);
+
 					rep0 = symbol - offset;
 
 				} else {
@@ -786,15 +795,6 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 	rc_normalize(SEQ_NORMALIZE);
 	coder->sequence = SEQ_IS_MATCH;
 
-#ifdef LZMA_ASM_OPT_64
-	if (rc_in_pos + 20 < in_size && dict.pos < dict.limit) {
-		rc_from_local(coder->rc, *in_pos);
-		if(LZMA_decodeReal_asm_5(coder, &dict, in, in_pos, in_size - 20))
-			return LZMA_DATA_ERROR;
-		rc_to_local(coder->rc, *in_pos);
-	}
-#endif
-
 out:
 	// Save state
 
@@ -815,6 +815,17 @@ out:
 	coder->limit = limit;
 	coder->offset = offset;
 	coder->len = len;
+
+#ifdef LZMA_ASM_OPT_64
+	if (*in_pos + LZMA_REQUIRED_INPUT_MAX < in_size && dict.pos < dict.limit
+			&& coder->sequence == SEQ_IS_MATCH) {
+		if (lzma_decode_asm_5(coder, &dict, in, in_pos,
+				in_size - LZMA_REQUIRED_INPUT_MAX))
+			return LZMA_DATA_ERROR;
+		dictptr->pos = dict.pos;
+		dictptr->full = dict.full;
+	}
+#endif
 
 	// Update the remaining amount of uncompressed data if uncompressed
 	// size was known.
@@ -900,7 +911,7 @@ lzma_decoder_reset(void *coder_ptr, const void *opt)
 	for (uint32_t i = 0; i < DIST_STATES; ++i)
 		bittree_reset(coder->dist_slot[i], DIST_SLOT_BITS);
 
-	for (uint32_t i = 0; i < FULL_DISTANCES /*- DIST_MODEL_END*/; ++i)
+	for (uint32_t i = 0; i < FULL_DISTANCES; ++i)
 		bit_reset(coder->pos_special[i]);
 
 	bittree_reset(coder->pos_align, ALIGN_BITS);
