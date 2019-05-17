@@ -382,7 +382,7 @@ void LZMA_encodeNormalMatch(LZMA2_ECtx *const enc, unsigned const len, uint32_t 
     ++enc->match_price_count;
 }
 
-static inline size_t lzma_count(const BYTE* cur, const BYTE* match, const BYTE* const end)
+static inline size_t lzma_count(const uint8_t* cur, const uint8_t* match, const uint8_t* const end)
 {
 	size_t count = 0;
 	size_t limit = end - cur;
