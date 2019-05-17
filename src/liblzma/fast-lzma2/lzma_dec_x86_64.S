@@ -584,19 +584,23 @@
 .equ kMatchSpecLenStart, (kMatchMinLen + kLenNumLowSymbols * 2 + kLenNumHighSymbols)
 
 
-.equ SpecPos, (IsRep0Long - kNumFullDistances)
-.equ IsRep0Long, (RepLenCoder - (kNumStates2 SHL kNumPosBitsMax))
-.equ RepLenCoder, (LenCoder - kNumLenProbs)
-.equ LenCoder, (IsMatch - kNumLenProbs)
-.equ IsMatch, (kAlign - (kNumStates2 SHL kNumPosBitsMax))
+# Memory address offsets between -128 and +127 require 1 byte instead of 8, making smaller
+# and faster code. A base address here allows short addresses for commonly used probs.
 .equ kAlign, 0
-.equ IsRep, (kAlign + kAlignTableSize)
-.equ IsRepG0, (IsRep + kNumStates)
-.equ IsRepG1, (IsRepG0 + kNumStates)
-.equ IsRepG2, (IsRepG1 + kNumStates)
-.equ PosSlot, (IsRepG2 + kNumStates)
-.equ Literal, (PosSlot + (kNumLenToPosStates SHL kNumPosSlotBits))
- # gas can't handle an extra symbol def so the total count is not defined here
+# Tables before position 0
+.equ IsMatch, kAlign - (kNumStates2 SHL kNumPosBitsMax)
+.equ LenCoder, IsMatch - kNumLenProbs
+.equ RepLenCoder, LenCoder - kNumLenProbs
+.equ IsRep0Long, RepLenCoder - (kNumStates2 SHL kNumPosBitsMax)
+.equ SpecPos, IsRep0Long - kNumFullDistances
+# Tables after position 0
+.equ IsRep, kAlign + kAlignTableSize
+.equ IsRepG0, IsRep + kNumStates
+.equ IsRepG1, IsRepG0 + kNumStates
+.equ IsRepG2, IsRepG1 + kNumStates
+.equ PosSlot, IsRepG2 + kNumStates
+.equ Literal, PosSlot + (kNumLenToPosStates SHL kNumPosSlotBits)
+.equ TOTAL_PROB_COUNT, Literal + kLiteralCodersMax * kLiteralCoderSize - SpecPos
 
 # lzma_dict:
     .equ dict_buf, 0
@@ -700,10 +704,12 @@ MY_PUSH_PRESERVED_REGS
         mov     RSP, r0
         mov     [LOC_0 + Old_RSP], r5
 .if MS_x64_CALL
-        mov     r8, [r5 + 0x68]
+        mov     t0_R, [r5 + 0x68]
+.else
+        mov     t0_R, r8
 .endif
-        add     r8, PARAM_buf
-        mov     [LOC_0 + bufLimit], r8
+        add     t0_R, PARAM_buf
+        mov     [LOC_0 + bufLimit], t0_R
         mov     [LOC_0 + dict], PARAM_dict
         mov     [LOC_0 + bufPosPtr], PARAM_bufPosPtr
         mov     [LOC_0 + buf_Loc], PARAM_buf
@@ -730,10 +736,10 @@ MY_PUSH_PRESERVED_REGS
 
         mov     sym_R, PARAM_lzma  #  lzma_dec_local pointer for GLOB_2
         mov     probs, sym_R
-        sub     probs, (SpecPos * PMULT)
+        sub     probs, SpecPos * PMULT
         mov     [LOC_0 + probs_Spec], probs
 
-        add     sym_R, ((Literal + kLiteralCodersMax * kLiteralCoderSize - SpecPos) * PMULT) # sizeof probs
+        add     sym_R, TOTAL_PROB_COUNT * PMULT  # sizeof probs
         mov     [LOC_0 + lzmaPtr], sym_R      
 
         mov     t0, [GLOB_2 + rep0]
@@ -972,7 +978,7 @@ decode_dist_end:
 
         ## if (distance >= (checkDicSize == 0 ? processedPos: checkDicSize))
 
-        cmp     sym, dicPos
+        cmp     sym, [LOC + full]
         jae     end_of_payload
         
         # rep3 = rep2#
