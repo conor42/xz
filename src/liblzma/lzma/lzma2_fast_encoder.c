@@ -128,6 +128,8 @@ reset_dict(lzma2_fast_coder *coder)
 static void
 compress_run(lzma2_fast_coder *coder, worker_thread *thr)
 {
+	if(coder->dict_block.start >= coder->dict_block.end)
+		return;
 	lzma_data_block block = { coder->dict_block.data, coder->dict_block.start,coder->dict_block.end };
 	RMF_buildTable(coder->match_table, thr->builder, thr != coder->threads, block);
 	if (thr->block.end != 0) {
@@ -191,7 +193,6 @@ static MYTHREAD_RET_TYPE
 worker_start(void *thr_ptr)
 {
 	worker_thread *thr = thr_ptr;
-	lzma2_fast_coder *coder = thr->coder;
 	worker_state state = THR_IDLE; // Init to silence a warning
 
 	while (true) {
@@ -220,7 +221,7 @@ worker_start(void *thr_ptr)
 		if (state == THR_EXIT)
 			break;
 
-		compress_run(coder, thr);
+		compress_run(thr->coder, thr);
 
 		if (state == THR_EXIT)
 			break;
@@ -249,11 +250,11 @@ static lzma_ret
 thread_initialize(lzma2_fast_coder *coder, size_t i)
 {
 	coder->threads[i].state = THR_IDLE;
+	mythread_mutex_init(&coder->threads[i].mutex);
+	mythread_cond_init(&coder->threads[i].cond);
 	if (mythread_create(&coder->threads[i].thread_id,
 		&worker_start, coder->threads + i))
 		return LZMA_MEM_ERROR;
-	mythread_mutex_init(&coder->threads[i].mutex);
-	mythread_cond_init(&coder->threads[i].cond);
 	return LZMA_OK;
 }
 
@@ -389,6 +390,10 @@ threads_init_output(lzma2_fast_coder *coder)
 static lzma_ret
 compress(lzma2_fast_coder *coder)
 {
+	size_t const encode_size = (coder->dict_block.end - coder->dict_block.start);
+	if(!encode_size)
+		return LZMA_OK;
+
 	coder->total_in += coder->progress_in;
 	coder->total_out += coder->progress_out;
 	coder->progress_in = 0;
@@ -397,7 +402,6 @@ compress(lzma2_fast_coder *coder)
 
 	set_weights(coder);
 
-	size_t const encode_size = (coder->dict_block.end - coder->dict_block.start);
 	size_t enc_threads = enc_thread_count(coder);
 
 	RMF_initTable(coder->match_table, coder->dict_block.data, coder->dict_block.end);
