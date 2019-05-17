@@ -285,16 +285,22 @@ typedef struct {
 	lzma_vli uncompressed_size;
 } lzma_lzma1_decoder;
 
+
+////////////////////////////////
+// External assembler decoder //
+////////////////////////////////
+
 #ifdef LZMA_ASM_OPT_64
 
 #define LZMA_REQUIRED_INPUT_MAX 20
 
-extern lzma_ret
+extern int
 lzma_decode_asm_5(void *coder_ptr, lzma_dict *dictptr,
     const uint8_t *in,
     size_t *in_pos, size_t in_size);
 
 #endif
+
 
 static lzma_ret
 lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
@@ -334,7 +340,7 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 	size_t loop_count = (size_t)-1;
 
 #ifdef LZMA_ASM_OPT_64
-	if (*in_pos + LZMA_REQUIRED_INPUT_MAX < in_size && dict.pos < dict.limit) {
+	if (*in_pos + LZMA_REQUIRED_INPUT_MAX * 2 < in_size && dict.pos < dict.limit) {
 		if (coder->sequence == SEQ_IS_MATCH) {
 			if (lzma_decode_asm_5(coder, &dict, in, in_pos, in_size - LZMA_REQUIRED_INPUT_MAX))
 				return LZMA_DATA_ERROR;
@@ -818,7 +824,7 @@ out:
 	coder->len = len;
 
 #ifdef LZMA_ASM_OPT_64
-	if (*in_pos + LZMA_REQUIRED_INPUT_MAX < in_size && dict.pos < dict.limit
+	if (*in_pos + LZMA_REQUIRED_INPUT_MAX * 2 < in_size && dict.pos < dict.limit
 			&& coder->sequence == SEQ_IS_MATCH) {
 		if (lzma_decode_asm_5(coder, &dict, in, in_pos,
 				in_size - LZMA_REQUIRED_INPUT_MAX))
