@@ -704,12 +704,12 @@ MY_PUSH_PRESERVED_REGS
         mov     RSP, r0
         mov     [LOC_0 + Old_RSP], r5
 .if MS_x64_CALL
-        mov     t0_R, [r5 + 0x68]
+        mov     r3, [r5 + 0x68]
 .else
-        mov     t0_R, r8
+        mov     r3, r8
 .endif
-        add     t0_R, PARAM_buf
-        mov     [LOC_0 + bufLimit], t0_R
+        add     r3, PARAM_buf
+        mov     [LOC_0 + bufLimit], r3
         mov     [LOC_0 + dict], PARAM_dict
         mov     [LOC_0 + bufPosPtr], PARAM_bufPosPtr
         mov     [LOC_0 + buf_Loc], PARAM_buf
@@ -723,6 +723,8 @@ MY_PUSH_PRESERVED_REGS
         mov     [LOC_0 + dicDst_Spec], dicDst
         mov     [LOC_0 + dic_Spec], dic
         
+        mov     sym_R, PARAM_lzma  #  lzma_dec_local pointer for GLOB_2
+
         mov     t0_R, [PARAM_dict + dict_limit]
         add     t0_R, dic
         mov     [LOC_0 + limit], t0_R
@@ -734,7 +736,6 @@ MY_PUSH_PRESERVED_REGS
 
         mov     dword ptr [LOC_0 + remainLen_Loc], 0  # remainLen must be ZERO
 
-        mov     sym_R, PARAM_lzma  #  lzma_dec_local pointer for GLOB_2
         mov     probs, sym_R
         sub     probs, SpecPos * PMULT
         mov     [LOC_0 + probs_Spec], probs
