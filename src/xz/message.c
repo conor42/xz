@@ -527,7 +527,7 @@ progress_pos(uint64_t *in_pos,
 	assert(*in_pos <= progress_strm->total_in);
 
 	// It cannot have produced more output than it claims to have ready.
-	assert(out_pos >= progress_strm->total_out);
+	if(!use_rmf) assert(out_pos >= progress_strm->total_out);
 
 	if (opt_mode == MODE_COMPRESS) {
 		*compressed_pos = out_pos;

@@ -52,7 +52,7 @@ static lzma_check check;
 static bool check_default = true;
 
 /// Radix match finder will be used (alters threading behavior)
-static bool use_rmf = false;
+bool use_rmf = false;
 
 #if defined(HAVE_ENCODERS) && defined(MYTHREAD_ENABLED)
 static lzma_mt mt_options = {
