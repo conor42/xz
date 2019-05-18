@@ -84,15 +84,6 @@ static size_t rmf_allocation_size(size_t dictionary_size, int is_struct)
 		: dictionary_size * sizeof(uint32_t);
 }
 
-/* RMF_reduceDict() : 
- * Reduce dictionary and match buffer size if the total input size is known and < dictionary_size.
- */
-static void RMF_reduceDict(RMF_parameters* const params, size_t const dict_reduce)
-{
-    if (dict_reduce)
-        params->dictionary_size = my_min(params->dictionary_size, my_max(dict_reduce, DICTIONARY_SIZE_MIN));
-}
-
 static void RMF_initListHeads(FL2_matchTable* const tbl)
 {
     for (size_t i = 0; i < RADIX16_TABLE_SIZE; i += 2) {

@@ -337,9 +337,10 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 		dict.limit = dict.pos + (size_t)(coder->uncompressed_size);
 
 	const size_t dict_start = dict.pos;
-	size_t loop_count = (size_t)-1;
 
 #ifdef LZMA_ASM_OPT_64
+	size_t loop_count = (size_t)-1;
+
 	if (*in_pos + LZMA_REQUIRED_INPUT_MAX * 2 < in_size && dict.pos < dict.limit) {
 		if (coder->sequence == SEQ_IS_MATCH) {
 			if (lzma_decode_asm_5(coder, &dict, in, in_pos, in_size - LZMA_REQUIRED_INPUT_MAX))

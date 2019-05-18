@@ -730,7 +730,8 @@ size_t LZMA_hashGetMatches(LZMA2_ECtx *const enc, lzma_data_block const block,
 
     if (first_3 >= 0) {
         int cycles = enc->match_cycles;
-        ptrdiff_t const end_index = pos - (((ptrdiff_t)match.dist < hash_dict_3) ? match.dist : hash_dict_3);
+        ptrdiff_t const end_index = pos - (((ptrdiff_t)match.dist < hash_dict_3)
+			? (ptrdiff_t)match.dist : hash_dict_3);
         ptrdiff_t match_3 = first_3;
         if (match_3 >= end_index) {
             do {
