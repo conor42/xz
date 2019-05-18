@@ -17,7 +17,6 @@
 #include "tuklib_cpucores.h"
 #include "mythread.h"
 
-
 #define LZMA2_TIMEOUT 300
 
 
@@ -25,8 +24,11 @@ typedef enum {
 	/// Waiting for work.
 	THR_IDLE,
 
+	/// Match table is under construction.
+	THR_BUILD,
+
 	/// Encoding is in progress.
-	THR_RUN,
+	THR_ENC,
 
 	/// The main thread wants the thread to stop whatever it was doing
 	/// but not exit.
@@ -106,8 +108,12 @@ struct lzma2_fast_coder_s {
 	/// Amount of compressed data that is ready.
 	uint64_t total_out;
 
-	/// Flag to indicate that a compression job needs to be retrieved.
-	bool working;
+	/// Worker thread sequence.
+	enum {
+		CODER_BUILD,
+		CODER_ENC,
+		CODER_WRITE
+	} sequence;
 
 	/// Flag to stop async encoder
 	bool canceled;
@@ -122,21 +128,6 @@ reset_dict(lzma2_fast_coder *coder)
 {
 	coder->dict_block.start = 0;
 	coder->dict_block.end = 0;
-}
-
-
-static void
-compress_run(lzma2_fast_coder *coder, worker_thread *thr)
-{
-	if(coder->dict_block.start >= coder->dict_block.end)
-		return;
-	lzma_data_block block = { coder->dict_block.data, coder->dict_block.start,coder->dict_block.end };
-	RMF_buildTable(coder->match_table, thr->builder, thr != coder->threads, block);
-	if (thr->block.end != 0) {
-		size_t out_size = LZMA2_encode(&thr->enc, coder->match_table, thr->block, &coder->opt_cur,
-			&coder->progress_in, &coder->progress_out, &coder->canceled);
-		thr->out_size = out_size;
-	}
 }
 
 
@@ -221,7 +212,15 @@ worker_start(void *thr_ptr)
 		if (state == THR_EXIT)
 			break;
 
-		compress_run(thr->coder, thr);
+		lzma2_fast_coder *coder = thr->coder;
+		if (state == THR_BUILD) {
+			lzma_data_block block = { coder->dict_block.data, coder->dict_block.start,coder->dict_block.end };
+			RMF_buildTable(coder->match_table, thr->builder, thr != coder->threads, block);
+		}
+		else {
+			thr->out_size = LZMA2_encode(&thr->enc, coder->match_table, thr->block, &coder->opt_cur,
+				&coder->progress_in, &coder->progress_out, &coder->canceled);
+		}
 
 		if (state == THR_EXIT)
 			break;
@@ -249,12 +248,17 @@ worker_start(void *thr_ptr)
 static lzma_ret
 thread_initialize(lzma2_fast_coder *coder, size_t i)
 {
+	coder->threads[i].coder = coder;
+	coder->threads[i].builder = NULL;
 	coder->threads[i].state = THR_IDLE;
 	mythread_mutex_init(&coder->threads[i].mutex);
 	mythread_cond_init(&coder->threads[i].cond);
 	if (mythread_create(&coder->threads[i].thread_id,
-		&worker_start, coder->threads + i))
+			&worker_start, coder->threads + i)) {
+		mythread_mutex_destroy(&coder->threads[i].mutex);
+		mythread_cond_destroy(&coder->threads[i].cond);
 		return LZMA_MEM_ERROR;
+	}
 	return LZMA_OK;
 }
 
@@ -291,9 +295,17 @@ enc_thread_count(lzma2_fast_coder *coder)
 
 
 static inline void
-thread_run(lzma2_fast_coder *coder, size_t i)
+builder_run(lzma2_fast_coder *coder, size_t i)
 {
-	coder->threads[i].state = THR_RUN;
+	coder->threads[i].state = THR_BUILD;
+	mythread_cond_signal(&coder->threads[i].cond);
+}
+
+
+static inline void
+encoder_run(lzma2_fast_coder *coder, size_t i)
+{
+	coder->threads[i].state = THR_ENC;
 	mythread_cond_signal(&coder->threads[i].cond);
 }
 
@@ -328,6 +340,9 @@ static inline lzma_ret
 thread_initialize(lzma2_fast_coder *coder lzma_attribute((__unused__)),
 		size_t i lzma_attribute((__unused__)))
 {
+	coder->threads[i].coder = coder;
+	coder->threads[i].builder = NULL;
+	coder->threads[i].state = THR_IDLE;
 	return LZMA_OK;
 }
 
@@ -354,9 +369,20 @@ enc_thread_count(lzma2_fast_coder *coder lzma_attribute((__unused__)))
 
 
 static inline void
-thread_run(lzma2_fast_coder *coder, size_t i)
+builder_run(lzma2_fast_coder *coder, size_t i)
 {
-	compress_run(coder, coder->threads + i);
+	worker_thread *thr = coder->threads + i;
+	lzma_data_block block = { coder->dict_block.data, coder->dict_block.start,coder->dict_block.end };
+	RMF_buildTable(coder->match_table, thr->builder, -1, block);
+}
+
+
+static inline void
+encoder_run(lzma2_fast_coder *coder, size_t i)
+{
+	worker_thread *thr = coder->threads + i;
+	thr->out_size = LZMA2_encode(&thr->enc, coder->match_table, thr->block, &coder->opt_cur,
+		&coder->progress_in, &coder->progress_out, &coder->canceled);
 }
 
 
@@ -371,9 +397,25 @@ threads_wait(lzma2_fast_coder *coder lzma_attribute((__unused__)))
 
 
 static lzma_ret
-threads_init_output(lzma2_fast_coder *coder)
+threads_run_sequence(lzma2_fast_coder *coder)
 {
 	return_if_error(threads_wait(coder));
+
+	if (coder->sequence == CODER_BUILD) {
+		size_t rmf_threads = rmf_thread_count(coder);
+		for (size_t i = 0; i < rmf_threads; ++i)
+			builder_run(coder, i);
+		coder->sequence = CODER_ENC;
+		return_if_error(threads_wait(coder));
+	}
+	if (coder->sequence == CODER_ENC) {
+		for (size_t i = 0; i < coder->thread_count && coder->threads[i].block.end != 0; ++i)
+			encoder_run(coder, i);
+		coder->sequence = CODER_WRITE;
+		return_if_error(threads_wait(coder));
+	}
+
+	assert(coder->sequence == CODER_WRITE);
 
 	for (size_t i = 0; i < coder->thread_count; ++i)
 		if (coder->threads[i].out_size == (size_t)-1)
@@ -381,7 +423,6 @@ threads_init_output(lzma2_fast_coder *coder)
 
 	coder->out_thread = 0;
 	coder->dict_block.start = coder->dict_block.end;
-	coder->working = false;
 
 	return LZMA_OK;
 }
@@ -398,37 +439,31 @@ compress(lzma2_fast_coder *coder)
 	coder->total_out += coder->progress_out;
 	coder->progress_in = 0;
 	coder->progress_out = 0;
-	coder->working = true;
 
 	set_weights(coder);
 
 	size_t enc_threads = enc_thread_count(coder);
-
-	RMF_initTable(coder->match_table, coder->dict_block.data, coder->dict_block.end);
-
 	size_t slice_start = coder->dict_block.start;
 	size_t const slice_size = encode_size / enc_threads;
-
 	size_t i;
+
 	for (i = 0; i < enc_threads; ++i) {
 		coder->threads[i].block.data = coder->dict_block.data;
 		coder->threads[i].block.start = slice_start;
 		coder->threads[i].block.end = (i == enc_threads - 1)
 			? coder->dict_block.end
 			: slice_start + slice_size;
-		thread_run(coder, i);
 		slice_start += slice_size;
 	}
-	size_t rmf_threads = rmf_thread_count(coder);
-	for (; i < rmf_threads; ++i) {
+	for (; i < coder->thread_count; ++i) {
 		coder->threads[i].block.end = 0;
 		coder->threads[i].out_size = 0;
-		thread_run(coder, i);
 	}
-	for (; i < coder->thread_count; ++i)
-		coder->threads[i].out_size = 0;
 
-	return_if_error(threads_init_output(coder));
+	RMF_initTable(coder->match_table, coder->dict_block.data, coder->dict_block.end);
+
+	coder->sequence = CODER_BUILD;
+	return_if_error(threads_run_sequence(coder));
 
 	return LZMA_OK;
 }
@@ -583,6 +618,15 @@ end_stream(lzma2_fast_coder *coder,
 }
 
 
+static bool working(lzma2_fast_coder *coder)
+{
+	for (size_t i = 0; i < coder->thread_count; ++i)
+		if (coder->threads[i].state != THR_IDLE)
+			return true;
+	return false;
+}
+
+
 static lzma_ret
 flzma2_encode(void *coder_ptr,
 		const lzma_allocator *allocator,
@@ -595,8 +639,8 @@ flzma2_encode(void *coder_ptr,
 
 	lzma_ret ret = LZMA_OK;
 
-	if (coder->working)
-		return_if_error(threads_init_output(coder));
+	if (working(coder))
+		return_if_error(threads_run_sequence(coder));
 
 	if (!coder->ending)
 		return_if_error(fill_window(coder, allocator,
@@ -668,7 +712,7 @@ get_progress(void *coder_ptr, uint64_t *progress_in, uint64_t *progress_out)
 static void
 free_threads(lzma2_fast_coder *coder, const lzma_allocator *allocator)
 {
-	if (coder->working) {
+	if (working(coder)) {
 		RMF_cancelBuild(coder->match_table);
 		coder->canceled = true;
 	}
@@ -716,8 +760,6 @@ create_threads(lzma2_fast_coder *coder, const lzma_allocator *allocator)
 		for (coder->thread_count = 0; coder->thread_count < thread_count; ++coder->thread_count) {
 			size_t i = coder->thread_count;
 			return_if_error(thread_initialize(coder, i));
-			coder->threads[i].coder = coder;
-			coder->threads[i].builder = NULL;
 			LZMA2_constructECtx(&coder->threads[i].enc);
 		}
 	}
@@ -849,7 +891,6 @@ lzma_flzma2_encoder_init(lzma_next_coder *next,
 
 	return_if_error(lzma2_fast_encoder_create(coder, allocator));
 
-	coder->working = false;
 	coder->ending = false;
 	coder->progress_in = 0;
 	coder->progress_out = 0;
