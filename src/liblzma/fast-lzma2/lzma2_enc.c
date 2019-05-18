@@ -401,7 +401,7 @@ size_t LZMA_encodeChunkFast(LZMA2_ECtx *const enc,
 {
     size_t const pos_mask = enc->pos_mask;
     size_t prev = pos;
-    unsigned const search_depth = tbl->params.depth;
+    unsigned const search_depth = tbl->depth;
 
     while (pos < uncompressed_end && enc->rc.out_index < enc->chunk_size) {
         size_t max_len;
@@ -1274,7 +1274,7 @@ size_t LZMA_encodeOptimumSequence(LZMA2_ECtx *const enc, lzma_data_block const b
     RMF_match match)
 {
     size_t len_end = enc->len_end_max;
-    unsigned const search_depth = tbl->params.depth;
+    unsigned const search_depth = tbl->depth;
     do {
         size_t const pos_mask = enc->pos_mask;
 
@@ -1480,7 +1480,7 @@ size_t LZMA_encodeChunkBest(LZMA2_ECtx *const enc,
     size_t pos,
     size_t const uncompressed_end)
 {
-    unsigned const search_depth = tbl->params.depth;
+    unsigned const search_depth = tbl->depth;
     LZMA_fillDistancesPrices(enc);
     LZMA_fillAlignPrices(enc);
     LZMA_lengthStates_updatePrices(enc, &enc->states.len_states);

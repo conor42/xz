@@ -17,6 +17,10 @@ Public domain
 extern "C" {
 #endif
 
+#define NEAR_DICT_LOG_MIN 4
+#define NEAR_DICT_LOG_MAX 14
+#define MATCH_CYCLES_MAX 64
+
 #define kFastDistBits 12U
 
 #define LZMA2_END_MARKER '\0'

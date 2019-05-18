@@ -29,16 +29,6 @@ extern "C" {
 
 typedef struct
 {
-    size_t dictionary_size;
-    unsigned divide_and_conquer;
-    unsigned depth;
-#ifdef RMF_REFERENCE
-    unsigned use_ref_mf;
-#endif
-} RMF_parameters;
-
-typedef struct
-{
 	uint32_t head;
 	uint32_t count;
 } RMF_tableHead;
@@ -78,10 +68,11 @@ typedef struct
 	FL2_atomic st_index;
 	long end_index;
 	int is_struct;
-	int alloc_struct;
-	size_t unreduced_dict_size;
+	int divide_and_conquer;
+	unsigned depth;
+	size_t allocation_size;
+	size_t dictionary_size;
 	size_t progress;
-	RMF_parameters params;
 	uint32_t stack[RADIX16_TABLE_SIZE];
 	RMF_tableHead list_heads[RADIX16_TABLE_SIZE];
 	uint32_t table[1];
@@ -93,10 +84,11 @@ typedef struct
 	uint32_t dist;
 } RMF_match;
 
-FL2_matchTable* RMF_createMatchTable(const RMF_parameters* const params, const lzma_allocator *allocator);
+bool rmf_options_valid(const lzma_options_lzma *const options);
+FL2_matchTable* RMF_createMatchTable(const lzma_options_lzma *const options, const lzma_allocator *allocator);
 void RMF_freeMatchTable(FL2_matchTable* const tbl, const lzma_allocator *allocator);
-uint8_t RMF_compatibleParameters(const FL2_matchTable* const tbl, const RMF_builder* const builder, const RMF_parameters* const params);
-void RMF_applyParameters(FL2_matchTable* const tbl, const RMF_parameters* const params);
+uint8_t RMF_compatibleParameters(const FL2_matchTable* const tbl, const RMF_builder* const builder, const lzma_options_lzma *const options);
+void RMF_applyParameters(FL2_matchTable* const tbl, const lzma_options_lzma *const options);
 RMF_builder* RMF_createBuilder(FL2_matchTable* const tbl, RMF_builder *existing, const lzma_allocator *allocator);
 void RMF_initTable(FL2_matchTable* const tbl, const void* const data, size_t const end);
 int RMF_buildTable(FL2_matchTable* const tbl,

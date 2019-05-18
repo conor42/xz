@@ -117,12 +117,6 @@ RMF_structuredInit
         tbl->end_index = 0;
         return;
     }
-#ifdef RMF_REFERENCE
-    if (tbl->params.use_ref_mf) {
-        RMF_initReference(tbl, data, end);
-        return;
-    }
-#endif
 
     SetNull(0);
 
@@ -931,8 +925,8 @@ RMF_structuredBuildTable
     if (block.end == 0)
         return;
 
-    unsigned const best = !tbl->params.divide_and_conquer;
-    unsigned const max_depth = MIN(tbl->params.depth, STRUCTURED_MAX_LENGTH) & ~1;
+    unsigned const best = !tbl->divide_and_conquer;
+    unsigned const max_depth = MIN(tbl->depth, STRUCTURED_MAX_LENGTH) & ~1;
     size_t bounded_start = max_depth + MAX_READ_BEYOND_DEPTH;
     bounded_start = block.end - MIN(block.end, bounded_start);
     ptrdiff_t next_progress = (thread == 0) ? 0 : RADIX16_TABLE_SIZE;
@@ -958,12 +952,6 @@ RMF_structuredBuildTable
         if (list_head.count < 2 || list_head.head < block.start)
             continue;
 
-#ifdef RMF_REFERENCE
-        if (tbl->params.use_ref_mf) {
-            RMF_recurseListsReference(tbl->builders[job], block.data, block.end, list_head.head, list_head.count, max_depth);
-            continue;
-        }
-#endif
         if (list_head.head >= bounded_start) {
             RMF_recurseListsBound(builder, block.data, block.end, &list_head, max_depth);
             if (list_head.count < 2 || list_head.head < block.start)
