@@ -17,7 +17,7 @@
 #  pragma warning(disable : 4701) /* warning: 'rpt_head_next' may be used uninitialized in this function */
 #endif
 
-#define MATCH_BUFFER_SHIFT 8;
+#define MATCH_BUFFER_SHIFT 8
 #define MATCH_BUFFER_ELBOW_BITS 17
 #define MATCH_BUFFER_ELBOW (1UL << MATCH_BUFFER_ELBOW_BITS)
 #define MIN_MATCH_BUFFER_SIZE 256U /* min buffer size at least FL2_SEARCH_DEPTH_MAX + 2 for bounded build */
@@ -54,7 +54,7 @@ static size_t RMF_calcBufSize(size_t dictionary_size)
 
 RMF_builder* RMF_createBuilder(FL2_matchTable* const tbl, RMF_builder *builder, const lzma_allocator *allocator)
 {
-	size_t match_buffer_size = RMF_calcBufSize(tbl->params.dictionary_size);
+	size_t match_buffer_size = RMF_calcBufSize(tbl->dictionary_size);
 
 	if (!builder) {
 		builder = lzma_alloc(
@@ -98,20 +98,31 @@ static void RMF_initListHeads(FL2_matchTable* const tbl)
  * Create a match table. Reduce the dict size to input size if possible.
  * A thread_count of 0 will be raised to 1.
  */
-FL2_matchTable* RMF_createMatchTable(const RMF_parameters* const params, const lzma_allocator *allocator)
+bool rmf_options_valid(const lzma_options_lzma *const options)
 {
-    int const is_struct = RMF_isStruct(params->dictionary_size);
+	return options->dict_size >= DICTIONARY_SIZE_MIN
+		&& options->dict_size <= DICTIONARY_SIZE_MAX
+		&& options->depth >= DEPTH_MIN
+		&& options->depth <= DEPTH_MAX
+		&& options->overlap_fraction <= OVERLAP_MAX;
+}
 
-    DEBUGLOG(3, "RMF_createMatchTable : is_struct %d, dict %u", is_struct, (uint32_t)params->dictionary_size);
+FL2_matchTable* RMF_createMatchTable(const lzma_options_lzma *const options, const lzma_allocator *allocator)
+{
+    int const is_struct = RMF_isStruct(options->dict_size);
 
-    size_t const table_bytes = rmf_allocation_size(params->dictionary_size, is_struct);
-    FL2_matchTable* const tbl = lzma_alloc(sizeof(FL2_matchTable) + table_bytes - sizeof(uint32_t), allocator);
+    DEBUGLOG(3, "RMF_createMatchTable : is_struct %d, dict %u", is_struct, (uint32_t)options->dict_size);
+
+    size_t const allocation_size = rmf_allocation_size(options->dict_size, is_struct);
+    FL2_matchTable* const tbl = lzma_alloc(sizeof(FL2_matchTable) + allocation_size - sizeof(uint32_t), allocator);
     if (tbl == NULL)
         return NULL;
 
+	tbl->allocation_size = allocation_size;
     tbl->is_struct = is_struct;
-    tbl->alloc_struct = is_struct;
-    tbl->params = *params;
+    tbl->dictionary_size = options->dict_size;
+	tbl->depth = options->depth;
+	tbl->divide_and_conquer = options->divide_and_conquer;
 	tbl->progress = 0;
 
     RMF_initListHeads(tbl);
@@ -131,19 +142,21 @@ void RMF_freeMatchTable(FL2_matchTable* const tbl, const lzma_allocator *allocat
 
 uint8_t
 RMF_compatibleParameters(const FL2_matchTable* const tbl,
-	const RMF_builder* const builder, const RMF_parameters* const params)
+	const RMF_builder* const builder, const lzma_options_lzma *const options)
 {
-	return rmf_allocation_size(tbl->params.dictionary_size, tbl->alloc_struct)
-			>= rmf_allocation_size(params->dictionary_size, RMF_isStruct(params->dictionary_size))
-		&& builder && builder->match_buffer_size >= RMF_calcBufSize(params->dictionary_size);
+	return tbl->allocation_size >= rmf_allocation_size(options->dict_size, RMF_isStruct(options->dict_size))
+		&& builder
+		&& builder->match_buffer_size >= RMF_calcBufSize(options->dict_size);
 }
 
-/* Before calling RMF_applyParameters(), check params by calling RMF_compatibleParameters() */
+/* Before calling RMF_applyParameters(), check options by calling RMF_compatibleParameters() */
 void
-RMF_applyParameters(FL2_matchTable* const tbl, const RMF_parameters* const params)
+RMF_applyParameters(FL2_matchTable* const tbl, const lzma_options_lzma *const options)
 {
-	tbl->params = *params;
-	tbl->is_struct = RMF_isStruct(params->dictionary_size);
+	tbl->dictionary_size = options->dict_size;
+	tbl->depth = options->depth;
+	tbl->divide_and_conquer = options->divide_and_conquer;
+	tbl->is_struct = RMF_isStruct(options->dict_size);
 }
 
 void RMF_initTable(FL2_matchTable* const tbl, const void* const data, size_t const end)
