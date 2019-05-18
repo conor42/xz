@@ -222,9 +222,6 @@ worker_start(void *thr_ptr)
 				&coder->progress_in, &coder->progress_out, &coder->canceled);
 		}
 
-		if (state == THR_EXIT)
-			break;
-
 		// Mark the thread as idle unless the main thread has
 		// told us to exit. Signal is needed for the case
 		// where the main thread is waiting for the threads to stop.
@@ -266,11 +263,11 @@ thread_initialize(lzma2_fast_coder *coder, size_t i)
 static void
 thread_free(lzma2_fast_coder *coder, size_t i)
 {
-	coder->threads[i].state = THR_EXIT;
-	mythread_cond_signal(&coder->threads[i].cond);
+	mythread_sync(coder->threads[i].mutex) {
+		coder->threads[i].state = THR_EXIT;
+		mythread_cond_signal(&coder->threads[i].cond);
+	}
 	mythread_join(coder->threads[i].thread_id);
-	mythread_mutex_destroy(&coder->threads[i].mutex);
-	mythread_cond_destroy(&coder->threads[i].cond);
 }
 
 
