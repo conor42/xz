@@ -142,7 +142,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <PreprocessorDefinitions>NDEBUG;WIN32;LZMA_ASM_OPT_64;HAVE_CONFIG_H;DLL_EXPORT;_DEBUG;_WINDOWS;_USRDLL;LIBLZMADLL_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;LZMA_ASM_OPT_64;HAVE_CONFIG_H;DLL_EXPORT;_DEBUG;_WINDOWS;_USRDLL;LIBLZMADLL_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
@@ -178,7 +178,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <PreprocessorDefinitions>WIN32;LZMA_ASM_OPT_64;HAVE_CONFIG_H;DLL_EXPORT;NDEBUG;_WINDOWS;_USRDLL;LIBLZMADLL_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;LZMA_ASM_OPT_64;HAVE_CONFIG_H;DLL_EXPORT;_WINDOWS;_USRDLL;LIBLZMADLL_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
