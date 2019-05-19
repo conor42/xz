@@ -629,6 +629,9 @@ AC_CHECK_HEADERS([fcntl.h limits.h sys/time.h],
 # This allows the use of the intrinsic functions if they are available.
 AC_CHECK_HEADERS([immintrin.h])
 
+# This allows the use of C11 atomic_fetch_add if no alternative is available.
+AC_CHECK_HEADERS([stdatomic.h])
+
 
 ###############################################################################
 # Checks for typedefs, structures, and compiler characteristics.
