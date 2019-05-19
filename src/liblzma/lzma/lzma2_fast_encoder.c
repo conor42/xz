@@ -17,6 +17,7 @@
 #include "tuklib_cpucores.h"
 #include "mythread.h"
 
+
 #define LZMA2_TIMEOUT 300
 
 
@@ -30,21 +31,18 @@ typedef enum {
 	/// Encoding is in progress.
 	THR_ENC,
 
-	/// The main thread wants the thread to stop whatever it was doing
-	/// but not exit.
-	THR_STOP,
-
 	/// The main thread wants the thread to exit.
 	THR_EXIT,
 
 } worker_state;
+
 
 typedef struct lzma2_fast_coder_s lzma2_fast_coder;
 
 typedef struct {
 	lzma2_fast_coder *coder;
 	RMF_builder *builder;
-	LZMA2_ECtx enc;
+	lzma2_encoder enc;
 	lzma_data_block block;
 	size_t out_size;
 #ifdef MYTHREAD_ENABLED
@@ -143,6 +141,7 @@ create_builders(lzma2_fast_coder *coder, const lzma_allocator *allocator)
 	return LZMA_OK;
 }
 
+
 static void
 free_builders(lzma2_fast_coder *coder, const lzma_allocator *allocator)
 {
@@ -151,6 +150,7 @@ free_builders(lzma2_fast_coder *coder, const lzma_allocator *allocator)
 		coder->threads[i].builder = NULL;
 	}
 }
+
 
 static void set_weights(lzma2_fast_coder *coder)
 {
@@ -181,6 +181,7 @@ static void set_weights(lzma2_fast_coder *coder)
 
 #ifdef MYTHREAD_ENABLED
 
+
 static MYTHREAD_RET_TYPE
 worker_start(void *thr_ptr)
 {
@@ -192,13 +193,6 @@ worker_start(void *thr_ptr)
 		mythread_sync(thr->mutex)
 		{
 			while (true) {
-				// The thread is already idle so if we are
-				// requested to stop, just set the state.
-				if (thr->state == THR_STOP) {
-					thr->state = THR_IDLE;
-					mythread_cond_signal(&thr->cond);
-				}
-
 				state = thr->state;
 				if (state != THR_IDLE)
 					break;
@@ -208,7 +202,6 @@ worker_start(void *thr_ptr)
 		}
 
 		assert(state != THR_IDLE);
-		assert(state != THR_STOP);
 
 		if (state == THR_EXIT)
 			break;
@@ -292,6 +285,8 @@ rmf_thread_count(lzma2_fast_coder *coder)
 }
 
 
+// Each encoder thread begins with default probabilities. Ensure the slices are not so small
+// that the ratio is poor.
 static inline size_t
 enc_thread_count(lzma2_fast_coder *coder)
 {
@@ -328,8 +323,7 @@ threads_wait(lzma2_fast_coder *coder)
 		bool timed_out = false;
 		mythread_condtime wait_abs;
 		mythread_condtime_set(&wait_abs, &coder->threads[i].cond, LZMA2_TIMEOUT);
-		mythread_sync(coder->threads[i].mutex)
-		{
+		mythread_sync(coder->threads[i].mutex) {
 			while (coder->threads[i].state != THR_IDLE && !timed_out)
 				timed_out = mythread_cond_timedwait(&coder->threads[i].cond,
 						&coder->threads[i].mutex, &wait_abs) != 0;
@@ -341,13 +335,14 @@ threads_wait(lzma2_fast_coder *coder)
 }
 
 
-#else
+#else // MYTHREAD_ENABLED
 
 
 static inline lzma_ret
 thread_initialize(lzma2_fast_coder *coder lzma_attribute((__unused__)),
 		size_t i lzma_attribute((__unused__)))
 {
+	assert(i == 0);
 	coder->threads[i].coder = coder;
 	coder->threads[i].builder = NULL;
 	coder->threads[i].state = THR_IDLE;
@@ -379,6 +374,7 @@ enc_thread_count(lzma2_fast_coder *coder lzma_attribute((__unused__)))
 static inline void
 builder_run(lzma2_fast_coder *coder, size_t i)
 {
+	assert(i == 0);
 	worker_thread *thr = coder->threads + i;
 	lzma_data_block block = { coder->dict_block.data, coder->dict_block.start,coder->dict_block.end };
 	RMF_buildTable(coder->match_table, thr->builder, -1, block);
@@ -388,6 +384,7 @@ builder_run(lzma2_fast_coder *coder, size_t i)
 static inline void
 encoder_run(lzma2_fast_coder *coder, size_t i)
 {
+	assert(i == 0);
 	worker_thread *thr = coder->threads + i;
 	thr->out_size = LZMA2_encode(&thr->enc, coder->match_table, thr->block, &coder->opt_cur,
 		&coder->progress_in, &coder->progress_out, &coder->canceled);
@@ -401,13 +398,15 @@ threads_wait(lzma2_fast_coder *coder lzma_attribute((__unused__)))
 }
 
 
-#endif
+#endif // MYTHREAD_ENABLED
 
 
 static lzma_ret
 threads_run_sequence(lzma2_fast_coder *coder)
 {
 	return_if_error(threads_wait(coder));
+
+	assert(coder->dict_block.start < coder->dict_block.end);
 
 	if (coder->sequence == CODER_BUILD) {
 		size_t rmf_threads = rmf_thread_count(coder);
@@ -429,6 +428,11 @@ threads_run_sequence(lzma2_fast_coder *coder)
 		if (coder->threads[i].out_size == (size_t)-1)
 			return LZMA_PROG_ERROR;
 
+	coder->total_in += coder->progress_in;
+	coder->total_out += coder->progress_out;
+	coder->progress_in = 0;
+	coder->progress_out = 0;
+
 	coder->out_thread = 0;
 	coder->dict_block.start = coder->dict_block.end;
 
@@ -443,10 +447,7 @@ compress(lzma2_fast_coder *coder)
 	if(!encode_size)
 		return LZMA_OK;
 
-	coder->total_in += coder->progress_in;
-	coder->total_out += coder->progress_out;
-	coder->progress_in = 0;
-	coder->progress_out = 0;
+	assert(coder->out_thread >= coder->thread_count);
 
 	set_weights(coder);
 
@@ -455,6 +456,7 @@ compress(lzma2_fast_coder *coder)
 	size_t const slice_size = encode_size / enc_threads;
 	size_t i;
 
+	assert(slice_size);
 	for (i = 0; i < enc_threads; ++i) {
 		coder->threads[i].block.data = coder->dict_block.data;
 		coder->threads[i].block.start = slice_start;
@@ -463,11 +465,13 @@ compress(lzma2_fast_coder *coder)
 			: slice_start + slice_size;
 		slice_start += slice_size;
 	}
+	// Set the remaining threads to zero input and output.
 	for (; i < coder->thread_count; ++i) {
 		coder->threads[i].block.end = 0;
 		coder->threads[i].out_size = 0;
 	}
 
+	// Initialize the table to depth 2. This operation is single-threaded.
 	RMF_initTable(coder->match_table, coder->dict_block.data, coder->dict_block.end);
 
 	coder->sequence = CODER_BUILD;
@@ -490,17 +494,15 @@ copy_output(lzma2_fast_coder *coder,
 {
 	for (; coder->out_thread < coder->thread_count; ++coder->out_thread)
 	{
-		const uint8_t* const outBuf = RMF_getTableAsOutputBuffer(coder->match_table, coder->threads[coder->out_thread].block.start) + coder->out_pos;
-		size_t const dstCapacity = out_size - *out_pos;
-		size_t toWrite = coder->threads[coder->out_thread].out_size;
+		const uint8_t* const out_buf = RMF_getTableAsOutputBuffer(coder->match_table, coder->threads[coder->out_thread].block.start) + coder->out_pos;
+		size_t const dst_capacity = out_size - *out_pos;
+		size_t to_write = coder->threads[coder->out_thread].out_size;
 
-		toWrite = my_min(toWrite - coder->out_pos, dstCapacity);
+		to_write = my_min(to_write - coder->out_pos, dst_capacity);
 
-		DEBUGLOG(5, "CStream : writing %u bytes", (uint32_t)toWrite);
-
-		memcpy(out + *out_pos, outBuf, toWrite);
-		coder->out_pos += toWrite;
-		*out_pos += toWrite;
+		memcpy(out + *out_pos, out_buf, to_write);
+		coder->out_pos += to_write;
+		*out_pos += to_write;
 
 		// If the slice is not flushed, the output is full
 		if (coder->out_pos < coder->threads[coder->out_thread].out_size)
@@ -512,40 +514,40 @@ copy_output(lzma2_fast_coder *coder,
 }
 
 
-#define ALIGNMENT_SIZE 16U
+#define ALIGNMENT_SIZE (1U << LZMA_LCLP_MAX)
 #define ALIGNMENT_MASK (~(size_t)(ALIGNMENT_SIZE-1))
 
 
 static void
 dict_shift(lzma2_fast_coder *coder)
 {
-    if (coder->dict_block.start < coder->dict_block.end)
-        return;
+	if (coder->dict_block.start < coder->dict_block.end)
+		return;
 
-    size_t overlap = OVERLAP_FROM_DICT_SIZE(coder->dict_size, coder->opt_cur.overlap_fraction);
+	size_t overlap = OVERLAP_FROM_DICT_SIZE(coder->dict_size, coder->opt_cur.overlap_fraction);
 
 	if (overlap == 0) {
 		coder->dict_block.start = 0;
 		coder->dict_block.end = 0;
-    }
-    else if (coder->dict_block.end >= overlap + ALIGNMENT_SIZE) {
-        size_t const from = (coder->dict_block.end - overlap) & ALIGNMENT_MASK;
-        uint8_t *const data = coder->dict_block.data;
+	}
+	else if (coder->dict_block.end >= overlap + ALIGNMENT_SIZE) {
+		size_t const from = (coder->dict_block.end - overlap) & ALIGNMENT_MASK;
+		uint8_t *const data = coder->dict_block.data;
 
-        overlap = coder->dict_block.end - from;
+		overlap = coder->dict_block.end - from;
 
-        if (overlap <= from) {
-            DEBUGLOG(5, "Copy overlap data : %u bytes from %u", (unsigned)overlap, (unsigned)from);
-            memcpy(data, data + from, overlap);
-        }
-        else if (from != 0) {
-            DEBUGLOG(5, "Move overlap data : %u bytes from %u", (unsigned)overlap, (unsigned)from);
-            memmove(data, data + from, overlap);
-        }
-        /* New data will be written after the overlap */
-        coder->dict_block.start = overlap;
-        coder->dict_block.end = overlap;
-    }
+		if (overlap <= from) {
+			DEBUGLOG(5, "Copy overlap data : %u bytes from %u", (unsigned)overlap, (unsigned)from);
+			memcpy(data, data + from, overlap);
+		}
+		else if (from != 0) {
+			DEBUGLOG(5, "Move overlap data : %u bytes from %u", (unsigned)overlap, (unsigned)from);
+			memmove(data, data + from, overlap);
+		}
+		/* New data will be written after the overlap */
+		coder->dict_block.start = overlap;
+		coder->dict_block.end = overlap;
+	}
 }
 
 
@@ -563,9 +565,7 @@ fill_window(lzma2_fast_coder *coder, const lzma_allocator *allocator,
 		uint8_t *out, size_t *out_pos, size_t out_size,
 		lzma_action action)
 {
-	// Copy any output pending in the internal buffer
-	copy_output(coder, out, out_pos, out_size);
-
+	// If the dictionary is full, move/copy the overlap section to the start.
 	dict_shift(coder);
 
 	lzma_ret ret;
@@ -600,11 +600,10 @@ static lzma_ret
 flush_stream(lzma2_fast_coder *coder,
 		uint8_t *out, size_t *out_pos, size_t out_size)
 {
-	copy_output(coder, out, out_pos, out_size);
-
-	return_if_error(compress(coder));
-
-	copy_output(coder, out, out_pos, out_size);
+	if (!have_output(coder)) {
+		return_if_error(compress(coder));
+		copy_output(coder, out, out_pos, out_size);
+	}
 
 	return LZMA_OK;
 }
@@ -647,8 +646,12 @@ flzma2_encode(void *coder_ptr,
 
 	lzma_ret ret = LZMA_OK;
 
+	// Continue compression if called after a timeout.
 	if (working(coder))
 		return_if_error(threads_run_sequence(coder));
+
+	// Copy any output pending in the internal buffer
+	copy_output(coder, out, out_pos, out_size);
 
 	if (!coder->ending)
 		return_if_error(fill_window(coder, allocator,
@@ -709,21 +712,33 @@ get_progress(void *coder_ptr, uint64_t *progress_in, uint64_t *progress_out)
 
 	if (coder->progress_in == 0 && coder->dict_block.end != 0)
 		*progress_in = coder->total_in + ((coder->match_table->progress * encode_size / coder->dict_block.end * coder->rmf_weight) >> 4);
-
-	else
+	else if (encode_size)
 		*progress_in = coder->total_in + ((coder->rmf_weight * encode_size) >> 4) + ((coder->progress_in * coder->enc_weight) >> 4);
+	else
+		*progress_in = coder->total_in + coder->progress_in;
 
 	*progress_out = coder->total_out + coder->progress_out;
+}
+
+
+/// Make the threads stop but not exit. Optionally wait for them to stop.
+static void
+threads_stop(lzma2_fast_coder *coder)
+{
+	if (working(coder)) {
+		RMF_cancelBuild(coder->match_table);
+		coder->canceled = true;
+		threads_wait(coder);
+		RMF_resetIncompleteBuild(coder->match_table);
+		coder->canceled = false;
+	}
 }
 
 
 static void
 free_threads(lzma2_fast_coder *coder, const lzma_allocator *allocator)
 {
-	if (working(coder)) {
-		RMF_cancelBuild(coder->match_table);
-		coder->canceled = true;
-	}
+	threads_stop(coder);
 	for (size_t i = 0; i < coder->thread_count; ++i)
 		thread_free(coder, i);
 	coder->thread_count = 0;
@@ -758,16 +773,16 @@ create_threads(lzma2_fast_coder *coder, const lzma_allocator *allocator)
 
 	if (coder->threads && coder->thread_count < thread_count)
 		free_threads(coder, allocator);
+	else
+		threads_stop(coder);
 
 	if (!coder->threads) {
 		coder->threads = lzma_alloc(thread_count * sizeof(worker_thread), allocator);
 		if (!coder->threads)
 			return LZMA_MEM_ERROR;
 
-		for (coder->thread_count = 0; coder->thread_count < thread_count; ++coder->thread_count) {
-			size_t i = coder->thread_count;
-			return_if_error(thread_initialize(coder, i));
-		}
+		for (coder->thread_count = 0; coder->thread_count < thread_count; ++coder->thread_count)
+			return_if_error(thread_initialize(coder, coder->thread_count));
 	}
 	coder->out_thread = coder->thread_count;
 	return LZMA_OK;
@@ -888,6 +903,7 @@ lzma_flzma2_encoder_init(lzma_next_coder *next,
 
 		coder->dict_block.data = NULL;
 		coder->match_table = NULL;
+		coder->threads = NULL;
 
 		next->coder = coder;
 		next->code = &flzma2_encode;
