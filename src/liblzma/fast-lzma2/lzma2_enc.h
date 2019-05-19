@@ -74,7 +74,7 @@ typedef struct
     probability choice; /* low[0] is choice_2. Must be consecutive for speed */
     probability low[POS_STATES_MAX << (LEN_LOW_BITS + 1)];
     probability high[LEN_HIGH_SYMBOLS];
-} LZMA2_lenStates;
+} lzma2_len_states;
 
 /* All probabilities for the encoder. This is a separate from the encoder object
  * so the state can be saved and restored in case a chunk is not compressible.
@@ -82,7 +82,7 @@ typedef struct
 typedef struct
 {
     /* Fields are ordered for speed */
-    LZMA2_lenStates rep_len_states;
+    lzma2_len_states rep_len_states;
     probability is_rep0_long[STATES][POS_STATES_MAX];
 
     size_t state;
@@ -94,14 +94,14 @@ typedef struct
     probability is_rep_G1[STATES];
     probability is_rep_G2[STATES];
 
-    LZMA2_lenStates len_states;
+    lzma2_len_states len_states;
 
     probability dist_slot_encoders[DIST_STATES][DIST_SLOTS];
     probability dist_align_encoders[1 << ALIGN_BITS];
     probability dist_encoders[FULL_DISTANCES - DIST_MODEL_END];
 
     probability literal_probs[(kNumLiterals * kNumLitTables) << LZMA_LCLP_MAX];
-} LZMA2_encStates;
+} lzma2_enc_states;
 
 /*
  * Linked list item for optimal parsing
@@ -116,7 +116,7 @@ typedef struct
     unsigned len;
     uint32_t dist;
     uint32_t reps[kNumReps];
-} LZMA2_node;
+} lzma2_node;
 
 /*
  * Table and chain for 3-byte hash. Extra elements in hash_chain_3 are malloced.
@@ -124,7 +124,7 @@ typedef struct
 typedef struct {
     int32_t table_3[1 << kHash3Bits];
     int32_t hash_chain_3[1];
-} LZMA2_hc3;
+} lzma2_hc3;
 
 /*
  * LZMA2 encoder.
@@ -147,7 +147,7 @@ typedef struct
     /* Don't encode a symbol beyond this limit (used by fast mode) */
     size_t chunk_limit;
 
-    LZMA2_encStates states;
+    lzma2_enc_states states;
 
     unsigned match_price_count;
     unsigned rep_len_price_count;
@@ -160,9 +160,9 @@ typedef struct
     RMF_match matches[kMatchesMax];
     size_t match_count;
 
-    LZMA2_node opt_buf[kOptimizerBufferSize];
+    lzma2_node opt_buf[kOptimizerBufferSize];
 
-    LZMA2_hc3* hash_buf;
+    lzma2_hc3* hash_buf;
     ptrdiff_t chain_mask_2;
     ptrdiff_t chain_mask_3;
     ptrdiff_t hash_dict_3;
@@ -171,15 +171,15 @@ typedef struct
 
     /* Temp output buffer before space frees up in the match table */
     uint8_t out_buf[kTempBufferSize];
-} LZMA2_ECtx;
+} lzma2_encoder;
 
-void LZMA2_constructECtx(LZMA2_ECtx *const enc);
+void LZMA2_constructECtx(lzma2_encoder *const enc);
 
-void LZMA2_freeECtx(LZMA2_ECtx *const enc);
+void LZMA2_freeECtx(lzma2_encoder *const enc);
 
-int LZMA2_hashAlloc(LZMA2_ECtx *const enc, const lzma_options_lzma* const options);
+int LZMA2_hashAlloc(lzma2_encoder *const enc, const lzma_options_lzma* const options);
 
-size_t LZMA2_encode(LZMA2_ECtx *const enc,
+size_t LZMA2_encode(lzma2_encoder *const enc,
     FL2_matchTable* const tbl,
 	lzma_data_block const block,
 	const lzma_options_lzma* const options,
