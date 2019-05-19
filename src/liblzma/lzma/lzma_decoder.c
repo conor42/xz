@@ -261,11 +261,11 @@ typedef struct {
 		SEQ_COPY,
 	} sequence;
 
-    /// If decoding a literal: match byte.
-    /// If decoding a match: length of the match.
-    uint32_t len;
+	/// If decoding a literal: match byte.
+	/// If decoding a match: length of the match.
+	uint32_t len;
 
-    /// Symbol being decoded. This is also used as an index variable in
+	/// Symbol being decoded. This is also used as an index variable in
 	/// bittree decoders: probs[symbol]
 	uint32_t symbol;
 
@@ -286,18 +286,18 @@ typedef struct {
 } lzma_lzma1_decoder;
 
 
+#ifdef LZMA_ASM_OPT_64
+
 ////////////////////////////////
 // External assembler decoder //
 ////////////////////////////////
-
-#ifdef LZMA_ASM_OPT_64
 
 #define LZMA_REQUIRED_INPUT_MAX 20
 
 extern int
 lzma_decode_asm_5(void *coder_ptr, lzma_dict *dictptr,
-    const uint8_t *in,
-    size_t *in_pos, size_t in_size);
+	const uint8_t *in,
+	size_t *in_pos, size_t in_size);
 
 #endif
 
