@@ -91,7 +91,7 @@ uint8_t RMF_compatibleParameters(const FL2_matchTable* const tbl, const RMF_buil
 void RMF_applyParameters(FL2_matchTable* const tbl, const lzma_options_lzma *const options);
 RMF_builder* RMF_createBuilder(FL2_matchTable* const tbl, RMF_builder *existing, const lzma_allocator *allocator);
 void RMF_initTable(FL2_matchTable* const tbl, const void* const data, size_t const end);
-int RMF_buildTable(FL2_matchTable* const tbl,
+void RMF_buildTable(FL2_matchTable* const tbl,
 	RMF_builder* const builder,
     int const thread,
     lzma_data_block const block);
