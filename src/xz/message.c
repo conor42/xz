@@ -523,11 +523,13 @@ progress_pos(uint64_t *in_pos,
 		lzma_get_progress(progress_strm, in_pos, &out_pos);
 	}
 
-	// It cannot have processed more input than it has been given.
-	assert(*in_pos <= progress_strm->total_in);
+	if (!use_rmf) {
+		// It cannot have processed more input than it has been given.
+		assert(*in_pos <= progress_strm->total_in);
 
-	// It cannot have produced more output than it claims to have ready.
-	if(!use_rmf) assert(out_pos >= progress_strm->total_out);
+		// It cannot have produced more output than it claims to have ready.
+		assert(out_pos >= progress_strm->total_out);
+	}
 
 	if (opt_mode == MODE_COMPRESS) {
 		*compressed_pos = out_pos;
