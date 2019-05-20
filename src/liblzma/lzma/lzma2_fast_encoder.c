@@ -42,7 +42,7 @@ typedef struct lzma2_fast_coder_s lzma2_fast_coder;
 typedef struct {
 	lzma2_fast_coder *coder;
 	RMF_builder *builder;
-	lzma2_encoder enc;
+	lzma2_rmf_encoder enc;
 	lzma_data_block block;
 	size_t out_size;
 #ifdef MYTHREAD_ENABLED
@@ -215,7 +215,7 @@ worker_start(void *thr_ptr)
 		}
 		else {
 			assert(state == THR_ENC);
-			thr->out_size = LZMA2_encode(&thr->enc, coder->match_table, thr->block, &coder->opt_cur,
+			thr->out_size = lzma2_rmf_encode(&thr->enc, coder->match_table, thr->block, &coder->opt_cur,
 				&coder->progress_in, &coder->progress_out, &coder->canceled);
 		}
 
@@ -245,7 +245,7 @@ thread_initialize(lzma2_fast_coder *coder, size_t i)
 	coder->threads[i].coder = coder;
 	coder->threads[i].builder = NULL;
 	coder->threads[i].state = THR_IDLE;
-	LZMA2_constructECtx(&coder->threads[i].enc);
+	lzma2_rmf_enc_construct(&coder->threads[i].enc);
 
 	if(mythread_mutex_init(&coder->threads[i].mutex))
 		return LZMA_MEM_ERROR;
@@ -386,7 +386,7 @@ encoder_run(lzma2_fast_coder *coder, size_t i)
 {
 	assert(i == 0);
 	worker_thread *thr = coder->threads + i;
-	thr->out_size = LZMA2_encode(&thr->enc, coder->match_table, thr->block, &coder->opt_cur,
+	thr->out_size = lzma2_rmf_encode(&thr->enc, coder->match_table, thr->block, &coder->opt_cur,
 		&coder->progress_in, &coder->progress_out, &coder->canceled);
 }
 
@@ -756,7 +756,7 @@ flzma2_encoder_end(void *coder_ptr, const lzma_allocator *allocator)
 
 	free_builders(coder, allocator);
 	for (size_t i = 0; i < coder->thread_count; ++i)
-		LZMA2_freeECtx(&coder->threads[i].enc);
+		lzma2_rmf_free_enc(&coder->threads[i].enc);
 	free_threads(coder, allocator);
 
 	lzma_free(coder->dict_block.data, allocator);
@@ -837,7 +837,7 @@ static lzma_ret lzma2_fast_encoder_create(lzma2_fast_coder *coder,
 	}
 
 	for (size_t i = 0; i < coder->thread_count; ++i)
-		if (LZMA2_hashAlloc(&coder->threads[i].enc, &coder->opt_cur))
+		if (lzma2_rmf_hash_alloc(&coder->threads[i].enc, &coder->opt_cur))
 			return LZMA_MEM_ERROR;
 
 	if (!coder->match_table) {
@@ -936,5 +936,5 @@ lzma_flzma2_encoder_memusage(const void *options)
 {
 	const lzma_options_lzma *const opt = options;
 	return RMF_memoryUsage(opt->dict_size, opt->threads)
-		+ LZMA2_encMemoryUsage(opt->near_dict_size_log, opt->mode, opt->threads);
+		+ lzma2_enc_rmf_mem_usage(opt->near_dict_size_log, opt->mode, opt->threads);
 }

@@ -146,15 +146,15 @@ typedef struct
 
     /* Temp output buffer before space frees up in the match table */
     uint8_t out_buf[TEMP_BUFFER_SIZE];
-} lzma2_encoder;
+} lzma2_rmf_encoder;
 
-void LZMA2_constructECtx(lzma2_encoder *const enc);
+void lzma2_rmf_enc_construct(lzma2_rmf_encoder *const enc);
 
-void LZMA2_freeECtx(lzma2_encoder *const enc);
+void lzma2_rmf_free_enc(lzma2_rmf_encoder *const enc);
 
-int LZMA2_hashAlloc(lzma2_encoder *const enc, const lzma_options_lzma* const options);
+int lzma2_rmf_hash_alloc(lzma2_rmf_encoder *const enc, const lzma_options_lzma* const options);
 
-size_t LZMA2_encode(lzma2_encoder *const enc,
+size_t lzma2_rmf_encode(lzma2_rmf_encoder *const enc,
     FL2_matchTable* const tbl,
 	lzma_data_block const block,
 	const lzma_options_lzma* const options,
@@ -162,11 +162,7 @@ size_t LZMA2_encode(lzma2_encoder *const enc,
     FL2_atomic *const progress_out,
     bool *const canceled);
 
-uint8_t LZMA2_getDictSizeProp(size_t const dictionary_size);
-
-size_t LZMA2_compressBound(size_t src_size);
-
-size_t LZMA2_encMemoryUsage(unsigned const chain_log, lzma_mode const strategy, unsigned const thread_count);
+size_t lzma2_enc_rmf_mem_usage(unsigned const chain_log, lzma_mode const strategy, unsigned const thread_count);
 
 
 #endif /* RADYX_LZMA2_ENCODER_H */
