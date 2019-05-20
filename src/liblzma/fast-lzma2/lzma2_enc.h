@@ -13,55 +13,30 @@ Public domain
 #include "range_enc.h"
 #include "atomic.h"
 
-#if defined (__cplusplus)
-extern "C" {
-#endif
-
 #define NEAR_DICT_LOG_MIN 4
 #define NEAR_DICT_LOG_MAX 14
 #define MATCH_CYCLES_MAX 64
 
-#define kFastDistBits 12U
-
-#define LZMA2_END_MARKER '\0'
 #define ENC_MIN_BYTES_PER_THREAD 0x1C000 /* Enough for 8 threads, 1 Mb dict, 2/16 overlap */
 
-#define kNumReps 4U
+#define LZMA2_END_MARKER '\0'
 
-#define kNumLiterals 0x100U
-#define kNumLitTables 3U
+#define MATCH_REPRICE_FREQ 64U
+#define REP_LEN_REPRICE_FREQ 64U
 
-#define kDicLogSizeMin 18U
-#define kDicLogSizeMax 31U
-#define kDistTableSizeMax (kDicLogSizeMax * 2U)
+#define MATCHES_MAX 65U /* Doesn't need to be larger than FL2_HYBRIDCYCLES_MAX + 1 */
 
-#define kMatchRepriceFrequency 64U
-#define kRepLenRepriceFrequency 64U
+#define OPT_END_SIZE 32U
+#define OPT_BUF_SIZE (MATCH_LEN_MAX * 2U + OPT_END_SIZE)
+#define OPT_SKIP_SIZE 16U
 
-#define kMatchesMax 65U /* Doesn't need to be larger than FL2_HYBRIDCYCLES_MAX + 1 */
-
-#define kOptimizerEndSize 32U
-#define kOptimizerBufferSize (MATCH_LEN_MAX * 2U + kOptimizerEndSize)
-#define kOptimizerSkipSize 16U
-#define kInfinityPrice (1UL << 30U)
-#define kNullDist (uint32_t)-1
-
-#define kMaxMatchEncodeSize 20
-
-#define kMaxChunkCompressedSize (1UL << 16U)
-	/* Need to leave sufficient space for expanded output from a full opt buffer with bad starting probs */
-#define kChunkSize (kMaxChunkCompressedSize - 2048U)
-#define kSqrtChunkSize 252U
+#define HC3_BITS 14U
 
 /* Hard to define where the match table read pos definitely catches up with the output size, but
  * 64 bytes of input expanding beyond 256 bytes right after an encoder reset is most likely impossible.
  * The encoder will error out if this happens. */
-#define kTempMinOutput 256U
-#define kTempBufferSize (kTempMinOutput + kOptimizerBufferSize + kOptimizerBufferSize / 4U)
-
-#define kMaxHashDictBits 14U
-#define kHash3Bits 14U
-#define kNullLink -1
+#define TEMP_MIN_OUTPUT 256U
+#define TEMP_BUFFER_SIZE (TEMP_MIN_OUTPUT + OPT_BUF_SIZE + OPT_BUF_SIZE / 4U)
 
  /* Probabilities and prices for encoding match lengths.
  * Two objects of this type are needed, one for normal matches
@@ -86,7 +61,7 @@ typedef struct
     probability is_rep0_long[STATES][POS_STATES_MAX];
 
     size_t state;
-    uint32_t reps[kNumReps];
+    uint32_t reps[REPS];
 
     probability is_match[STATES][POS_STATES_MAX];
     probability is_rep[STATES];
@@ -97,10 +72,10 @@ typedef struct
     lzma2_len_states len_states;
 
     probability dist_slot_encoders[DIST_STATES][DIST_SLOTS];
-    probability dist_align_encoders[1 << ALIGN_BITS];
+    probability dist_align_encoders[ALIGN_SIZE];
     probability dist_encoders[FULL_DISTANCES - DIST_MODEL_END];
 
-    probability literal_probs[(kNumLiterals * kNumLitTables) << LZMA_LCLP_MAX];
+    probability literal_probs[LITERAL_CODER_SIZE << LZMA_LCLP_MAX];
 } lzma2_enc_states;
 
 /*
@@ -115,14 +90,14 @@ typedef struct
                      *  > 1 : MATCH (extra-1) : LIT : REP0 (len) */
     unsigned len;
     uint32_t dist;
-    uint32_t reps[kNumReps];
+    uint32_t reps[REPS];
 } lzma2_node;
 
 /*
  * Table and chain for 3-byte hash. Extra elements in hash_chain_3 are malloced.
  */
 typedef struct {
-    int32_t table_3[1 << kHash3Bits];
+    int32_t table_3[1 << HC3_BITS];
     int32_t hash_chain_3[1];
 } lzma2_hc3;
 
@@ -153,14 +128,14 @@ typedef struct
     unsigned rep_len_price_count;
     size_t dist_price_table_size;
     unsigned align_prices[ALIGN_SIZE];
-    unsigned dist_slot_prices[DIST_STATES][kDistTableSizeMax];
+    unsigned dist_slot_prices[DIST_STATES][DIST_SLOTS];
     unsigned distance_prices[DIST_STATES][FULL_DISTANCES];
 
     RMF_match base_match; /* Allows access to matches[-1] in LZMA_optimalParse */
-    RMF_match matches[kMatchesMax];
+    RMF_match matches[MATCHES_MAX];
     size_t match_count;
 
-    lzma2_node opt_buf[kOptimizerBufferSize];
+    lzma2_node opt_buf[OPT_BUF_SIZE];
 
     lzma2_hc3* hash_buf;
     ptrdiff_t chain_mask_2;
@@ -170,7 +145,7 @@ typedef struct
     ptrdiff_t hash_alloc_3;
 
     /* Temp output buffer before space frees up in the match table */
-    uint8_t out_buf[kTempBufferSize];
+    uint8_t out_buf[TEMP_BUFFER_SIZE];
 } lzma2_encoder;
 
 void LZMA2_constructECtx(lzma2_encoder *const enc);
@@ -193,8 +168,5 @@ size_t LZMA2_compressBound(size_t src_size);
 
 size_t LZMA2_encMemoryUsage(unsigned const chain_log, lzma_mode const strategy, unsigned const thread_count);
 
-#if defined (__cplusplus)
-}
-#endif
 
 #endif /* RADYX_LZMA2_ENCODER_H */
