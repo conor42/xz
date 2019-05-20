@@ -11,13 +11,9 @@
 #ifndef RADIX_MF_H
 #define RADIX_MF_H
 
-
 #include "atomic.h"
 #include "data_block.h"
 
-#if defined (__cplusplus)
-extern "C" {
-#endif
 
 #define OVERLAP_FROM_DICT_SIZE(d, o) (((d) >> 4) * (o))
 
@@ -102,8 +98,5 @@ void RMF_limitLengths(FL2_matchTable* const tbl, size_t const pos);
 uint8_t* RMF_getTableAsOutputBuffer(FL2_matchTable* const tbl, size_t const pos);
 size_t RMF_memoryUsage(size_t const dict_size, unsigned const thread_count);
 
-#if defined (__cplusplus)
-}
-#endif
 
 #endif /* RADIX_MF_H */

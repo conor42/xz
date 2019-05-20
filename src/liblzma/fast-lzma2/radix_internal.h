@@ -21,9 +21,6 @@
 #  define memcpy32(d, s) memcpy(&d, s, 4)
 #endif
 
-#if defined (__cplusplus)
-extern "C" {
-#endif
 
 #define DICTIONARY_SIZE_MIN (1U << 12)
 #define DICTIONARY_SIZE_MAX (UINT32_C(3) << 29)
@@ -78,8 +75,5 @@ void RMF_structuredLimitLengths(FL2_matchTable* const tbl, size_t const pos);
 uint8_t* RMF_bitpackAsOutputBuffer(FL2_matchTable* const tbl, size_t const pos);
 uint8_t* RMF_structuredAsOutputBuffer(FL2_matchTable* const tbl, size_t const pos);
 
-#if defined (__cplusplus)
-}
-#endif
 
 #endif /* RADIX_INTERNAL_H */

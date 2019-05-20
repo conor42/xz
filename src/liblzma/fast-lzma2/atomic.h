@@ -1,4 +1,5 @@
-/*
+/* Atomic addition wrapper
+ *
  * Copyright (c) 2018 Conor McCarthy
  * All rights reserved.
  *
@@ -11,9 +12,8 @@
 #ifndef FL2_ATOMIC_H
 #define FL2_ATOMIC_H
 
-#if defined (__cplusplus)
-extern "C" {
-#endif
+#include "mythread.h"
+
 
 /* atomic add */
 
@@ -65,9 +65,5 @@ typedef long FL2_atomic;
 
 #endif /* atomics */
 
-
-#if defined (__cplusplus)
-}
-#endif
 
 #endif /* FL2_ATOMIC_H */

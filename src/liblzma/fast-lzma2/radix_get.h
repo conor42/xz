@@ -11,10 +11,6 @@
 #ifndef FL2_RADIX_GET_H_
 #define FL2_RADIX_GET_H_
 
-#if defined (__cplusplus)
-extern "C" {
-#endif
-
 static size_t RMF_bitpackExtendMatch(const uint8_t* const data,
     const uint32_t* const table,
     ptrdiff_t const start_index,
@@ -189,8 +185,5 @@ RMF_match RMF_getNextMatch(lzma_data_block block,
     }
 }
 
-#if defined (__cplusplus)
-}
-#endif
 
 #endif /* FL2_RADIX_GET_H_ */

@@ -8,9 +8,6 @@
 #ifndef RANGE_ENCODER_H
 #define RANGE_ENCODER_H
 
-#if defined (__cplusplus)
-extern "C" {
-#endif
 
 #ifdef LZMA_ENC_PROB32
 typedef uint32_t LZMA2_prob;
@@ -152,8 +149,5 @@ void RC_flush(RC_encoder* const rc)
         RC_shiftLow(rc);
 }
 
-#if defined (__cplusplus)
-}
-#endif
 
 #endif /* RANGE_ENCODER_H */
