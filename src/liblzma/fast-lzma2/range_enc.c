@@ -1,9 +1,15 @@
-/*
-* Bitwise range encoder by Igor Pavlov
-* Modified by Conor McCarthy
-*
-* Public domain
-*/
+///////////////////////////////////////////////////////////////////////////////
+//
+/// \file       range_fast_enc.c
+/// \brief      Range encoder for fast LZMA2
+///
+//  Authors:    Igor Pavlov
+//              Conor McCarthy
+//
+//  This file has been put into the public domain.
+//  You can do whatever you want with this file.
+//
+///////////////////////////////////////////////////////////////////////////////
 
 #include "common.h"
 #include "range_enc.h"
@@ -12,7 +18,7 @@
 
 #include <stdio.h>
 
-/* Generates price_table */
+// Generates rc_print_price_table
 void rc_print_price_table()
 {
     static const unsigned test_size = 0x4000;
@@ -65,13 +71,15 @@ void rc_print_price_table()
 
 #endif
 
-void rcf_set_output_buffer(lzma_range_fast_enc* const rc, uint8_t *const out_buffer)
+void
+rcf_set_output_buffer(lzma_range_fast_enc* const rc, uint8_t *const out_buffer)
 {
     rc->out_buffer = out_buffer;
     rc->out_index = 0;
 }
 
-void rcf_reset(lzma_range_fast_enc* const rc)
+void
+rcf_reset(lzma_range_fast_enc* const rc)
 {
     rc->low = 0;
     rc->range = (uint32_t)-1;
@@ -81,11 +89,12 @@ void rcf_reset(lzma_range_fast_enc* const rc)
 
 #if defined(__x86_64__) || defined(_M_X64) || SIZEOF_SIZE_T >= 8
 
-void FORCE_NOINLINE rcf_shift_low(lzma_range_fast_enc* const rc)
+void FORCE_NOINLINE
+rcf_shift_low(lzma_range_fast_enc* const rc)
 {
     uint64_t low = rc->low;
     rc->low = (uint32_t)(low << 8);
-    /* VC15 compiles 'if (low < 0xFF000000 || low > 0xFFFFFFFF)' to this single-branch conditional */
+    // VC15 compiles 'if (low < 0xFF000000 || low > 0xFFFFFFFF)' to this single-branch conditional
     if (low + 0xFFFFFFFF01000000 > 0xFFFFFF) {
         uint8_t high = (uint8_t)(low >> 32);
         rc->out_buffer[rc->out_index++] = rc->cache + high;
@@ -104,7 +113,8 @@ void FORCE_NOINLINE rcf_shift_low(lzma_range_fast_enc* const rc)
 
 #else
 
-void FORCE_NOINLINE rcf_shift_low(lzma_range_fast_enc* const rc)
+void FORCE_NOINLINE
+rcf_shift_low(lzma_range_fast_enc* const rc)
 {
     uint32_t low = (uint32_t)rc->low;
     unsigned high = (unsigned)(rc->low >> 32);
@@ -126,7 +136,8 @@ void FORCE_NOINLINE rcf_shift_low(lzma_range_fast_enc* const rc)
 
 #endif
 
-void rcf_bittree(lzma_range_fast_enc* const rc, probability *const probs, unsigned bit_count, unsigned symbol)
+void
+rcf_bittree(lzma_range_fast_enc* const rc, probability *const probs, unsigned bit_count, unsigned symbol)
 {
     assert(bit_count > 1);
     --bit_count;
@@ -141,7 +152,8 @@ void rcf_bittree(lzma_range_fast_enc* const rc, probability *const probs, unsign
     } while (bit_count != 0);
 }
 
-void rcf_bittree_reverse(lzma_range_fast_enc* const rc, probability *const probs, unsigned bit_count, unsigned symbol)
+void
+rcf_bittree_reverse(lzma_range_fast_enc* const rc, probability *const probs, unsigned bit_count, unsigned symbol)
 {
     assert(bit_count != 0);
     unsigned bit = symbol & 1;
@@ -155,7 +167,8 @@ void rcf_bittree_reverse(lzma_range_fast_enc* const rc, probability *const probs
 	}
 }
 
-void FORCE_NOINLINE rcf_direct(lzma_range_fast_enc* const rc, unsigned value, unsigned bit_count)
+void FORCE_NOINLINE
+rcf_direct(lzma_range_fast_enc* const rc, unsigned value, unsigned bit_count)
 {
 	assert(bit_count > 0);
 	do {
