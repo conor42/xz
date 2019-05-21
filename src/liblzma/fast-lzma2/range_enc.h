@@ -1,12 +1,18 @@
-/*
-* Bitwise range encoder by Igor Pavlov
-* Modified by Conor McCarthy
-*
-* Public domain
-*/
+///////////////////////////////////////////////////////////////////////////////
+//
+/// \file       range_fast_enc.h
+/// \brief      Range encoder for fast LZMA2
+///
+//  Authors:    Igor Pavlov
+//              Conor McCarthy
+//
+//  This file has been put into the public domain.
+//  You can do whatever you want with this file.
+//
+///////////////////////////////////////////////////////////////////////////////
 
-#ifndef RANGE_ENCODER_H
-#define RANGE_ENCODER_H
+#ifndef RANGE_FAST_ENC_H
+#define RANGE_FAST_ENC_H
 
 #include "range_common.h"
 #include "price.h"
@@ -18,11 +24,12 @@
 void rc_print_price_table();
 #endif
 
+// This range encoder cannot be used with lzma_encoder because cache_size is not uint64_t.
 typedef struct
 {
 	uint8_t *out_buffer;
 	size_t out_index;
-	uint64_t cache_size;
+	size_t cache_size;
 	uint64_t low;
 	uint32_t range;
 	uint8_t cache;
@@ -105,5 +112,10 @@ void rcf_flush(lzma_range_fast_enc* const rc)
         rcf_shift_low(rc);
 }
 
+HINT_INLINE size_t
+rc_chunk_size(const lzma_range_fast_enc* const rc)
+{
+	return rc->out_index + rc->cache_size + 5 - 1;
+}
 
-#endif /* RANGE_ENCODER_H */
+#endif // RANGE_FAST_ENC_H
