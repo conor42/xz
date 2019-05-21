@@ -17,34 +17,32 @@
 
 #define RADIX_MAX_LENGTH BITPACK_MAX_LENGTH
 
-#define InitMatchLink(pos, link) tbl->table[pos] = link
+#define init_match_link(pos, link) tbl->table[pos] = link
 
-#define GetMatchLink(link) (tbl->table[link] & RADIX_LINK_MASK)
+#define get_match_link(link) (tbl->table[link] & RADIX_LINK_MASK)
 
-#define GetInitialMatchLink(pos) tbl->table[pos]
+#define get_raw_match_link(pos) tbl->table[pos]
 
-#define GetMatchLength(pos) (tbl->table[pos] >> RADIX_LINK_BITS)
+#define get_match_length(pos) (tbl->table[pos] >> RADIX_LINK_BITS)
 
-#define SetMatchLink(pos, link, length) tbl->table[pos] = (link) | ((uint32_t)(length) << RADIX_LINK_BITS)
+#define set_match_length(pos, link, length) tbl->table[pos] = (link) | ((uint32_t)(length) << RADIX_LINK_BITS)
 
-#define SetMatchLength(pos, link, length) tbl->table[pos] = (link) | ((uint32_t)(length) << RADIX_LINK_BITS)
+#define set_match_link_and_length(pos, link, length) tbl->table[pos] = (link) | ((uint32_t)(length) << RADIX_LINK_BITS)
 
-#define SetMatchLinkAndLength(pos, link, length) tbl->table[pos] = (link) | ((uint32_t)(length) << RADIX_LINK_BITS)
+#define set_null(pos) tbl->table[pos] = RADIX_NULL_LINK
 
-#define SetNull(pos) tbl->table[pos] = RADIX_NULL_LINK
+#define is_null(pos) (tbl->table[pos] == RADIX_NULL_LINK)
 
-#define IsNull(pos) (tbl->table[pos] == RADIX_NULL_LINK)
-
-uint8_t* RMF_bitpackAsOutputBuffer(FL2_matchTable* const tbl, size_t const pos)
+uint8_t* rmf_bitpack_output_buffer(rmf_match_table* const tbl, size_t const pos)
 {
     return (uint8_t*)(tbl->table + pos);
 }
 
 /* Restrict the match lengths so that they don't reach beyond pos */
-void RMF_bitpackLimitLengths(FL2_matchTable* const tbl, size_t const pos)
+void rmf_bitpack_limit_lengths(rmf_match_table* const tbl, size_t const pos)
 {
-    DEBUGLOG(5, "RMF_limitLengths : end %u, max length %u", (uint32_t)pos, RADIX_MAX_LENGTH);
-    SetNull(pos - 1);
+    DEBUGLOG(5, "rmf_limitLengths : end %u, max length %u", (uint32_t)pos, RADIX_MAX_LENGTH);
+    set_null(pos - 1);
     for (uint32_t length = 2; length < RADIX_MAX_LENGTH && length <= pos; ++length) {
         uint32_t const link = tbl->table[pos - length];
         if (link != RADIX_NULL_LINK)

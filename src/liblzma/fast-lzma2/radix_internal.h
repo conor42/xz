@@ -48,32 +48,32 @@ typedef struct
 {
 	uint32_t links[1 << UNIT_BITS];
 	uint8_t lengths[1 << UNIT_BITS];
-} RMF_unit;
+} rmf_unit;
 
 
-void RMF_bitpackInit(FL2_matchTable* const tbl, const void* data, size_t const end);
-void RMF_structuredInit(FL2_matchTable* const tbl, const void* data, size_t const end);
-void RMF_bitpackBuildTable(FL2_matchTable* const tbl,
-	RMF_builder* const builder,
+void rmf_bitpack_init(rmf_match_table* const tbl, const void* data, size_t const end);
+void rmf_structured_init(rmf_match_table* const tbl, const void* data, size_t const end);
+void rmf_bitpack_build_table(rmf_match_table* const tbl,
+	rmf_builder* const builder,
 	int const thread,
 	lzma_data_block const block);
-void RMF_structuredBuildTable(FL2_matchTable* const tbl,
-	RMF_builder* const builder,
+void rmf_structured_build_table(rmf_match_table* const tbl,
+	rmf_builder* const builder,
 	int const thread,
 	lzma_data_block const block);
-void RMF_recurseListChunk(RMF_builder* const tbl,
+void rmf_recurse_list_chunk(rmf_builder* const tbl,
     const uint8_t* const data_block,
     size_t const block_start,
     uint32_t const depth,
     uint32_t const max_depth,
     uint32_t const list_count,
     size_t const stack_base);
-int RMF_bitpackIntegrityCheck(const FL2_matchTable* const tbl, const uint8_t* const data, size_t pos, size_t const end, unsigned max_depth);
-int RMF_structuredIntegrityCheck(const FL2_matchTable* const tbl, const uint8_t* const data, size_t pos, size_t const end, unsigned max_depth);
-void RMF_bitpackLimitLengths(FL2_matchTable* const tbl, size_t const pos);
-void RMF_structuredLimitLengths(FL2_matchTable* const tbl, size_t const pos);
-uint8_t* RMF_bitpackAsOutputBuffer(FL2_matchTable* const tbl, size_t const pos);
-uint8_t* RMF_structuredAsOutputBuffer(FL2_matchTable* const tbl, size_t const pos);
+int rmf_bitpack_integrity_check(const rmf_match_table* const tbl, const uint8_t* const data, size_t pos, size_t const end, unsigned max_depth);
+int rmf_structured_integrity_check(const rmf_match_table* const tbl, const uint8_t* const data, size_t pos, size_t const end, unsigned max_depth);
+void rmf_bitpack_limit_lengths(rmf_match_table* const tbl, size_t const pos);
+void rmf_structured_limit_lengths(rmf_match_table* const tbl, size_t const pos);
+uint8_t* rmf_bitpack_output_buffer(rmf_match_table* const tbl, size_t const pos);
+uint8_t* rmf_structured_output_buffer(rmf_match_table* const tbl, size_t const pos);
 
 
 #endif /* RADIX_INTERNAL_H */

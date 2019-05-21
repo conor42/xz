@@ -15,6 +15,9 @@
 #include "data_block.h"
 
 
+// 2 bytes before the end + max depth 254 + 2 bytes overrun from 32-bit load
+#define MAX_READ_BEYOND_DEPTH 254
+
 #define OVERLAP_FROM_DICT_SIZE(d, o) (((d) >> 4) * (o))
 
 #define RMF_MIN_BYTES_PER_THREAD 1024
@@ -27,7 +30,7 @@ typedef struct
 {
 	uint32_t head;
 	uint32_t count;
-} RMF_tableHead;
+} rmf_table_head;
 
 union src_data_u {
 	uint8_t chars[4];
@@ -39,13 +42,13 @@ typedef struct
 	uint32_t from;
 	union src_data_u src;
 	uint32_t next;
-} RMF_buildMatch;
+} rmf_build_match;
 
 typedef struct
 {
 	uint32_t prev_index;
 	uint32_t list_count;
-} RMF_listTail;
+} rmf_list_tail;
 
 typedef struct
 {
@@ -53,11 +56,11 @@ typedef struct
 	uint32_t* table;
 	size_t match_buffer_size;
 	size_t match_buffer_limit;
-	RMF_listTail tails_8[RADIX8_TABLE_SIZE];
-	RMF_tableHead stack[STACK_SIZE];
-	RMF_listTail tails_16[RADIX16_TABLE_SIZE];
-	RMF_buildMatch match_buffer[1];
-} RMF_builder;
+	rmf_list_tail tails_8[RADIX8_TABLE_SIZE];
+	rmf_table_head stack[STACK_SIZE];
+	rmf_list_tail tails_16[RADIX16_TABLE_SIZE];
+	rmf_build_match match_buffer[1];
+} rmf_builder;
 
 typedef struct
 {
@@ -70,33 +73,33 @@ typedef struct
 	size_t dictionary_size;
 	size_t progress;
 	uint32_t stack[RADIX16_TABLE_SIZE];
-	RMF_tableHead list_heads[RADIX16_TABLE_SIZE];
+	rmf_table_head list_heads[RADIX16_TABLE_SIZE];
 	uint32_t table[1];
-} FL2_matchTable;
+} rmf_match_table;
 
 typedef struct
 {
 	uint32_t length;
 	uint32_t dist;
-} RMF_match;
+} rmf_match;
 
 bool rmf_options_valid(const lzma_options_lzma *const options);
-FL2_matchTable* RMF_createMatchTable(const lzma_options_lzma *const options, const lzma_allocator *allocator);
-void RMF_freeMatchTable(FL2_matchTable* const tbl, const lzma_allocator *allocator);
-uint8_t RMF_compatibleParameters(const FL2_matchTable* const tbl, const RMF_builder* const builder, const lzma_options_lzma *const options);
-void RMF_applyParameters(FL2_matchTable* const tbl, const lzma_options_lzma *const options);
-RMF_builder* RMF_createBuilder(FL2_matchTable* const tbl, RMF_builder *existing, const lzma_allocator *allocator);
-void RMF_initTable(FL2_matchTable* const tbl, const void* const data, size_t const end);
-void RMF_buildTable(FL2_matchTable* const tbl,
-	RMF_builder* const builder,
+rmf_match_table* rmf_create_match_table(const lzma_options_lzma *const options, const lzma_allocator *allocator);
+void rmf_free_match_table(rmf_match_table* const tbl, const lzma_allocator *allocator);
+uint8_t rmf_compatible_parameters(const rmf_match_table* const tbl, const rmf_builder* const builder, const lzma_options_lzma *const options);
+void rmf_apply_parameters(rmf_match_table* const tbl, const lzma_options_lzma *const options);
+rmf_builder* rmf_create_builder(rmf_match_table* const tbl, rmf_builder *existing, const lzma_allocator *allocator);
+void rmf_init_table(rmf_match_table* const tbl, const void* const data, size_t const end);
+void rmf_build_table(rmf_match_table* const tbl,
+	rmf_builder* const builder,
     int const thread,
     lzma_data_block const block);
-void RMF_cancelBuild(FL2_matchTable* const tbl);
-void RMF_resetIncompleteBuild(FL2_matchTable* const tbl);
-int RMF_integrityCheck(const FL2_matchTable* const tbl, const uint8_t* const data, size_t const pos, size_t const end, unsigned const max_depth);
-void RMF_limitLengths(FL2_matchTable* const tbl, size_t const pos);
-uint8_t* RMF_getTableAsOutputBuffer(FL2_matchTable* const tbl, size_t const pos);
-size_t RMF_memoryUsage(size_t const dict_size, unsigned const thread_count);
+void rmf_cancel_build(rmf_match_table* const tbl);
+void rmf_reset_incomplete_build(rmf_match_table* const tbl);
+int rmf_integrity_check(const rmf_match_table* const tbl, const uint8_t* const data, size_t const pos, size_t const end, unsigned const max_depth);
+void rmf_limit_lengths(rmf_match_table* const tbl, size_t const pos);
+uint8_t* rmf_output_buffer(rmf_match_table* const tbl, size_t const pos);
+size_t rmf_memory_usage(size_t const dict_size, unsigned const thread_count);
 
 
 #endif /* RADIX_MF_H */

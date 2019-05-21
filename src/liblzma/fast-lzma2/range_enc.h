@@ -8,26 +8,14 @@
 #ifndef RANGE_ENCODER_H
 #define RANGE_ENCODER_H
 
+#include "range_common.h"
+#include "price.h"
 
-#ifdef LZMA_ENC_PROB32
-typedef uint32_t LZMA2_prob;
-#else
-typedef uint16_t LZMA2_prob;
-#endif
+#define RC_PROB_INIT_VALUE (RC_BIT_MODEL_TOTAL >> 1U)
+#define RC_PRICE_TABLE_SIZE (RC_BIT_MODEL_TOTAL >> RC_MOVE_REDUCING_BITS)
 
-#define kNumTopBits 24U
-#define kTopValue (1UL << kNumTopBits)
-#define kNumBitModelTotalBits 11U
-#define kBitModelTotal (1 << kNumBitModelTotalBits)
-#define kNumMoveBits 5U
-#define kProbInitValue (kBitModelTotal >> 1U)
-#define kNumMoveReducingBits 4U
-#define kNumBitPriceShiftBits 5U
-#define kPriceTableSize (kBitModelTotal >> kNumMoveReducingBits)
-
-extern uint8_t price_table[2][kPriceTableSize];
 #if 0
-void RC_printPriceTable();
+void rc_print_price_table();
 #endif
 
 typedef struct
@@ -38,115 +26,83 @@ typedef struct
 	uint64_t low;
 	uint32_t range;
 	uint8_t cache;
-} RC_encoder;
+} lzma_range_fast_enc;
 
-void RC_reset(RC_encoder* const rc);
+void rcf_reset(lzma_range_fast_enc* const rc);
 
-void RC_setOutputBuffer(RC_encoder* const rc, uint8_t *const out_buffer);
+void rcf_set_output_buffer(lzma_range_fast_enc* const rc, uint8_t *const out_buffer);
 
-void FORCE_NOINLINE RC_shiftLow(RC_encoder* const rc);
+void FORCE_NOINLINE rcf_shift_low(lzma_range_fast_enc* const rc);
 
-void RC_encodeBitTree(RC_encoder* const rc, LZMA2_prob *const probs, unsigned bit_count, unsigned symbol);
+void rcf_bittree(lzma_range_fast_enc* const rc, probability *const probs, unsigned bit_count, unsigned symbol);
 
-void RC_encodeBitTreeReverse(RC_encoder* const rc, LZMA2_prob *const probs, unsigned bit_count, unsigned symbol);
+void rcf_bittree_reverse(lzma_range_fast_enc* const rc, probability *const probs, unsigned bit_count, unsigned symbol);
 
-void FORCE_NOINLINE RC_encodeDirect(RC_encoder* const rc, unsigned value, unsigned bit_count);
+void FORCE_NOINLINE rcf_direct(lzma_range_fast_enc* const rc, unsigned value, unsigned bit_count);
 
 HINT_INLINE
-void RC_encodeBit0(RC_encoder* const rc, LZMA2_prob *const rprob)
+void rcf_bit_0(lzma_range_fast_enc* const rc, probability *const rprob)
 {
 	unsigned prob = *rprob;
-    rc->range = (rc->range >> kNumBitModelTotalBits) * prob;
-	prob += (kBitModelTotal - prob) >> kNumMoveBits;
-	*rprob = (LZMA2_prob)prob;
-	if (rc->range < kTopValue) {
+    rc->range = (rc->range >> RC_BIT_MODEL_TOTAL_BITS) * prob;
+	prob += (RC_BIT_MODEL_TOTAL - prob) >> RC_MOVE_BITS;
+	*rprob = (probability)prob;
+	if (rc->range < RC_TOP_VALUE) {
         rc->range <<= 8;
-		RC_shiftLow(rc);
+		rcf_shift_low(rc);
 	}
 }
 
 HINT_INLINE
-void RC_encodeBit1(RC_encoder* const rc, LZMA2_prob *const rprob)
+void rcf_bit_1(lzma_range_fast_enc* const rc, probability *const rprob)
 {
 	unsigned prob = *rprob;
-	uint32_t new_bound = (rc->range >> kNumBitModelTotalBits) * prob;
+	uint32_t new_bound = (rc->range >> RC_BIT_MODEL_TOTAL_BITS) * prob;
     rc->low += new_bound;
     rc->range -= new_bound;
-	prob -= prob >> kNumMoveBits;
-	*rprob = (LZMA2_prob)prob;
-	if (rc->range < kTopValue) {
+	prob -= prob >> RC_MOVE_BITS;
+	*rprob = (probability)prob;
+	if (rc->range < RC_TOP_VALUE) {
         rc->range <<= 8;
-		RC_shiftLow(rc);
+		rcf_shift_low(rc);
 	}
 }
 
 HINT_INLINE
-void RC_encodeBit(RC_encoder* const rc, LZMA2_prob *const rprob, unsigned const bit)
+void rcf_bit(lzma_range_fast_enc* const rc, probability *const rprob, unsigned const bit)
 {
 	unsigned prob = *rprob;
 	if (bit != 0) {
-		uint32_t const new_bound = (rc->range >> kNumBitModelTotalBits) * prob;
+		uint32_t const new_bound = (rc->range >> RC_BIT_MODEL_TOTAL_BITS) * prob;
         rc->low += new_bound;
         rc->range -= new_bound;
-		prob -= prob >> kNumMoveBits;
+		prob -= prob >> RC_MOVE_BITS;
 	}
 	else {
-        rc->range = (rc->range >> kNumBitModelTotalBits) * prob;
-		prob += (kBitModelTotal - prob) >> kNumMoveBits;
+        rc->range = (rc->range >> RC_BIT_MODEL_TOTAL_BITS) * prob;
+		prob += (RC_BIT_MODEL_TOTAL - prob) >> RC_MOVE_BITS;
 	}
-	*rprob = (LZMA2_prob)prob;
-	if (rc->range < kTopValue) {
+	*rprob = (probability)prob;
+	if (rc->range < RC_TOP_VALUE) {
         rc->range <<= 8;
-		RC_shiftLow(rc);
+		rcf_shift_low(rc);
 	}
 }
 
 #define GET_PRICE(prob, symbol) \
-  price_table[symbol][(prob) >> kNumMoveReducingBits]
+  lzma_rc_prices[symbol][(prob) >> RC_MOVE_REDUCING_BITS]
 
-#define GET_PRICE_0(prob) price_table[0][(prob) >> kNumMoveReducingBits]
+#define GET_PRICE_0(prob) lzma_rc_prices[0][(prob) >> RC_MOVE_REDUCING_BITS]
 
-#define GET_PRICE_1(prob) price_table[1][(prob) >> kNumMoveReducingBits]
+#define GET_PRICE_1(prob) lzma_rc_prices[1][(prob) >> RC_MOVE_REDUCING_BITS]
 
-#define kMinLitPrice 8U
-
-HINT_INLINE
-unsigned RC_getTreePrice(const LZMA2_prob* const prob_table, unsigned bit_count, size_t symbol)
-{
-	unsigned price = 0;
-    symbol |= ((size_t)1 << bit_count);
-    do {
-		size_t const next_symbol = symbol >> 1;
-		unsigned prob = prob_table[next_symbol];
-        size_t bit = symbol & 1;
-		price += GET_PRICE(prob, bit);
-		symbol = next_symbol;
-    } while (symbol != 1);
-	return price;
-}
+#define MIN_LITERAL_PRICE 8U
 
 HINT_INLINE
-unsigned RC_getReverseTreePrice(const LZMA2_prob* const prob_table, unsigned bit_count, size_t symbol)
-{
-    unsigned prob = prob_table[1];
-    size_t bit = symbol & 1;
-    unsigned price = GET_PRICE(prob, bit);
-    size_t m = 1;
-    while (--bit_count != 0) {
-        m = (m << 1) | bit;
-        symbol >>= 1;
-        prob = prob_table[m];
-        bit = symbol & 1;
-        price += GET_PRICE(prob, bit);
-    }
-    return price;
-}
-
-HINT_INLINE
-void RC_flush(RC_encoder* const rc)
+void rcf_flush(lzma_range_fast_enc* const rc)
 {
     for (int i = 0; i < 5; ++i)
-        RC_shiftLow(rc);
+        rcf_shift_low(rc);
 }
 
 

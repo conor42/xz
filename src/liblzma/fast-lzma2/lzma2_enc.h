@@ -116,7 +116,7 @@ typedef struct
     unsigned match_cycles;
 	lzma_mode strategy;
 
-    RC_encoder rc;
+    lzma_range_fast_enc rc;
     /* Finish writing the chunk at this size */
     size_t chunk_size;
     /* Don't encode a symbol beyond this limit (used by fast mode) */
@@ -131,8 +131,8 @@ typedef struct
     unsigned dist_slot_prices[DIST_STATES][DIST_SLOTS];
     unsigned distance_prices[DIST_STATES][FULL_DISTANCES];
 
-    RMF_match base_match; /* Allows access to matches[-1] in LZMA_optimalParse */
-    RMF_match matches[MATCHES_MAX];
+    rmf_match base_match; /* Allows access to matches[-1] in LZMA_optimalParse */
+    rmf_match matches[MATCHES_MAX];
     size_t match_count;
 
     lzma2_node opt_buf[OPT_BUF_SIZE];
@@ -155,7 +155,7 @@ void lzma2_rmf_free_enc(lzma2_rmf_encoder *const enc);
 int lzma2_rmf_hash_alloc(lzma2_rmf_encoder *const enc, const lzma_options_lzma* const options);
 
 size_t lzma2_rmf_encode(lzma2_rmf_encoder *const enc,
-    FL2_matchTable* const tbl,
+    rmf_match_table* const tbl,
 	lzma_data_block const block,
 	const lzma_options_lzma* const options,
 	FL2_atomic *const progress_in,

@@ -17,39 +17,39 @@
 
 #define RADIX_MAX_LENGTH STRUCTURED_MAX_LENGTH
 
-#define InitMatchLink(pos, link) ((RMF_unit*)tbl->table)[(pos) >> UNIT_BITS].links[(pos) & UNIT_MASK] = (uint32_t)(link)
+#define init_match_link(pos, link) ((rmf_unit*)tbl->table)[(pos) >> UNIT_BITS].links[(pos) & UNIT_MASK] = (uint32_t)(link)
 
-#define GetMatchLink(pos) ((RMF_unit*)tbl->table)[(pos) >> UNIT_BITS].links[(pos) & UNIT_MASK]
+#define get_match_link(pos) ((rmf_unit*)tbl->table)[(pos) >> UNIT_BITS].links[(pos) & UNIT_MASK]
 
-#define GetInitialMatchLink(pos) ((RMF_unit*)tbl->table)[(pos) >> UNIT_BITS].links[(pos) & UNIT_MASK]
+#define get_raw_match_link(pos) ((rmf_unit*)tbl->table)[(pos) >> UNIT_BITS].links[(pos) & UNIT_MASK]
 
-#define GetMatchLength(pos) ((RMF_unit*)tbl->table)[(pos) >> UNIT_BITS].lengths[(pos) & UNIT_MASK]
+#define get_match_length(pos) ((rmf_unit*)tbl->table)[(pos) >> UNIT_BITS].lengths[(pos) & UNIT_MASK]
 
-#define SetMatchLink(pos, link, length) ((RMF_unit*)tbl->table)[(pos) >> UNIT_BITS].links[(pos) & UNIT_MASK] = (uint32_t)(link)
+#define set_match_link(pos, link, length) ((rmf_unit*)tbl->table)[(pos) >> UNIT_BITS].links[(pos) & UNIT_MASK] = (uint32_t)(link)
 
-#define SetMatchLength(pos, link, length) ((RMF_unit*)tbl->table)[(pos) >> UNIT_BITS].lengths[(pos) & UNIT_MASK] = (uint8_t)(length)
+#define set_match_length(pos, link, length) ((rmf_unit*)tbl->table)[(pos) >> UNIT_BITS].lengths[(pos) & UNIT_MASK] = (uint8_t)(length)
 
-#define SetMatchLinkAndLength(pos, link, length) do { size_t i_ = (pos) >> UNIT_BITS, u_ = (pos) & UNIT_MASK; ((RMF_unit*)tbl->table)[i_].links[u_] = (uint32_t)(link); ((RMF_unit*)tbl->table)[i_].lengths[u_] = (uint8_t)(length); } while(0)
+#define set_match_link_and_length(pos, link, length) do { size_t i_ = (pos) >> UNIT_BITS, u_ = (pos) & UNIT_MASK; ((rmf_unit*)tbl->table)[i_].links[u_] = (uint32_t)(link); ((rmf_unit*)tbl->table)[i_].lengths[u_] = (uint8_t)(length); } while(0)
 
-#define SetNull(pos) ((RMF_unit*)tbl->table)[(pos) >> UNIT_BITS].links[(pos) & UNIT_MASK] = RADIX_NULL_LINK
+#define set_null(pos) ((rmf_unit*)tbl->table)[(pos) >> UNIT_BITS].links[(pos) & UNIT_MASK] = RADIX_NULL_LINK
 
-#define IsNull(pos) (((RMF_unit*)tbl->table)[(pos) >> UNIT_BITS].links[(pos) & UNIT_MASK] == RADIX_NULL_LINK)
+#define is_null(pos) (((rmf_unit*)tbl->table)[(pos) >> UNIT_BITS].links[(pos) & UNIT_MASK] == RADIX_NULL_LINK)
 
-uint8_t* RMF_structuredAsOutputBuffer(FL2_matchTable* const tbl, size_t const pos)
+uint8_t* rmf_structured_output_buffer(rmf_match_table* const tbl, size_t const pos)
 {
-    return (uint8_t*)((RMF_unit*)tbl->table + (pos >> UNIT_BITS) + ((pos & UNIT_MASK) != 0));
+    return (uint8_t*)((rmf_unit*)tbl->table + (pos >> UNIT_BITS) + ((pos & UNIT_MASK) != 0));
 }
 
 /* Restrict the match lengths so that they don't reach beyond pos */
-void RMF_structuredLimitLengths(FL2_matchTable* const tbl, size_t const pos)
+void rmf_structured_limit_lengths(rmf_match_table* const tbl, size_t const pos)
 {
-    DEBUGLOG(5, "RMF_limitLengths : end %u, max length %u", (uint32_t)pos, RADIX_MAX_LENGTH);
-    SetNull(pos - 1);
+    DEBUGLOG(5, "rmf_limitLengths : end %u, max length %u", (uint32_t)pos, RADIX_MAX_LENGTH);
+    set_null(pos - 1);
     for (size_t length = 2; length < RADIX_MAX_LENGTH && length <= pos; ++length) {
         size_t const i = (pos - length) >> UNIT_BITS;
         size_t const u = (pos - length) & UNIT_MASK;
-        if (((RMF_unit*)tbl->table)[i].links[u] != RADIX_NULL_LINK) {
-            ((RMF_unit*)tbl->table)[i].lengths[u] = MIN((uint8_t)length, ((RMF_unit*)tbl->table)[i].lengths[u]);
+        if (((rmf_unit*)tbl->table)[i].links[u] != RADIX_NULL_LINK) {
+            ((rmf_unit*)tbl->table)[i].lengths[u] = MIN((uint8_t)length, ((rmf_unit*)tbl->table)[i].lengths[u]);
         }
     }
 }

@@ -17,7 +17,6 @@
 #include "tuklib_cpucores.h"
 #include "mythread.h"
 
-
 #define LZMA2_TIMEOUT 300
 
 
@@ -41,7 +40,7 @@ typedef struct lzma2_fast_coder_s lzma2_fast_coder;
 
 typedef struct {
 	lzma2_fast_coder *coder;
-	RMF_builder *builder;
+	rmf_builder *builder;
 	lzma2_rmf_encoder enc;
 	lzma_data_block block;
 	size_t out_size;
@@ -78,7 +77,7 @@ struct lzma2_fast_coder_s {
 	lzma_next_coder next;
 
 	/// Match table allocated with thread_count threads.
-	FL2_matchTable *match_table;
+	rmf_match_table *match_table;
 
 	/// Current source position for output.
 	size_t out_pos;
@@ -134,7 +133,7 @@ static lzma_ret
 create_builders(lzma2_fast_coder *coder, const lzma_allocator *allocator)
 {
 	for (size_t i = 0; i < coder->thread_count; ++i) {
-		coder->threads[i].builder = RMF_createBuilder(coder->match_table, coder->threads[i].builder, allocator);
+		coder->threads[i].builder = rmf_create_builder(coder->match_table, coder->threads[i].builder, allocator);
 		if (!coder->threads[i].builder)
 			return LZMA_MEM_ERROR;
 	}
@@ -211,7 +210,7 @@ worker_start(void *thr_ptr)
 			lzma_data_block block = { coder->dict_block.data,
 				coder->dict_block.start,
 				coder->dict_block.end };
-			RMF_buildTable(coder->match_table, thr->builder, thr != coder->threads, block);
+			rmf_build_table(coder->match_table, thr->builder, thr != coder->threads, block);
 		}
 		else {
 			assert(state == THR_ENC);
@@ -377,7 +376,7 @@ builder_run(lzma2_fast_coder *coder, size_t i)
 	assert(i == 0);
 	worker_thread *thr = coder->threads + i;
 	lzma_data_block block = { coder->dict_block.data, coder->dict_block.start,coder->dict_block.end };
-	RMF_buildTable(coder->match_table, thr->builder, -1, block);
+	rmf_build_table(coder->match_table, thr->builder, -1, block);
 }
 
 
@@ -472,7 +471,7 @@ compress(lzma2_fast_coder *coder)
 	}
 
 	// Initialize the table to depth 2. This operation is single-threaded.
-	RMF_initTable(coder->match_table, coder->dict_block.data, coder->dict_block.end);
+	rmf_init_table(coder->match_table, coder->dict_block.data, coder->dict_block.end);
 
 	coder->sequence = CODER_BUILD;
 	return_if_error(threads_run_sequence(coder));
@@ -494,7 +493,7 @@ copy_output(lzma2_fast_coder *coder,
 {
 	for (; coder->out_thread < coder->thread_count; ++coder->out_thread)
 	{
-		const uint8_t* const out_buf = RMF_getTableAsOutputBuffer(coder->match_table, coder->threads[coder->out_thread].block.start) + coder->out_pos;
+		const uint8_t* const out_buf = rmf_output_buffer(coder->match_table, coder->threads[coder->out_thread].block.start) + coder->out_pos;
 		size_t const dst_capacity = out_size - *out_pos;
 		size_t to_write = coder->threads[coder->out_thread].out_size;
 
@@ -726,10 +725,10 @@ static void
 threads_stop(lzma2_fast_coder *coder)
 {
 	if (working(coder)) {
-		RMF_cancelBuild(coder->match_table);
+		rmf_cancel_build(coder->match_table);
 		coder->canceled = true;
 		threads_wait(coder);
-		RMF_resetIncompleteBuild(coder->match_table);
+		rmf_reset_incomplete_build(coder->match_table);
 		coder->canceled = false;
 	}
 }
@@ -760,7 +759,7 @@ flzma2_encoder_end(void *coder_ptr, const lzma_allocator *allocator)
 	free_threads(coder, allocator);
 
 	lzma_free(coder->dict_block.data, allocator);
-	RMF_freeMatchTable(coder->match_table, allocator);
+	rmf_free_match_table(coder->match_table, allocator);
 
 	lzma_free(coder, allocator);
 }
@@ -826,8 +825,8 @@ static lzma_ret lzma2_fast_encoder_create(lzma2_fast_coder *coder,
 	return_if_error(create_threads(coder, allocator));
 
 	/* Free unsuitable match table before reallocating anything else */
-	if (coder->match_table && !RMF_compatibleParameters(coder->match_table, coder->threads[0].builder, &coder->opt_cur)) {
-		RMF_freeMatchTable(coder->match_table, allocator);
+	if (coder->match_table && !rmf_compatible_parameters(coder->match_table, coder->threads[0].builder, &coder->opt_cur)) {
+		rmf_free_match_table(coder->match_table, allocator);
 		coder->match_table = NULL;
 		free_builders(coder, allocator);
 	}
@@ -841,12 +840,12 @@ static lzma_ret lzma2_fast_encoder_create(lzma2_fast_coder *coder,
 			return LZMA_MEM_ERROR;
 
 	if (!coder->match_table) {
-		coder->match_table = RMF_createMatchTable(&coder->opt_cur, allocator);
+		coder->match_table = rmf_create_match_table(&coder->opt_cur, allocator);
 		if (!coder->match_table)
 			return LZMA_MEM_ERROR;
 	}
 	else {
-		RMF_applyParameters(coder->match_table, &coder->opt_cur);
+		rmf_apply_parameters(coder->match_table, &coder->opt_cur);
 	}
 
 	return_if_error(create_builders(coder, allocator));
@@ -854,7 +853,7 @@ static lzma_ret lzma2_fast_encoder_create(lzma2_fast_coder *coder,
 	reset_dict(coder);
 	if (!coder->dict_block.data) {
 		coder->dict_size = coder->opt_cur.dict_size;
-		coder->dict_block.data = lzma_alloc(coder->dict_size, allocator);
+		coder->dict_block.data = lzma_alloc(coder->dict_size + MAX_READ_BEYOND_DEPTH, allocator);
 		if (!coder->dict_block.data)
 			return LZMA_MEM_ERROR;
 	}
@@ -935,6 +934,6 @@ extern uint64_t
 lzma_flzma2_encoder_memusage(const void *options)
 {
 	const lzma_options_lzma *const opt = options;
-	return RMF_memoryUsage(opt->dict_size, opt->threads)
+	return rmf_memory_usage(opt->dict_size, opt->threads)
 		+ lzma2_enc_rmf_mem_usage(opt->near_dict_size_log, opt->mode, opt->threads);
 }
