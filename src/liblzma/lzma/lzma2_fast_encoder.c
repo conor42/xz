@@ -446,6 +446,12 @@ compress(lzma2_fast_coder *coder)
 	if(!encode_size)
 		return LZMA_OK;
 
+	// Fill the overrun area with minimally matchable data to silence valgrind.
+	// Any matches that extend beyond dict_block.end are trimmed by the encoder.
+	for (uint32_t i = 0; i < coder->opt_cur.depth; ++i)
+		coder->dict_block.data[coder->dict_block.end + i] = 0xE1 ^ (uint8_t)i;
+	assert(coder->opt_cur.depth <= MAX_READ_BEYOND_DEPTH);
+
 	assert(coder->out_thread >= coder->thread_count);
 
 	set_weights(coder);
@@ -755,7 +761,7 @@ flzma2_encoder_end(void *coder_ptr, const lzma_allocator *allocator)
 
 	free_builders(coder, allocator);
 	for (size_t i = 0; i < coder->thread_count; ++i)
-		lzma2_rmf_free_enc(&coder->threads[i].enc);
+		lzma2_rmf_enc_free(&coder->threads[i].enc);
 	free_threads(coder, allocator);
 
 	lzma_free(coder->dict_block.data, allocator);
@@ -916,6 +922,8 @@ lzma_flzma2_encoder_init(lzma_next_coder *next,
 	coder->opt_cur = *options;
 	if (options->depth == 0)
 		coder->opt_cur.depth = 42 + (options->dict_size >> 25) * 4U;
+	// Radix match-finder only searches to an even-numbered depth.
+	coder->opt_cur.depth &= ~1;
 
 	return_if_error(lzma2_fast_encoder_create(coder, allocator));
 
