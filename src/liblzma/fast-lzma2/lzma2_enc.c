@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-/// \file       lzma2_enc.c
+/// \file       lzma2_encoder_rmf.c
 /// \brief      LZMA2 encoder for radix match-finder
 ///
 //  Authors:    Igor Pavlov
@@ -14,7 +14,6 @@
 #include "common.h"
 
 #include <stdlib.h>
-#include <math.h>
 
 #include "flzma.h"
 #include "lzma_common.h"
@@ -30,7 +29,7 @@
 #define MATCH_MAX_OUT_SIZE 20
 
 #define CHUNK_COMPRESSED_MAX (1UL << 16U)
-/* Need to leave sufficient space for expanded output from a full opt buffer with bad starting probs */
+// Need to leave enough space for expanded output from a full opt buffer with bad starting probs
 #define CHUNK_SIZE (CHUNK_COMPRESSED_MAX - 2048U)
 #define SQRT_CHUNK_SIZE 252U
 
@@ -65,8 +64,6 @@ static const uint8_t rep_next_tbl[STATES] = { 8, 8, 8, 8, 8, 8, 8, 11, 11, 11, 1
 static const uint8_t short_rep_next_tbl[STATES] = { 9, 9, 9, 9, 9, 9, 9, 11, 11, 11, 11, 11 };
 #define short_rep_next_state(s) short_rep_next_tbl[s]
 
-#include "radix_get.h"
-
 void lzma2_rmf_enc_construct(lzma2_rmf_encoder *const enc)
 {
     DEBUGLOG(3, "lzma2_rmf_enc_construct");
@@ -87,7 +84,7 @@ void lzma2_rmf_enc_construct(lzma2_rmf_encoder *const enc)
     enc->hash_alloc_3 = 0;
 }
 
-void lzma2_rmf_free_enc(lzma2_rmf_encoder *const enc)
+void lzma2_rmf_enc_free(lzma2_rmf_encoder *const enc)
 {
     free(enc->hash_buf);
 }
@@ -258,7 +255,7 @@ static void lzma_len_update_prices(lzma2_rmf_encoder *const enc, lzma2_len_state
     }
 }
 
-/* Rare enough that not inlining is faster overall */
+// Rare enough that not inlining is faster overall.
 FORCE_NOINLINE
 static void lzma_len_encode_mid_high(lzma2_rmf_encoder *const enc, lzma2_len_states* const len_prob_table, unsigned const len, size_t const pos_state)
 {
@@ -381,7 +378,7 @@ size_t lzma_encode_chunk_fast(lzma2_rmf_encoder *const enc,
     size_t prev = pos;
     unsigned const search_depth = tbl->depth;
 
-    while (pos < uncompressed_end && enc->rc.out_index < enc->chunk_size) {
+    while (pos < uncompressed_end && rc_chunk_size(&enc->rc) < enc->chunk_size) {
         size_t max_len;
         const uint8_t* data;
         /* Table of distance restrictions for short matches */
@@ -1348,7 +1345,9 @@ reverse:
         start_index += i;
         /* Do another round if there is a long match pending,
          * because the reps must be checked and the match encoded. */
-    } while (match.length >= enc->fast_length && start_index < uncompressed_end && enc->rc.out_index < enc->chunk_size);
+    } while (match.length >= enc->fast_length
+		&& start_index < uncompressed_end
+		&& rc_chunk_size(&enc->rc) < enc->chunk_size);
 
     enc->len_end_max = len_end;
 
