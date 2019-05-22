@@ -95,10 +95,10 @@ struct lzma2_fast_coder_s {
 	unsigned enc_weight;
 
 	/// Amount of uncompressed data compressed by running encoders.
-	FL2_atomic progress_in;
+	lzma_atomic progress_in;
 
 	/// Amount of compressed data buffered by running encoders.
-	FL2_atomic progress_out;
+	lzma_atomic progress_out;
 
 	/// Amount of uncompressed data that has already been compressed.
 	uint64_t total_in;
@@ -541,15 +541,11 @@ dict_shift(lzma2_fast_coder *coder)
 
 		overlap = coder->dict_block.end - from;
 
-		if (overlap <= from) {
-			DEBUGLOG(5, "Copy overlap data : %u bytes from %u", (unsigned)overlap, (unsigned)from);
+		if (overlap <= from)
 			memcpy(data, data + from, overlap);
-		}
-		else if (from != 0) {
-			DEBUGLOG(5, "Move overlap data : %u bytes from %u", (unsigned)overlap, (unsigned)from);
+		else if (from != 0)
 			memmove(data, data + from, overlap);
-		}
-		/* New data will be written after the overlap */
+		// New data will be written after the overlap.
 		coder->dict_block.start = overlap;
 		coder->dict_block.end = overlap;
 	}
@@ -830,7 +826,7 @@ static lzma_ret lzma2_fast_encoder_create(lzma2_fast_coder *coder,
 {
 	return_if_error(create_threads(coder, allocator));
 
-	/* Free unsuitable match table before reallocating anything else */
+	// Free unsuitable structures and buffers before reallocating anything.
 	if (coder->match_table && !rmf_compatible_parameters(coder->match_table, coder->threads[0].builder, &coder->opt_cur)) {
 		rmf_free_match_table(coder->match_table, allocator);
 		coder->match_table = NULL;

@@ -1,7 +1,16 @@
-# lzma_dec_x86_64.S -- ASM version of lzma_decode_asm_5() function
-# 2018-02-06: Igor Pavlov : Public domain
-# Converted to .S and modified for liblzma by Conor McCarthy
+###############################################################################
 #
+## \file       lzma_dec_x86_64.S
+## \brief      LZMA assembler-optimized decoder
+##
+#  Authors:    Igor Pavlov
+#              Conor McCarthy (liblzma .S version)
+#
+#  This file has been put into the public domain.
+#  You can do whatever you want with this file.
+#
+###############################################################################
+
 # lzma_lzma1_decoder and lzma_dict structures, and probability table layout
 # must be equal in both versions (C / ASM).
 

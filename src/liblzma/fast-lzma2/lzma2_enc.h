@@ -154,21 +154,22 @@ typedef struct
     uint8_t out_buf[TEMP_BUFFER_SIZE];
 } lzma2_rmf_encoder;
 
-void lzma2_rmf_enc_construct(lzma2_rmf_encoder *const enc);
+extern void lzma2_rmf_enc_construct(lzma2_rmf_encoder *const enc);
 
-void lzma2_rmf_enc_free(lzma2_rmf_encoder *const enc);
+extern void lzma2_rmf_enc_free(lzma2_rmf_encoder *const enc);
 
-int lzma2_rmf_hash_alloc(lzma2_rmf_encoder *const enc, const lzma_options_lzma* const options);
+extern int lzma2_rmf_hash_alloc(lzma2_rmf_encoder *const enc, const lzma_options_lzma* const options);
 
-size_t lzma2_rmf_encode(lzma2_rmf_encoder *const enc,
-    rmf_match_table* const tbl,
-	lzma_data_block const block,
-	const lzma_options_lzma* const options,
-	FL2_atomic *const progress_in,
-    FL2_atomic *const progress_out,
-    bool *const canceled);
+extern size_t lzma2_rmf_encode(lzma2_rmf_encoder *const enc,
+		rmf_match_table* const tbl,
+		lzma_data_block const block,
+		const lzma_options_lzma* const options,
+		lzma_atomic *const progress_in,
+		lzma_atomic *const progress_out,
+		bool *const canceled);
 
-size_t lzma2_enc_rmf_mem_usage(unsigned const chain_log, lzma_mode const strategy, unsigned const thread_count);
+extern size_t lzma2_enc_rmf_mem_usage(unsigned const chain_log,
+		lzma_mode const strategy, unsigned const thread_count);
 
 
 #endif // LZMA_LZMA2_ENCODER_RMF_H

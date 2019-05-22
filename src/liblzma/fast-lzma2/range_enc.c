@@ -14,19 +14,21 @@
 #include "common.h"
 #include "range_enc.h"
 
+
 #if 0
 
 #include <stdio.h>
 
-// Generates rc_print_price_table
-void rc_print_price_table()
+// Generates lzma_rc_prices
+void
+rc_print_price_table()
 {
     static const unsigned test_size = 0x4000;
     const unsigned test_div = test_size >> 8;
     uint8_t buf[0x3062];
-    unsigned table0[kPriceTableSize];
-    unsigned table1[kPriceTableSize];
-    unsigned count[kPriceTableSize];
+    unsigned table0[RC_PRICE_TABLE_SIZE];
+    unsigned table1[RC_PRICE_TABLE_SIZE];
+    unsigned count[RC_PRICE_TABLE_SIZE];
     memset(table0, 0, sizeof(table0));
     memset(table1, 0, sizeof(table1));
     memset(count, 0, sizeof(count));
@@ -39,7 +41,7 @@ void rc_print_price_table()
 			rcf_bit_0(&rc, &prob);
         }
         rcf_flush(&rc);
-        table0[i >> kNumMoveReducingBits] += (unsigned)rc.out_index - 5;
+        table0[i >> RC_MOVE_REDUCING_BITS] += (unsigned)rc.out_index - 5;
         rcf_reset(&rc);
         rcf_set_output_buffer(&rc, buf);
         for (unsigned j = 0; j < test_size; ++j) {
@@ -47,29 +49,30 @@ void rc_print_price_table()
             rcf_bit_1(&rc, &prob);
         }
         rcf_flush(&rc);
-        table1[i >> kNumMoveReducingBits] += (unsigned)rc.out_index - 5;
-        ++count[i >> kNumMoveReducingBits];
+        table1[i >> RC_MOVE_REDUCING_BITS] += (unsigned)rc.out_index - 5;
+        ++count[i >> RC_MOVE_REDUCING_BITS];
     }
-    for (int i = 0; i < kPriceTableSize; ++i) if (count[i]) {
+    for (int i = 0; i < RC_PRICE_TABLE_SIZE; ++i) if (count[i]) {
         table0[i] = (table0[i] / count[i]) / test_div;
         table1[i] = (table1[i] / count[i]) / test_div;
     }
-    fputs("const uint8_t price_table[2][kPriceTableSize] = {\r\n", stdout);
-    for (int i = 0; i < kPriceTableSize;) {
+    fputs("const uint8_t lzma_rc_prices[2][RC_PRICE_TABLE_SIZE] = { {\n", stdout);
+    for (int i = 0; i < RC_PRICE_TABLE_SIZE;) {
         for (int j = 0; j < 8; ++j, ++i)
             printf("%4d,", table0[i]);
-        fputs("\r\n", stdout);
+        fputs("\n", stdout);
     }
-    fputs("}, {\r\n", stdout);
-    for (int i = 0; i < kPriceTableSize;) {
+    fputs("}, {\n", stdout);
+    for (int i = 0; i < RC_PRICE_TABLE_SIZE;) {
         for (int j = 0; j < 8; ++j, ++i)
             printf("%4d,", table1[i]);
-        fputs("\r\n", stdout);
+        fputs("\n", stdout);
     }
-    fputs("} };\r\n", stdout);
+    fputs("} };\n", stdout);
 }
 
 #endif
+
 
 void
 rcf_set_output_buffer(lzma_range_fast_enc* const rc, uint8_t *const out_buffer)
@@ -86,6 +89,7 @@ rcf_reset(lzma_range_fast_enc* const rc)
     rc->cache_size = 0;
     rc->cache = 0;
 }
+
 
 #if defined(__x86_64__) || defined(_M_X64) || SIZEOF_SIZE_T >= 8
 
@@ -136,6 +140,7 @@ rcf_shift_low(lzma_range_fast_enc* const rc)
 
 #endif
 
+
 void
 rcf_bittree(lzma_range_fast_enc* const rc, probability *const probs, unsigned bit_count, unsigned symbol)
 {
@@ -152,6 +157,7 @@ rcf_bittree(lzma_range_fast_enc* const rc, probability *const probs, unsigned bi
     } while (bit_count != 0);
 }
 
+
 void
 rcf_bittree_reverse(lzma_range_fast_enc* const rc, probability *const probs, unsigned bit_count, unsigned symbol)
 {
@@ -166,6 +172,7 @@ rcf_bittree_reverse(lzma_range_fast_enc* const rc, probability *const probs, uns
 		rcf_bit(rc, &probs[tree_index], bit);
 	}
 }
+
 
 void FORCE_NOINLINE
 rcf_direct(lzma_range_fast_enc* const rc, unsigned value, unsigned bit_count)

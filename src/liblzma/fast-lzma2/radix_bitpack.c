@@ -1,17 +1,19 @@
-/*
-* Copyright (c) 2018, Conor McCarthy
-* All rights reserved.
-*
-* This source code is licensed under both the BSD-style license (found in the
-* LICENSE file in the root directory of this source tree) and the GPLv2 (found
-* in the COPYING file in the root directory of this source tree).
-* You may select, at your option, one of the above-listed licenses.
-*/
+///////////////////////////////////////////////////////////////////////////////
+//
+/// \file       radix_bitpack.h
+/// \brief      Radix match-finder for uint32_t table
+///
+//  Author:     Conor McCarthy
+//
+//  This source code is licensed under both the BSD-style license (found in the
+//  LICENSE file in the root directory of this source tree) and the GPLv2 (found
+//  in the COPYING file in the root directory of this source tree).
+//  You may select, at your option, one of the above-listed licenses.
+//
+///////////////////////////////////////////////////////////////////////////////
 
 #include "radix_internal.h"
 
-#undef MIN
-#define MIN(a,b) ((a) < (b) ? (a) : (b))
 
 #define RMF_BITPACK
 
@@ -27,27 +29,32 @@
 
 #define set_match_length(pos, link, length) tbl->table[pos] = (link) | ((uint32_t)(length) << RADIX_LINK_BITS)
 
-#define set_match_link_and_length(pos, link, length) tbl->table[pos] = (link) | ((uint32_t)(length) << RADIX_LINK_BITS)
+#define set_match_link_and_length(pos, link, length) \
+	tbl->table[pos] = (link) | ((uint32_t)(length) << RADIX_LINK_BITS)
 
 #define set_null(pos) tbl->table[pos] = RADIX_NULL_LINK
 
 #define is_null(pos) (tbl->table[pos] == RADIX_NULL_LINK)
 
-uint8_t* rmf_bitpack_output_buffer(rmf_match_table* const tbl, size_t const pos)
+
+extern uint8_t*
+rmf_bitpack_output_buffer(rmf_match_table* const tbl, size_t const pos)
 {
     return (uint8_t*)(tbl->table + pos);
 }
 
-/* Restrict the match lengths so that they don't reach beyond pos */
-void rmf_bitpack_limit_lengths(rmf_match_table* const tbl, size_t const pos)
+
+// Restrict the match lengths so that they don't reach beyond pos.
+extern void
+rmf_bitpack_limit_lengths(rmf_match_table* const tbl, size_t const pos)
 {
-    DEBUGLOG(5, "rmf_limitLengths : end %u, max length %u", (uint32_t)pos, RADIX_MAX_LENGTH);
     set_null(pos - 1);
     for (uint32_t length = 2; length < RADIX_MAX_LENGTH && length <= pos; ++length) {
         uint32_t const link = tbl->table[pos - length];
         if (link != RADIX_NULL_LINK)
-            tbl->table[pos - length] = (MIN(length, link >> RADIX_LINK_BITS) << RADIX_LINK_BITS) | (link & RADIX_LINK_MASK);
+            tbl->table[pos - length] = (my_min(length, link >> RADIX_LINK_BITS) << RADIX_LINK_BITS) | (link & RADIX_LINK_MASK);
     }
 }
+
 
 #include "radix_engine.h"

@@ -1,22 +1,27 @@
-/*
-* Copyright (c) 2018, Conor McCarthy
-* All rights reserved.
-*
-* This source code is licensed under both the BSD-style license (found in the
-* LICENSE file in the root directory of this source tree) and the GPLv2 (found
-* in the COPYING file in the root directory of this source tree).
-* You may select, at your option, one of the above-listed licenses.
-*/
+///////////////////////////////////////////////////////////////////////////////
+//
+/// \file       radix_engine.h
+/// \brief      Radix match-finder algorithm
+///
+//  Author:     Conor McCarthy
+//
+//  This source code is licensed under both the BSD-style license (found in the
+//  LICENSE file in the root directory of this source tree) and the GPLv2 (found
+//  in the COPYING file in the root directory of this source tree).
+//  You may select, at your option, one of the above-listed licenses.
+//
+///////////////////////////////////////////////////////////////////////////////
 
-#include <stdio.h>  
 
-/* If a repeating byte is found, fill that section of the table with matches of distance 1 */
-static size_t handle_byte_repeat(rmf_builder* const tbl, const uint8_t* const data_block, size_t const start, ptrdiff_t i, uint32_t depth)
+// If a repeating byte is found, fill that section of the table with matches of distance 1.
+static size_t
+handle_byte_repeat(rmf_builder* const tbl, const uint8_t* const data_block,
+		size_t const start, ptrdiff_t i, uint32_t depth)
 {
-    /* Normally the last 2 bytes, but may be 4 if depth == 4 */
+    // Normally the last 2 bytes, but may be 4 if depth == 4 
     ptrdiff_t const last_2 = i + MAX_REPEAT / 2 - 1;
 
-    /* Find the start */
+    // Find the start 
     i += (4 - (i & 3)) & 3;
     uint32_t u = *(uint32_t*)(data_block + i);
     while (i != 0 && *(uint32_t*)(data_block + i - 4) == u)
@@ -25,28 +30,31 @@ static size_t handle_byte_repeat(rmf_builder* const tbl, const uint8_t* const da
       --i;
 
     ptrdiff_t const rpt_index = i;
-    /* No point if it's in the overlap region */
+    // No point if it's in the overlap region 
     if (last_2 >= (ptrdiff_t)start) {
         uint32_t len = depth;
-        /* Set matches at distance 1 and available length */
+        // Set matches at distance 1 and available length 
         for (i = last_2; i > rpt_index && len <= RADIX_MAX_LENGTH; --i) {
             set_match_link_and_length(i, (uint32_t)(i - 1), len);
             ++len;
         }
-        /* Set matches at distance 1 and max length */
+        // Set matches at distance 1 and max length 
         for (; i > rpt_index; --i)
             set_match_link_and_length(i, (uint32_t)(i - 1), RADIX_MAX_LENGTH);
     }
     return rpt_index;
 }
 
-/* If a 2-byte repeat is found, fill that section of the table with matches of distance 2 */
-static size_t handle_2byte_repeat(rmf_builder* const tbl, const uint8_t* const data_block, size_t const start, ptrdiff_t i, uint32_t depth)
+
+// If a 2-byte repeat is found, fill that section of the table with matches of distance 2 
+static size_t
+handle_2byte_repeat(rmf_builder* const tbl, const uint8_t* const data_block,
+		size_t const start, ptrdiff_t i, uint32_t depth)
 {
-    /* Normally the last 2 bytes, but may be 4 if depth == 4 */
+    // Normally the last 2 bytes, but may be 4 if depth == 4 
     ptrdiff_t const last_2 = i + MAX_REPEAT * 2U - 4;
 
-    /* Find the start */
+    // Find the start 
     ptrdiff_t realign = i & 1;
     i += (4 - (i & 3)) & 3;
     uint32_t u = *(uint32_t*)(data_block + i);
@@ -57,20 +65,21 @@ static size_t handle_2byte_repeat(rmf_builder* const tbl, const uint8_t* const d
     i += (i & 1) ^ realign;
 
     ptrdiff_t const rpt_index = i;
-    /* No point if it's in the overlap region */
+    // No point if it's in the overlap region 
     if (i >= (ptrdiff_t)start) {
         uint32_t len = depth + (data_block[last_2 + depth] == data_block[last_2]);
-        /* Set matches at distance 2 and available length */
+        // Set matches at distance 2 and available length 
         for (i = last_2; i > rpt_index && len <= RADIX_MAX_LENGTH; i -= 2) {
             set_match_link_and_length(i, (uint32_t)(i - 2), len);
             len += 2;
         }
-        /* Set matches at distance 2 and max length */
+        // Set matches at distance 2 and max length 
         for (; i > rpt_index; i -= 2)
             set_match_link_and_length(i, (uint32_t)(i - 2), RADIX_MAX_LENGTH);
     }
     return rpt_index;
 }
+
 
 void
 #ifdef RMF_BITPACK
@@ -91,7 +100,7 @@ rmf_structured_init
 
     const uint8_t* const data_block = (const uint8_t*)data;
     size_t st_index = 0;
-    /* Initial 2-byte radix value */
+    // Initial 2-byte radix value 
     size_t radix_16 = ((size_t)data_block[0] << 8) | data_block[1];
     tbl->stack[st_index++] = (uint32_t)radix_16;
     tbl->list_heads[radix_16].head = 0;
@@ -102,14 +111,14 @@ rmf_structured_init
     ptrdiff_t i = 1;
     ptrdiff_t const block_size = end - 2;
     for (; i < block_size; ++i) {
-        /* Pre-load the next value for speed increase on some hardware. Execution can continue while memory read is pending */
+        // Pre-load the next value for speed increase on some hardware. Execution can continue while memory read is pending 
         size_t const next_radix = ((size_t)((uint8_t)radix_16) << 8) | data_block[i + 2];
 
         uint32_t const prev = tbl->list_heads[radix_16].head;
         if (prev != RADIX_NULL_LINK) {
-            /* Link this position to the previous occurrence */
+            // Link this position to the previous occurrence 
             init_match_link(i, prev);
-            /* Set the previous to this position */
+            // Set the previous to this position 
             tbl->list_heads[radix_16].head = (uint32_t)i;
             ++tbl->list_heads[radix_16].count;
             radix_16 = next_radix;
@@ -122,33 +131,35 @@ rmf_structured_init
             radix_16 = next_radix;
         }
     }
-    /* Handle the last value */
+    // Handle the last value 
     if (tbl->list_heads[radix_16].head != RADIX_NULL_LINK)
         set_match_link_and_length(block_size, tbl->list_heads[radix_16].head, 2);
     else
         set_null(block_size);
 
-    /* Never a match at the last byte */
+    // Never a match at the last byte 
     set_null(end - 1);
 
     tbl->end_index = (uint32_t)st_index;
 }
 
-/* Copy the list into a buffer and recurse it there. This decreases cache misses and allows */
-/* data characters to be loaded every fourth pass and stored for use in the next 4 passes */
-static void recurse_lists_buffered(rmf_builder* const tbl,
-    const uint8_t* const data_block,
-    size_t const block_start,
-    size_t link,
-    uint32_t depth,
-    uint32_t const max_depth,
-    uint32_t orig_list_count,
-    size_t const stack_base)
+
+// Copy the list into a buffer and recurse it there. This decreases cache misses and allows 
+// data characters to be loaded every fourth pass and stored for use in the next 4 passes 
+static void
+recurse_lists_buffered(rmf_builder* const tbl,
+		const uint8_t* const data_block,
+		size_t const block_start,
+		size_t link,
+		uint32_t depth,
+		uint32_t const max_depth,
+		uint32_t orig_list_count,
+		size_t const stack_base)
 {
     if (orig_list_count < 2 || tbl->match_buffer_limit < 2)
         return;
 
-    /* Create an offset data buffer pointer for reading the next bytes */
+    // Create an offset data buffer pointer for reading the next bytes 
     const uint8_t* data_src = data_block + depth;
     size_t start = 0;
 
@@ -163,15 +174,15 @@ static void recurse_lists_buffered(rmf_builder* const tbl,
         size_t rpt = 0;
         size_t rpt_tail = link;
         for (; count < list_count; ++count) {
-            /* Pre-load next link */
+            // Pre-load next link 
             size_t const next_link = get_match_link(link);
             size_t dist = prev_link - link;
             if (dist > 2) {
-                /* Get 4 data characters for later. This doesn't block on a cache miss. */
+                // Get 4 data characters for later. This doesn't block on a cache miss. 
                 memcpy32(tbl->match_buffer[count].src.u32, data_src + link);
-                /* Record the actual location of this suffix */
+                // Record the actual location of this suffix 
                 tbl->match_buffer[count].from = (uint32_t)link;
-                /* Initialize the next link */
+                // Initialize the next link 
                 tbl->match_buffer[count].next = (uint32_t)(count + 1) | (depth << 24);
                 rpt = 0;
                 prev_link = link;
@@ -180,19 +191,19 @@ static void recurse_lists_buffered(rmf_builder* const tbl,
             }
             else {
                 rpt += 3 - dist;
-                /* Do the usual if the repeat is too short */
+                // Do the usual if the repeat is too short 
                 if (rpt < MAX_REPEAT - 2) {
-                    /* Get 4 data characters for later. This doesn't block on a cache miss. */
+                    // Get 4 data characters for later. This doesn't block on a cache miss. 
 					memcpy32(tbl->match_buffer[count].src.u32, data_src + link);
-                    /* Record the actual location of this suffix */
+                    // Record the actual location of this suffix 
                     tbl->match_buffer[count].from = (uint32_t)link;
-                    /* Initialize the next link */
+                    // Initialize the next link 
                     tbl->match_buffer[count].next = (uint32_t)(count + 1) | (depth << 24);
                     prev_link = link;
                     link = next_link;
                 }
                 else {
-                    /* Eliminate the repeat from the linked list to save time */
+                    // Eliminate the repeat from the linked list to save time 
                     if (dist == 1) {
                         link = handle_byte_repeat(tbl, data_block, block_start, link, depth);
                         count -= MAX_REPEAT / 2;
@@ -212,7 +223,7 @@ static void recurse_lists_buffered(rmf_builder* const tbl,
             }
         }
         count = list_count;
-        /* Make the last element circular so pre-loading doesn't read past the end. */
+        // Make the last element circular so pre-loading doesn't read past the end. 
         tbl->match_buffer[count - 1].next = (uint32_t)(count - 1) | (depth << 24);
         uint32_t overlap = 0;
         if (list_count < (uint32_t)(start + orig_list_count)) {
@@ -221,7 +232,7 @@ static void recurse_lists_buffered(rmf_builder* const tbl,
         }
         rmf_recurse_list_chunk(tbl, data_block, block_start, depth, max_depth, list_count, stack_base);
         orig_list_count -= (uint32_t)(list_count - start);
-        /* Copy everything back, except the last link which never changes, and any extra overlap */
+        // Copy everything back, except the last link which never changes, and any extra overlap 
         count -= overlap + (overlap == 0);
 #ifdef RMF_BITPACK
         if (max_depth > RADIX_MAX_LENGTH) for (size_t pos = 0; pos < count; ++pos) {
@@ -258,14 +269,15 @@ static void recurse_lists_buffered(rmf_builder* const tbl,
 }
 
 
-/* Compare each string with all others to find the best match */
-static void rmf_bruteForce(rmf_builder* const tbl,
-    const uint8_t* const data_block,
-    size_t const block_start,
-    size_t link,
-    size_t const list_count,
-    uint32_t const depth,
-    uint32_t const max_depth)
+// Compare each string with all others to find the best match 
+static void
+rmf_bruteForce(rmf_builder* const tbl,
+		const uint8_t* const data_block,
+		size_t const block_start,
+		size_t link,
+		size_t const list_count,
+		uint32_t const depth,
+		uint32_t const max_depth)
 {
     const uint8_t* data_src = data_block + depth;
     size_t buffer[MAX_BRUTE_FORCE_LIST_SIZE + 1];
@@ -273,7 +285,7 @@ static void rmf_bruteForce(rmf_builder* const tbl,
     size_t i = 1;
 
     buffer[0] = link;
-    /* Pre-load all locations */
+    // Pre-load all locations 
     do {
         link = get_match_link(link);
         buffer[i] = link;
@@ -303,38 +315,38 @@ static void rmf_bruteForce(rmf_builder* const tbl,
             set_match_link_and_length(buffer[i], (uint32_t)buffer[longest_index], depth + (uint32_t)longest);
 
         ++i;
-    /* Test with block_start to avoid wasting time matching strings in the overlap region with each other */
+    // Test with block_start to avoid wasting time matching strings in the overlap region with each other 
     } while (i < list_count - 1 && buffer[i] >= block_start);
 }
 
-/* recurse_lists_16() : 
- * Match strings at depth 2 using a 16-bit radix to lengthen to depth 4
- */
-static void recurse_lists_16(rmf_builder* const tbl,
-    const uint8_t* const data_block,
-    size_t const block_start,
-    size_t link,
-    uint32_t count,
-    uint32_t const max_depth)
+
+// Match strings at depth 2 using a 16-bit radix to lengthen to depth 4
+static void
+recurse_lists_16(rmf_builder* const tbl,
+		const uint8_t* const data_block,
+		size_t const block_start,
+		size_t link,
+		uint32_t count,
+		uint32_t const max_depth)
 {
-    uint32_t const table_max_depth = MIN(max_depth, RADIX_MAX_LENGTH);
-    /* Offset data pointer. This function is only called at depth 2 */
+    uint32_t const table_max_depth = my_min(max_depth, RADIX_MAX_LENGTH);
+    // Offset data pointer. This function is only called at depth 2 
     const uint8_t* const data_src = data_block + 2;
-    /* Load radix values from the data chars */
+    // Load radix values from the data chars 
     size_t next_radix_8 = data_src[link];
     size_t next_radix_16 = next_radix_8 + ((size_t)(data_src[link + 1]) << 8);
     size_t reset_list[RADIX8_TABLE_SIZE];
     size_t reset_count = 0;
     size_t st_index = 0;
-    /* Last one is done separately */
+    // Last one is done separately 
     --count;
     do
     {
-        /* Pre-load the next link */
+        // Pre-load the next link 
         size_t const next_link = get_raw_match_link(link);
         size_t const radix_8 = next_radix_8;
         size_t const radix_16 = next_radix_16;
-        /* Initialization doesn't set lengths to 2 because it's a waste of time if buffering is used */
+        // Initialization doesn't set lengths to 2 because it's a waste of time if buffering is used 
         set_match_length(link, (uint32_t)next_link, 2);
 
         next_radix_8 = data_src[next_link];
@@ -343,8 +355,8 @@ static void recurse_lists_16(rmf_builder* const tbl,
         uint32_t prev = tbl->tails_8[radix_8].prev_index;
         tbl->tails_8[radix_8].prev_index = (uint32_t)link;
         if (prev != RADIX_NULL_LINK) {
-            /* Link the previous occurrence to this one at length 3. */
-            /* This will be overwritten if a 4 is found. */
+            // Link the previous occurrence to this one at length 3. 
+            // This will be overwritten if a 4 is found. 
             set_match_link_and_length(prev, (uint32_t)link, 3);
         }
         else {
@@ -355,20 +367,20 @@ static void recurse_lists_16(rmf_builder* const tbl,
         tbl->tails_16[radix_16].prev_index = (uint32_t)link;
         if (prev != RADIX_NULL_LINK) {
             ++tbl->tails_16[radix_16].list_count;
-            /* Link at length 4, overwriting the 3 */
+            // Link at length 4, overwriting the 3 
             set_match_link_and_length(prev, (uint32_t)link, 4);
         }
         else {
             tbl->tails_16[radix_16].list_count = 1;
             tbl->stack[st_index].head = (uint32_t)link;
-            /* Store a reference to this table location to retrieve the count at the end */
+            // Store a reference to this table location to retrieve the count at the end 
             tbl->stack[st_index].count = (uint32_t)radix_16;
             ++st_index;
         }
         link = next_link;
     } while (--count > 0);
 
-    /* Do the last location */
+    // Do the last location 
     uint32_t prev = tbl->tails_8[next_radix_8].prev_index;
     if (prev != RADIX_NULL_LINK)
         set_match_link_and_length(prev, (uint32_t)link, 3);
@@ -391,7 +403,7 @@ static void recurse_lists_16(rmf_builder* const tbl,
         --st_index;
         uint32_t const list_count = tbl->stack[st_index].count;
         if (list_count < 2) {
-            /* Nothing to do */
+            // Nothing to do 
             continue;
         }
         link = tbl->stack[st_index].head;
@@ -400,13 +412,13 @@ static void recurse_lists_16(rmf_builder* const tbl,
         if (st_index > STACK_SIZE - RADIX16_TABLE_SIZE
             && st_index > STACK_SIZE - list_count)
         {
-            /* Potential stack overflow. Rare. */
+            // Potential stack overflow. Rare. 
             continue;
         }
-        /* The current depth */
+        // The current depth 
         uint32_t const depth = get_match_length(link);
         if (list_count <= MAX_BRUTE_FORCE_LIST_SIZE) {
-            /* Quicker to use brute force, each string compared with all previous strings */
+            // Quicker to use brute force, each string compared with all previous strings 
             rmf_bruteForce(tbl, data_block,
                 block_start,
                 link,
@@ -415,7 +427,7 @@ static void recurse_lists_16(rmf_builder* const tbl,
                 table_max_depth);
             continue;
         }
-        /* Send to the buffer at depth 4 */
+        // Send to the buffer at depth 4 
         recurse_lists_buffered(tbl,
             data_block,
             block_start,
@@ -427,33 +439,34 @@ static void recurse_lists_16(rmf_builder* const tbl,
     }
 }
 
+
 #if 0
-/* Unbuffered complete processing to max_depth.
- * This may be faster on CPUs without a large memory cache.
- */
-static void recurse_lists_unbuf_16(rmf_builder* const tbl,
-    const uint8_t* const data_block,
-    size_t const block_start,
-    size_t link,
-    uint32_t count,
-    uint32_t const max_depth)
+// Unbuffered complete processing to max_depth.
+// This may be faster on CPUs without a large memory cache.
+static void
+recurse_lists_unbuf_16(rmf_builder* const tbl,
+		const uint8_t* const data_block,
+		size_t const block_start,
+		size_t link,
+		uint32_t count,
+		uint32_t const max_depth)
 {
-    /* Offset data pointer. This method is only called at depth 2 */
+    // Offset data pointer. This method is only called at depth 2 
     const uint8_t* data_src = data_block + 2;
-    /* Load radix values from the data chars */
+    // Load radix values from the data chars 
     size_t next_radix_8 = data_src[link];
     size_t next_radix_16 = next_radix_8 + ((size_t)(data_src[link + 1]) << 8);
     rmf_list_tail* tails_8 = tbl->tails_8;
     size_t reset_list[RADIX8_TABLE_SIZE];
     size_t reset_count = 0;
     size_t st_index = 0;
-    /* Last one is done separately */
+    // Last one is done separately 
     --count;
     do
     {
-        /* Pre-load the next link */
+        // Pre-load the next link 
         size_t next_link = get_raw_match_link(link);
-        /* Initialization doesn't set lengths to 2 because it's a waste of time if buffering is used */
+        // Initialization doesn't set lengths to 2 because it's a waste of time if buffering is used 
         set_match_length(link, (uint32_t)next_link, 2);
         size_t radix_8 = next_radix_8;
         size_t radix_16 = next_radix_16;
@@ -461,8 +474,8 @@ static void recurse_lists_unbuf_16(rmf_builder* const tbl,
         next_radix_16 = next_radix_8 + ((size_t)(data_src[next_link + 1]) << 8);
         uint32_t prev = tails_8[radix_8].prev_index;
         if (prev != RADIX_NULL_LINK) {
-            /* Link the previous occurrence to this one at length 3. */
-            /* This will be overwritten if a 4 is found. */
+            // Link the previous occurrence to this one at length 3. 
+            // This will be overwritten if a 4 is found. 
             set_match_link_and_length(prev, (uint32_t)link, 3);
         }
         else {
@@ -472,7 +485,7 @@ static void recurse_lists_unbuf_16(rmf_builder* const tbl,
         prev = tbl->tails_16[radix_16].prev_index;
         if (prev != RADIX_NULL_LINK) {
             ++tbl->tails_16[radix_16].list_count;
-            /* Link at length 4, overwriting the 3 */
+            // Link at length 4, overwriting the 3 
             set_match_link_and_length(prev, (uint32_t)link, 4);
         }
         else {
@@ -484,7 +497,7 @@ static void recurse_lists_unbuf_16(rmf_builder* const tbl,
         tbl->tails_16[radix_16].prev_index = (uint32_t)link;
         link = next_link;
     } while (--count > 0);
-    /* Do the last location */
+    // Do the last location 
     uint32_t prev = tails_8[next_radix_8].prev_index;
     if (prev != RADIX_NULL_LINK) {
         set_match_link_and_length(prev, (uint32_t)link, 3);
@@ -506,7 +519,7 @@ static void recurse_lists_unbuf_16(rmf_builder* const tbl,
         --st_index;
         uint32_t list_count = tbl->stack[st_index].count;
         if (list_count < 2) {
-            /* Nothing to do */
+            // Nothing to do 
             continue;
         }
         link = tbl->stack[st_index].head;
@@ -515,13 +528,13 @@ static void recurse_lists_unbuf_16(rmf_builder* const tbl,
         if (st_index > STACK_SIZE - RADIX16_TABLE_SIZE
             && st_index > STACK_SIZE - list_count)
         {
-            /* Potential stack overflow. Rare. */
+            // Potential stack overflow. Rare. 
             continue;
         }
-        /* The current depth */
+        // The current depth 
         uint32_t depth = get_match_length(link);
         if (list_count <= MAX_BRUTE_FORCE_LIST_SIZE) {
-            /* Quicker to use brute force, each string compared with all previous strings */
+            // Quicker to use brute force, each string compared with all previous strings 
             rmf_bruteForce(tbl, data_block,
                 block_start,
                 link,
@@ -533,14 +546,14 @@ static void recurse_lists_unbuf_16(rmf_builder* const tbl,
         const uint8_t* data_src = data_block + depth;
         size_t next_radix_8 = data_src[link];
         size_t next_radix_16 = next_radix_8 + ((size_t)(data_src[link + 1]) << 8);
-        /* Next depth for 1 extra char */
+        // Next depth for 1 extra char 
         ++depth;
-        /* and for 2 */
+        // and for 2 
         uint32_t depth_2 = depth + 1;
         size_t prev_st_index = st_index;
-        /* Last location is done separately */
+        // Last location is done separately 
         --list_count;
-        /* Last pass is done separately. Both of these values are always even. */
+        // Last pass is done separately. Both of these values are always even. 
         if (depth_2 < max_depth) {
             do {
                 size_t radix_8 = next_radix_8;
@@ -550,7 +563,7 @@ static void recurse_lists_unbuf_16(rmf_builder* const tbl,
                 next_radix_16 = next_radix_8 + ((size_t)(data_src[next_link + 1]) << 8);
                 size_t prev = tbl->tails_8[radix_8].prev_index;
                 if (prev != RADIX_NULL_LINK) {
-                    /* Odd numbered match length, will be overwritten if 2 chars are matched */
+                    // Odd numbered match length, will be overwritten if 2 chars are matched 
                     set_match_link_and_length(prev, (uint32_t)(link), depth);
                 }
                 else {
@@ -636,29 +649,33 @@ static void recurse_lists_unbuf_16(rmf_builder* const tbl,
 }
 #endif
 
-/* Atomically take a list from the head table */
-static ptrdiff_t next_list_atomic(rmf_match_table* const tbl)
+// Atomically take a list from the head table 
+static ptrdiff_t
+next_list_atomic(rmf_match_table* const tbl)
 {
     if (tbl->st_index < tbl->end_index) {
-        long pos = FL2_atomic_increment(tbl->st_index);
+        long pos = lzma_atomic_increment(tbl->st_index);
         if (pos < tbl->end_index)
             return pos;
     }
     return -1;
 }
 
-/* Non-atomically take a list from the head table */
-static ptrdiff_t next_list_non_atomic(rmf_match_table* const tbl)
+
+// Non-atomically take a list from the head table 
+static ptrdiff_t
+next_list_non_atomic(rmf_match_table* const tbl)
 {
     if (tbl->st_index < tbl->end_index) {
-        long pos = FL2_nonAtomic_increment(tbl->st_index);
+        long pos = lzma_nonatomic_increment(tbl->st_index);
         if (pos < tbl->end_index)
             return pos;
     }
     return -1;
 }
 
-/* Iterate the head table concurrently with other threads, and recurse each list until max_depth is reached */
+
+// Iterate the head table concurrently with other threads, and recurse each list until max_depth is reached 
 void
 #ifdef RMF_BITPACK
 rmf_bitpack_build_table
@@ -666,29 +683,29 @@ rmf_bitpack_build_table
 rmf_structured_build_table
 #endif
 (rmf_match_table* const tbl,
-	rmf_builder* const builder,
-	int const thread,
-	lzma_data_block const block)
+		rmf_builder* const builder,
+		int const thread,
+		lzma_data_block const block)
 {
     if (block.end == 0)
         return;
 
     unsigned const best = !tbl->divide_and_conquer;
-    unsigned const max_depth = MIN(tbl->depth, STRUCTURED_MAX_LENGTH) & ~1;
+    unsigned const max_depth = my_min(tbl->depth, STRUCTURED_MAX_LENGTH) & ~1;
     ptrdiff_t next_progress = (thread == 0) ? 0 : RADIX16_TABLE_SIZE;
     ptrdiff_t(*next_list_fn)(rmf_match_table* const tbl)
         = (thread >= 0) ? next_list_atomic : next_list_non_atomic;
 
     for (;;)
     {
-        /* Get the next to process */
+        // Get the next to process 
         ptrdiff_t pos = next_list_fn(tbl);
 
         if (pos < 0)
             break;
 
         while (next_progress < pos) {
-            /* initial value of next_progress ensures only thread 0 executes this */
+            // initial value of next_progress ensures only thread 0 executes this 
             tbl->progress += tbl->list_heads[tbl->stack[next_progress]].count;
             ++next_progress;
         }
@@ -700,48 +717,12 @@ rmf_structured_build_table
 
         if (best && list_head.count > builder->match_buffer_limit)
         {
-            /* Not worth buffering or too long */
+            // Not worth buffering or too long 
             recurse_lists_16(builder, block.data, block.start, list_head.head, list_head.count, max_depth);
         }
         else {
-            recurse_lists_buffered(builder, block.data, block.start, list_head.head, 2, (uint8_t)max_depth, list_head.count, 0);
+            recurse_lists_buffered(builder, block.data, block.start,
+				list_head.head, 2, (uint8_t)max_depth, list_head.count, 0);
         }
     }
-}
-
-int
-#ifdef RMF_BITPACK
-rmf_bitpack_integrity_check
-#else
-rmf_structured_integrity_check
-#endif
-(const rmf_match_table* const tbl, const uint8_t* const data, size_t pos, size_t const end, unsigned max_depth)
-{
-    max_depth &= ~1;
-    int err = 0;
-    for (pos += !pos; pos < end; ++pos) {
-        if (is_null(pos))
-            continue;
-        uint32_t const link = get_match_link(pos);
-        if (link >= pos) {
-            printf("Forward link at %X to %u\r\n", (uint32_t)pos, link);
-            err = 1;
-            continue;
-        }
-        uint32_t const length = get_match_length(pos);
-        if (pos && length < RADIX_MAX_LENGTH && link - 1 == get_match_link(pos - 1) && length + 1 == get_match_length(pos - 1))
-            continue;
-        uint32_t len_test = 0;
-        uint32_t const limit = MIN((uint32_t)(end - pos), RADIX_MAX_LENGTH);
-        for (; len_test < limit && data[link + len_test] == data[pos + len_test]; ++len_test) {
-        }
-        if (len_test < length) {
-            printf("Failed integrity check: pos %X, length %u, actual %u\r\n", (uint32_t)pos, length, len_test);
-            err = 1;
-        }
-        if (length < max_depth && len_test > length)
-            /* These occur occasionally due to splitting of chains in the buffer when long repeats are present */
-            printf("Shortened match at %X: %u of %u\r\n", (uint32_t)pos, length, len_test);
-    }
-    return err;
 }
