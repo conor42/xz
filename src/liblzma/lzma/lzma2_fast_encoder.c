@@ -299,16 +299,22 @@ enc_thread_count(lzma2_fast_coder *coder)
 static inline void
 builder_run(lzma2_fast_coder *coder, size_t i)
 {
-	coder->threads[i].state = THR_BUILD;
-	mythread_cond_signal(&coder->threads[i].cond);
+	mythread_sync(coder->threads[i].mutex)
+	{
+		coder->threads[i].state = THR_BUILD;
+		mythread_cond_signal(&coder->threads[i].cond);
+	}
 }
 
 
 static inline void
 encoder_run(lzma2_fast_coder *coder, size_t i)
 {
-	coder->threads[i].state = THR_ENC;
-	mythread_cond_signal(&coder->threads[i].cond);
+	mythread_sync(coder->threads[i].mutex)
+	{
+		coder->threads[i].state = THR_ENC;
+		mythread_cond_signal(&coder->threads[i].cond);
+	}
 }
 
 
