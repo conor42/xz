@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-/// \file       radix_bitpack.h
+/// \file       radix_bitpack.c
 /// \brief      Radix match-finder for uint32_t table
 ///
 //  Author:     Conor McCarthy
