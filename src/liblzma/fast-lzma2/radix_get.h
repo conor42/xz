@@ -74,14 +74,14 @@ rmf_structured_extend_match(const uint8_t *const data,
 }
 
 
-FORCE_INLINE_TEMPLATE rmf_match
+static force_inline_template rmf_match
 rmf_get_match(lzma_data_block block,
 		rmf_match_table* tbl,
 		unsigned max_depth,
-		int structTbl,
+		int struct_tbl,
 		size_t pos)
 {
-    if (structTbl)
+    if (struct_tbl)
     {
         uint32_t const link = get_match_link(tbl->table, pos);
 
@@ -128,14 +128,14 @@ rmf_get_match(lzma_data_block block,
 }
 
 
-FORCE_INLINE_TEMPLATE rmf_match
+static force_inline_template rmf_match
 rmf_get_next_match(lzma_data_block block,
 		rmf_match_table* tbl,
 		unsigned max_depth,
-		int structTbl,
+		int struct_tbl,
 		size_t pos)
 {
-    if (structTbl)
+    if (struct_tbl)
     {
         uint32_t const link = get_match_link(tbl->table, pos);
 

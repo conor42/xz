@@ -33,61 +33,45 @@
 
 #define LZMA_API(type) LZMA_API_EXPORT type LZMA_API_CALL
 
-/* force inlining */
-
-#if !defined(FL2_NO_INLINE)
-#if defined (__GNUC__) || defined(__cplusplus) || defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L   /* C99 */
-#  define INLINE_KEYWORD inline
-#else
-#  define INLINE_KEYWORD
-#endif
+// force inlining
 
 #if defined(__GNUC__)
-#  define FORCE_INLINE_ATTR __attribute__((always_inline))
+#  define force_inline_attr __attribute__((always_inline))
 #elif defined(_MSC_VER)
-#  define FORCE_INLINE_ATTR __forceinline
+#  define force_inline_attr __forceinline
 #else
-#  define FORCE_INLINE_ATTR
+#  define force_inline_attr
 #endif
 
-#else
 
-#define INLINE_KEYWORD
-#define FORCE_INLINE_ATTR
+// force_inline_template is used to define C "templates", which take constant
+// parameters. They must be inlined for the compiler to eliminate the constant
+// branches.
+#define force_inline_template inline force_inline_attr
 
-#endif
-
-/**
- * FORCE_INLINE_TEMPLATE is used to define C "templates", which take constant
- * parameters. They must be inlined for the compiler to eliminate the constant
- * branches.
- */
-#define FORCE_INLINE_TEMPLATE static INLINE_KEYWORD FORCE_INLINE_ATTR
- /**
-  * HINT_INLINE is used to help the compiler generate better code. It is *not*
-  * used for "templates", so it can be tweaked based on the compilers
-  * performance.
-  *
-  * gcc-4.8 and gcc-4.9 have been shown to benefit from leaving off the
-  * always_inline attribute.
-  *
-  * clang up to 5.0.0 (trunk) benefit tremendously from the always_inline
-  * attribute.
-  */
+// hint_inline is used to help the compiler generate better code. It is//not*
+// used for "templates", so it can be tweaked based on the compilers
+// performance.
+//
+// gcc-4.8 and gcc-4.9 have been shown to benefit from leaving off the
+// always_inline attribute.
+//
+// clang up to 5.0.0 (trunk) benefit tremendously from the always_inline
+// attribute.
 #if !defined(__clang__) && defined(__GNUC__) && __GNUC__ >= 4 && __GNUC_MINOR__ >= 8 && __GNUC__ < 5
-#  define HINT_INLINE static INLINE_KEYWORD
+#  define hint_inline inline
 #else
-#  define HINT_INLINE static INLINE_KEYWORD FORCE_INLINE_ATTR
+#  define hint_inline inline force_inline_attr
 #endif
 
-  /* force no inlining */
+// Force no inlining
 #ifdef _MSC_VER
-#  define FORCE_NOINLINE __declspec(noinline)
+#  define force_noinline __declspec(noinline)
 #else
 #  ifdef __GNUC__
-#    define FORCE_NOINLINE __attribute__((__noinline__))
+#    define force_noinline __attribute__((__noinline__))
 #  else
-#    define FORCE_NOINLINE
+#    define force_noinline
 #  endif
 #endif
 

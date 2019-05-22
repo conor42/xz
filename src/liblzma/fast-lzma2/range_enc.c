@@ -93,7 +93,7 @@ rcf_reset(lzma_range_fast_enc* const rc)
 
 #if defined(__x86_64__) || defined(_M_X64) || SIZEOF_SIZE_T >= 8
 
-void FORCE_NOINLINE
+void force_noinline
 rcf_shift_low(lzma_range_fast_enc* const rc)
 {
     uint64_t low = rc->low;
@@ -117,7 +117,7 @@ rcf_shift_low(lzma_range_fast_enc* const rc)
 
 #else
 
-void FORCE_NOINLINE
+void force_noinline
 rcf_shift_low(lzma_range_fast_enc* const rc)
 {
     uint32_t low = (uint32_t)rc->low;
@@ -174,7 +174,7 @@ rcf_bittree_reverse(lzma_range_fast_enc* const rc, probability *const probs, uns
 }
 
 
-void FORCE_NOINLINE
+void force_noinline
 rcf_direct(lzma_range_fast_enc* const rc, unsigned value, unsigned bit_count)
 {
 	assert(bit_count > 0);

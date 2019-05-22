@@ -287,7 +287,7 @@ brute_force_buffered(rmf_builder* const tbl,
 
 // Lengthen and divide buffered chains into smaller chains, save them on a stack and process in turn. 
 // The match finder spends most of its time here.
-FORCE_INLINE_TEMPLATE void
+static force_inline_template void
 recurse_list_chunk_generic(rmf_builder* const tbl,
 		const uint8_t* const data_block,
 		size_t const block_start,
