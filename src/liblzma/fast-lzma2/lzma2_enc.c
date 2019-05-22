@@ -23,7 +23,7 @@
 #include "radix_get.h"
 #include "range_enc.h"
 #include "fastpos.h"
-
+#include "memcmplen.h"
 
 #define CHUNK_UNCOMPRESSED_MAX (1UL << 21U)
 
@@ -103,12 +103,12 @@ lzma2_rmf_enc_free(lzma2_rmf_encoder *const enc)
 }
 
 
-HINT_INLINE unsigned
+static hint_inline unsigned
 lzma_rep_1_price(lzma2_rmf_encoder* const enc, size_t const state, size_t const pos_state)
 {
     unsigned const rep_G0_prob = enc->states.is_rep_G0[state];
     unsigned const rep0_long_prob = enc->states.is_rep0_long[state][pos_state];
-    return GET_PRICE_0(rep_G0_prob) + GET_PRICE_0(rep0_long_prob);
+    return rc_bit_0_price(rep_G0_prob) + rc_bit_0_price(rep0_long_prob);
 }
 
 
@@ -119,19 +119,19 @@ lzma_rep_price(lzma2_rmf_encoder* const enc, size_t const rep_index, size_t cons
     unsigned const rep_G0_prob = enc->states.is_rep_G0[state];
     if (rep_index == 0) {
         unsigned const rep0_long_prob = enc->states.is_rep0_long[state][pos_state];
-        price = GET_PRICE_0(rep_G0_prob);
-        price += GET_PRICE_1(rep0_long_prob);
+        price = rc_bit_0_price(rep_G0_prob);
+        price += rc_bit_1_price(rep0_long_prob);
     }
     else {
         unsigned const rep_G1_prob = enc->states.is_rep_G1[state];
-        price = GET_PRICE_1(rep_G0_prob);
+        price = rc_bit_1_price(rep_G0_prob);
         if (rep_index == 1) {
-            price += GET_PRICE_0(rep_G1_prob);
+            price += rc_bit_0_price(rep_G1_prob);
         }
         else {
             unsigned const rep_G2_prob = enc->states.is_rep_G2[state];
-            price += GET_PRICE_1(rep_G1_prob);
-            price += GET_PRICE(rep_G2_prob, rep_index - 2);
+            price += rc_bit_1_price(rep_G1_prob);
+            price += rc_bit_price(rep_G2_prob, rep_index - 2);
         }
     }
     return price;
@@ -144,8 +144,8 @@ lzma_rep0_price(lzma2_rmf_encoder *const enc, size_t const len, size_t const sta
     unsigned const rep_G0_prob = enc->states.is_rep_G0[state];
     unsigned const rep0_long_prob = enc->states.is_rep0_long[state][pos_state];
     return enc->states.rep_len_states.prices[pos_state][len - MATCH_LEN_MIN]
-        + GET_PRICE_0(rep_G0_prob)
-        + GET_PRICE_1(rep0_long_prob);
+        + rc_bit_0_price(rep_G0_prob)
+        + rc_bit_1_price(rep0_long_prob);
 }
 
 
@@ -157,7 +157,7 @@ lzma_literal_matched_price(const probability *const prob_table, uint32_t symbol,
     symbol |= 0x100;
     do {
         match_byte <<= 1;
-        price += GET_PRICE(prob_table[offs + (match_byte & offs) + (symbol >> 8)], (symbol >> 7) & 1);
+        price += rc_bit_price(prob_table[offs + (match_byte & offs) + (symbol >> 8)], (symbol >> 7) & 1);
         symbol <<= 1;
         offs &= ~(match_byte ^ symbol);
     } while (symbol < 0x10000);
@@ -165,7 +165,7 @@ lzma_literal_matched_price(const probability *const prob_table, uint32_t symbol,
 }
 
 
-HINT_INLINE void
+static hint_inline void
 lzma_encode_literal(lzma2_rmf_encoder *const enc, size_t const pos, uint32_t symbol, unsigned const prev_symbol)
 {
     rcf_bit_0(&enc->rc, &enc->states.is_match[enc->states.state][pos & enc->pos_mask]);
@@ -180,8 +180,9 @@ lzma_encode_literal(lzma2_rmf_encoder *const enc, size_t const pos, uint32_t sym
 }
 
 
-HINT_INLINE void
-lzma_encode_literal_matched(lzma2_rmf_encoder *const enc, const uint8_t* const data_block, size_t const pos, uint32_t symbol)
+static hint_inline void
+lzma_encode_literal_matched(lzma2_rmf_encoder *const enc, const uint8_t* const data_block,
+		size_t const pos, uint32_t symbol)
 {
     rcf_bit_0(&enc->rc, &enc->states.is_match[enc->states.state][pos & enc->pos_mask]);
     enc->states.state = literal_next_state(enc->states.state);
@@ -200,7 +201,7 @@ lzma_encode_literal_matched(lzma2_rmf_encoder *const enc, const uint8_t* const d
 }
 
 
-HINT_INLINE void
+static hint_inline void
 lzma_encode_literal_buf(lzma2_rmf_encoder *const enc, const uint8_t* const data_block, size_t const pos)
 {
     uint32_t const symbol = data_block[pos];
@@ -219,15 +220,15 @@ lzma_len_set_prices(const probability *probs, uint32_t start_price, unsigned *pr
 {
     for (size_t i = 0; i < 8; i += 2) {
         uint32_t prob = probs[4 + (i >> 1)];
-        uint32_t price = start_price + GET_PRICE(probs[1], (i >> 2))
-            + GET_PRICE(probs[2 + (i >> 2)], (i >> 1) & 1);
-        prices[i] = price + GET_PRICE_0(prob);
-        prices[i + 1] = price + GET_PRICE_1(prob);
+        uint32_t price = start_price + rc_bit_price(probs[1], (i >> 2))
+            + rc_bit_price(probs[2 + (i >> 2)], (i >> 1) & 1);
+        prices[i] = price + rc_bit_0_price(prob);
+        prices[i + 1] = price + rc_bit_1_price(prob);
     }
 }
 
 
-FORCE_NOINLINE static void
+static force_noinline void
 lzma_len_update_prices(lzma2_rmf_encoder *const enc, lzma2_len_states* const ls)
 {
     uint32_t b;
@@ -235,9 +236,9 @@ lzma_len_update_prices(lzma2_rmf_encoder *const enc, lzma2_len_states* const ls)
     {
         unsigned const prob = ls->choice;
         uint32_t a, c;
-        b = GET_PRICE_1(prob);
-        a = GET_PRICE_0(prob);
-        c = b + GET_PRICE_0(ls->low[0]);
+        b = rc_bit_1_price(prob);
+        a = rc_bit_0_price(prob);
+        c = b + rc_bit_0_price(ls->low[0]);
         for (size_t pos_state = 0; pos_state <= enc->pos_mask; pos_state++) {
             unsigned *const prices = ls->prices[pos_state];
             const probability *const probs = ls->low + (pos_state << (1 + LEN_LOW_BITS));
@@ -252,7 +253,7 @@ lzma_len_update_prices(lzma2_rmf_encoder *const enc, lzma2_len_states* const ls)
         const probability *const probs = ls->high;
         unsigned *const prices = ls->prices[0] + LEN_LOW_SYMBOLS * 2;
         i = (i - (LEN_LOW_SYMBOLS * 2 - 1)) >> 1;
-        b += GET_PRICE_1(ls->low[0]);
+        b += rc_bit_1_price(ls->low[0]);
         do {
             --i;
             size_t sym = i + (1 << (LEN_HIGH_BITS - 1));
@@ -260,12 +261,12 @@ lzma_len_update_prices(lzma2_rmf_encoder *const enc, lzma2_len_states* const ls)
             do {
                 size_t bit = sym & 1;
                 sym >>= 1;
-                price += GET_PRICE(probs[sym], bit);
+                price += rc_bit_price(probs[sym], bit);
             } while (sym >= 2);
 
             unsigned const prob = probs[i + (1 << (LEN_HIGH_BITS - 1))];
-            prices[i * 2] = price + GET_PRICE_0(prob);
-            prices[i * 2 + 1] = price + GET_PRICE_1(prob);
+            prices[i * 2] = price + rc_bit_0_price(prob);
+            prices[i * 2 + 1] = price + rc_bit_1_price(prob);
         } while (i);
 
         size_t const size = (ls->table_size - LEN_LOW_SYMBOLS * 2) * sizeof(ls->prices[0][0]);
@@ -276,13 +277,15 @@ lzma_len_update_prices(lzma2_rmf_encoder *const enc, lzma2_len_states* const ls)
 
 
 // Rare enough that not inlining is faster overall.
-FORCE_NOINLINE static void
-lzma_len_encode_mid_high(lzma2_rmf_encoder *const enc, lzma2_len_states* const len_prob_table, unsigned const len, size_t const pos_state)
+static force_noinline void
+lzma_len_encode_mid_high(lzma2_rmf_encoder *const enc, lzma2_len_states* const len_prob_table,
+		unsigned const len, size_t const pos_state)
 {
     rcf_bit_1(&enc->rc, &len_prob_table->choice);
     if (len < LEN_LOW_SYMBOLS * 2) {
         rcf_bit_0(&enc->rc, &len_prob_table->low[0]);
-        rcf_bittree(&enc->rc, len_prob_table->low + LEN_LOW_SYMBOLS + (pos_state << (1 + LEN_LOW_BITS)), LEN_LOW_BITS, len - LEN_LOW_SYMBOLS);
+        rcf_bittree(&enc->rc, len_prob_table->low + LEN_LOW_SYMBOLS + (pos_state << (1 + LEN_LOW_BITS)),
+			LEN_LOW_BITS, len - LEN_LOW_SYMBOLS);
     }
     else {
         rcf_bit_1(&enc->rc, &len_prob_table->low[0]);
@@ -291,8 +294,9 @@ lzma_len_encode_mid_high(lzma2_rmf_encoder *const enc, lzma2_len_states* const l
 }
 
 
-HINT_INLINE void
-lzma_len_encode(lzma2_rmf_encoder *const enc, lzma2_len_states* const len_prob_table, unsigned len, size_t const pos_state)
+static hint_inline void
+lzma_len_encode(lzma2_rmf_encoder *const enc, lzma2_len_states* const len_prob_table,
+		unsigned len, size_t const pos_state)
 {
     len -= MATCH_LEN_MIN;
     if (len < LEN_LOW_SYMBOLS) {
@@ -305,7 +309,7 @@ lzma_len_encode(lzma2_rmf_encoder *const enc, lzma2_len_states* const len_prob_t
 }
 
 
-FORCE_NOINLINE static void
+static force_noinline void
 lzma_encode_rep_short(lzma2_rmf_encoder *const enc, size_t const pos_state)
 {
     rcf_bit_1(&enc->rc, &enc->states.is_match[enc->states.state][pos_state]);
@@ -316,7 +320,7 @@ lzma_encode_rep_short(lzma2_rmf_encoder *const enc, size_t const pos_state)
 }
 
 
-FORCE_NOINLINE static void
+static force_noinline void
 lzma_encode_rep_long(lzma2_rmf_encoder *const enc, unsigned const len, unsigned const rep, size_t const pos_state)
 {
     rcf_bit_1(&enc->rc, &enc->states.is_match[enc->states.state][pos_state]);
@@ -347,7 +351,7 @@ lzma_encode_rep_long(lzma2_rmf_encoder *const enc, unsigned const len, unsigned 
 }
 
 
-HINT_INLINE void
+static hint_inline void
 lzma_encode_normal_match(lzma2_rmf_encoder *const enc, unsigned const len, uint32_t const dist, size_t const pos_state)
 {
     rcf_bit_1(&enc->rc, &enc->states.is_match[enc->states.state][pos_state]);
@@ -379,18 +383,7 @@ lzma_encode_normal_match(lzma2_rmf_encoder *const enc, unsigned const len, uint3
 }
 
 
-static inline size_t
-lzma_count(const uint8_t* cur, const uint8_t* match, const uint8_t* const end)
-{
-	size_t count = 0;
-	size_t limit = end - cur;
-	while (count < limit && cur[count] == match[count])
-		++count;
-	return count;
-}
-
-
-FORCE_INLINE_TEMPLATE size_t
+static force_inline_template size_t
 lzma_encode_chunk_fast(lzma2_rmf_encoder *const enc,
     lzma_data_block const block,
     rmf_match_table* const tbl,
@@ -430,7 +423,7 @@ lzma_encode_chunk_fast(lzma2_rmf_encoder *const enc,
             if (not_equal_16(data, data_2))
                 continue;
 
-            rep_match.length = (uint32_t)(lzma_count(data + 2, data_2 + 2, data + max_len) + 2);
+            rep_match.length = (uint32_t)lzma_memcmplen(data, data_2, 2, max_len);
             if (rep_match.length >= max_len) {
                 best_match = rep_match;
                 goto _encode;
@@ -472,7 +465,7 @@ lzma_encode_chunk_fast(lzma2_rmf_encoder *const enc,
                     if (not_equal_16(data, data_2))
                         continue;
 
-                    rep_match.length = (uint32_t)(lzma_count(data + 2, data_2 + 2, data + max_len) + 2);
+                    rep_match.length = (uint32_t)lzma_memcmplen(data, data_2, 2, max_len);
                     if (rep_match.length > best_rep.length)
                         best_rep = rep_match;
                 }
@@ -513,7 +506,7 @@ lzma_encode_chunk_fast(lzma2_rmf_encoder *const enc,
                 if (not_equal_16(data, data_2))
                     continue;
 
-                rep_match.length = (uint32_t)(lzma_count(data + 2, data_2 + 2, data + max_len) + 2);
+                rep_match.length = (uint32_t)lzma_memcmplen(data, data_2, 2, max_len);
                 if (rep_match.length > best_rep.length)
                     best_rep = rep_match;
             }
@@ -580,7 +573,7 @@ _encode:
 
 
 // Reverse the direction of the linked list generated by the optimal parser
-FORCE_NOINLINE static void
+static force_noinline void
 lzma_reverse_optimal_chain(lzma2_node* const opt_buf, size_t cur)
 {
     unsigned len = (unsigned)opt_buf[cur].len;
@@ -624,14 +617,15 @@ lzma_reverse_optimal_chain(lzma2_node* const opt_buf, size_t cur)
 
 
 static unsigned
-lzma_literal_price(lzma2_rmf_encoder *const enc, size_t const pos, size_t const state, unsigned const prev_symbol, uint32_t symbol, unsigned const match_byte)
+lzma_literal_price(lzma2_rmf_encoder *const enc, size_t const pos, size_t const state,
+		unsigned const prev_symbol, uint32_t symbol, unsigned const match_byte)
 {
     const probability* const prob_table = literal_prob_tbl(enc, pos, prev_symbol);
     if (is_lit_state(state)) {
         unsigned price = 0;
         symbol |= 0x100;
         do {
-            price += GET_PRICE(prob_table[symbol >> 8], (symbol >> 7) & 1);
+            price += rc_bit_price(prob_table[symbol >> 8], (symbol >> 7) & 1);
             symbol <<= 1;
         } while (symbol < 0x10000);
         return price;
@@ -694,7 +688,7 @@ lzma2_rmf_hash_alloc(lzma2_rmf_encoder *const enc, const lzma_options_lzma* cons
 
 // Find matches nearer than the match from the RMF. If none is at least as long as
 // the RMF match (most likely), insert that match at the end of the list.
-HINT_INLINE size_t
+static hint_inline size_t
 lzma_hash_match(lzma2_rmf_encoder *const enc, lzma_data_block const block,
     ptrdiff_t const pos,
     size_t const length_limit,
@@ -730,7 +724,7 @@ lzma_hash_match(lzma2_rmf_encoder *const enc, lzma_data_block const block,
             do {
                 --cycles;
                 const uint8_t* data_2 = block.data + match_3;
-                size_t len_test = lzma_count(data + 1, data_2 + 1, data + length_limit) + 1;
+                size_t len_test = lzma_memcmplen(data, data_2, 1, length_limit);
                 if (len_test > max_len) {
                     enc->matches[enc->match_count].length = (uint32_t)len_test;
                     enc->matches[enc->match_count].dist = (uint32_t)(pos - match_3 - 1);
@@ -764,7 +758,7 @@ lzma_hash_match(lzma2_rmf_encoder *const enc, lzma_data_block const block,
 // sequences literal+rep0, rep+lit+rep0 and match+lit+rep0.
 // If is_hybrid != 0, this method works in hybrid mode, using the
 // hash chain to find shorter matches at near distances.
-FORCE_INLINE_TEMPLATE size_t
+static force_inline_template size_t
 lzma_optimal_parse(lzma2_rmf_encoder* const enc, lzma_data_block const block,
     rmf_match match,
     size_t const pos,
@@ -836,7 +830,7 @@ lzma_optimal_parse(lzma2_rmf_encoder* const enc, lzma_data_block const block,
         unsigned const cur_byte = *data;
         unsigned const match_byte = *(data - reps[0] - 1);
        
-        uint32_t cur_and_lit_price = cur_price + GET_PRICE_0(is_match_prob);
+        uint32_t cur_and_lit_price = cur_price + rc_bit_0_price(is_match_prob);
         // This is a compromise to try to filter out cases where literal + rep0 is unlikely to be cheaper 
         uint8_t try_lit = cur_and_lit_price + MIN_LITERAL_PRICE / 2U <= next_price;
         if (try_lit) {
@@ -851,8 +845,8 @@ lzma_optimal_parse(lzma2_rmf_encoder* const enc, lzma_data_block const block,
                     try_lit = 0;
             }
         }
-        match_price = cur_price + GET_PRICE_1(is_match_prob);
-        rep_match_price = match_price + GET_PRICE_1(is_rep_prob);
+        match_price = cur_price + rc_bit_1_price(is_match_prob);
+        rep_match_price = match_price + rc_bit_1_price(is_rep_prob);
         if (match_byte == cur_byte) {
             // Try 1-byte rep0 
             uint32_t short_rep_price = rep_match_price + lzma_rep_1_price(enc, state, pos_state);
@@ -869,15 +863,15 @@ lzma_optimal_parse(lzma2_rmf_encoder* const enc, lzma_data_block const block,
         // If match_byte == cur_byte a rep0 begins at the current position 
         if (is_hybrid && try_lit && match_byte != cur_byte) {
             // Try literal + rep0 
-            const uint8_t *const data_2 = data - reps[0];
-            size_t limit = my_min(bytes_avail - 1, fast_length);
-            size_t len_test_2 = lzma_count(data + 1, data_2, data + 1 + limit);
+			const uint8_t *const data_2 = data - reps[0];
+			size_t limit = my_min(bytes_avail - 1, fast_length);
+			size_t len_test_2 = lzma_memcmplen(data + 1, data_2, 0, limit);
             if (len_test_2 >= 2) {
                 size_t const state_2 = literal_next_state(state);
                 size_t const pos_state_next = (pos + 1) & pos_mask;
                 uint32_t const next_rep_match_price = cur_and_lit_price +
-                    GET_PRICE_1(enc->states.is_match[state_2][pos_state_next]) +
-                    GET_PRICE_1(enc->states.is_rep[state_2]);
+                    rc_bit_1_price(enc->states.is_match[state_2][pos_state_next]) +
+                    rc_bit_1_price(enc->states.is_rep[state_2]);
                 uint32_t const cur_and_len_price = next_rep_match_price + lzma_rep0_price(enc, len_test_2, state_2, pos_state_next);
                 size_t const offset = cur + 1 + len_test_2;
                 if (cur_and_len_price < enc->opt_buf[offset].price) {
@@ -904,7 +898,7 @@ lzma_optimal_parse(lzma2_rmf_encoder* const enc, lzma_data_block const block,
                 continue;
             // Test is limited to fast_length, but it is rare for the RMF to miss the longest match,
             // therefore this function is rarely called when a rep len > fast_length exists.
-            len_test = lzma_count(data + 2, data_2 + 2, data + max_length) + 2;
+            len_test = lzma_memcmplen(data, data_2, 2, max_length);
             len_end = my_max(len_end, cur + len_test);
             cur_rep_price = rep_match_price + lzma_rep_price(enc, rep_index, state, pos_state);
             len = 2;
@@ -929,22 +923,21 @@ lzma_optimal_parse(lzma2_rmf_encoder* const enc, lzma_data_block const block,
                 // Try rep + literal + rep0.
                 // The second rep may be > fast_length, but it is not worth the extra time to handle this case
                 // and the price table is not filled for it
-                size_t const len_test_2 = lzma_count(data + len_test + 3,
-                    data_2 + len_test + 3,
-                    data + my_min(len_test + 1 + fast_length, bytes_avail)) + 2;
-                size_t state_2 = rep_next_state(state);
+				size_t const len_test_2 = lzma_memcmplen(data + len_test + 1, data_2 + len_test + 1,
+					2, my_min(fast_length, bytes_avail - len_test - 1));
+				size_t state_2 = rep_next_state(state);
                 size_t pos_state_next = (pos + len_test) & pos_mask;
                 uint32_t rep_lit_rep_total_price =
                     cur_rep_price + enc->states.rep_len_states.prices[pos_state][len_test - MATCH_LEN_MIN]
-                    + GET_PRICE_0(enc->states.is_match[state_2][pos_state_next])
+                    + rc_bit_0_price(enc->states.is_match[state_2][pos_state_next])
                     + lzma_literal_matched_price(literal_prob_tbl(enc, pos + len_test, data[len_test - 1]),
                         data[len_test], data_2[len_test]);
 
                 state_2 = STATE_LIT_AFTER_REP;
                 pos_state_next = (pos + len_test + 1) & pos_mask;
                 rep_lit_rep_total_price +=
-                    GET_PRICE_1(enc->states.is_match[state_2][pos_state_next]) +
-                    GET_PRICE_1(enc->states.is_rep[state_2]);
+                    rc_bit_1_price(enc->states.is_match[state_2][pos_state_next]) +
+                    rc_bit_1_price(enc->states.is_rep[state_2]);
                 size_t const offset = cur + len_test + 1 + len_test_2;
                 rep_lit_rep_total_price += lzma_rep0_price(enc, len_test_2, state_2, pos_state_next);
                 if (rep_lit_rep_total_price < enc->opt_buf[offset].price) {
@@ -959,7 +952,7 @@ lzma_optimal_parse(lzma2_rmf_encoder* const enc, lzma_data_block const block,
     }
     if (match.length >= start_len && max_length >= start_len) {
         // Try normal match 
-        uint32_t const normal_match_price = match_price + GET_PRICE_0(is_rep_prob);
+        uint32_t const normal_match_price = match_price + rc_bit_0_price(is_rep_prob);
         if (!is_hybrid) {
             // Normal mode - single match 
             size_t const length = my_min(match.length, max_length);
@@ -1041,20 +1034,20 @@ lzma_optimal_parse(lzma2_rmf_encoder* const enc, lzma_data_block const block,
 
                     if (!sub_len && rep_0_pos + 2 <= bytes_avail && !not_equal_16(data + rep_0_pos, data_2 + rep_0_pos)) {
                         // Try match + literal + rep0 
-                        size_t const limit = my_min(rep_0_pos + fast_length, bytes_avail);
-                        size_t const len_test_2 = lzma_count(data + rep_0_pos + 2, data_2 + rep_0_pos + 2, data + limit) + 2;
+                        size_t const limit = my_min(fast_length, bytes_avail - rep_0_pos);
+                        size_t const len_test_2 = lzma_memcmplen(data + rep_0_pos, data_2 + rep_0_pos, 2, limit);
                         size_t state_2 = match_next_state(state);
                         size_t pos_state_next = (pos + len_test) & pos_mask;
                         uint32_t match_lit_rep_total_price = cur_and_len_price +
-                            GET_PRICE_0(enc->states.is_match[state_2][pos_state_next]) +
+                            rc_bit_0_price(enc->states.is_match[state_2][pos_state_next]) +
                             lzma_literal_matched_price(literal_prob_tbl(enc, pos + len_test, data[len_test - 1]),
                                 data[len_test], data_2[len_test]);
 
                         state_2 = STATE_LIT_AFTER_MATCH;
                         pos_state_next = (pos_state_next + 1) & pos_mask;
                         match_lit_rep_total_price +=
-                            GET_PRICE_1(enc->states.is_match[state_2][pos_state_next]) +
-                            GET_PRICE_1(enc->states.is_rep[state_2]);
+                            rc_bit_1_price(enc->states.is_match[state_2][pos_state_next]) +
+                            rc_bit_1_price(enc->states.is_rep[state_2]);
                         size_t const offset = cur + rep_0_pos + len_test_2;
                         match_lit_rep_total_price += lzma_rep0_price(enc, len_test_2, state_2, pos_state_next);
                         if (match_lit_rep_total_price < enc->opt_buf[offset].price) {
@@ -1073,7 +1066,7 @@ lzma_optimal_parse(lzma2_rmf_encoder* const enc, lzma_data_block const block,
 }
 
 
-FORCE_NOINLINE static void
+static force_noinline void
 lzma_init_matches_pos0(lzma2_rmf_encoder *const enc,
     rmf_match const match,
     size_t const pos_state,
@@ -1105,7 +1098,7 @@ lzma_init_matches_pos0(lzma2_rmf_encoder *const enc,
 }
 
 
-FORCE_NOINLINE static size_t
+static force_noinline size_t
 lzma_init_matches_pos0_best(lzma2_rmf_encoder *const enc, lzma_data_block const block,
     rmf_match const match,
     size_t const pos,
@@ -1167,7 +1160,7 @@ lzma_init_matches_pos0_best(lzma2_rmf_encoder *const enc, lzma_data_block const 
 // The prices at this point are all initialized to RC_INFINITY_PRICE.
 // This function must not be called at a position where no match is
 // available.
-FORCE_INLINE_TEMPLATE size_t
+static force_inline_template size_t
 lzma_init_optimizer_pos0(lzma2_rmf_encoder *const enc, lzma_data_block const block,
     rmf_match const match,
     size_t const pos,
@@ -1188,7 +1181,7 @@ lzma_init_optimizer_pos0(lzma2_rmf_encoder *const enc, lzma_data_block const blo
             rep_lens[i] = 0;
             continue;
         }
-        rep_lens[i] = lzma_count(data + 2, data_2 + 2, data + max_length) + 2;
+        rep_lens[i] = lzma_memcmplen(data, data_2, 2, max_length);
         if (rep_lens[i] > rep_lens[rep_max_index])
             rep_max_index = i;
     }
@@ -1212,12 +1205,12 @@ lzma_init_optimizer_pos0(lzma2_rmf_encoder *const enc, lzma_data_block const blo
 
     enc->opt_buf[0].state = state;
     // Set the price for literal 
-    enc->opt_buf[1].price = GET_PRICE_0(is_match_prob) +
+    enc->opt_buf[1].price = rc_bit_0_price(is_match_prob) +
         lzma_literal_price(enc, pos, state, data[-1], cur_byte, match_byte);
     mark_literal(enc->opt_buf[1]);
 
-    unsigned const match_price = GET_PRICE_1(is_match_prob);
-    unsigned const rep_match_price = match_price + GET_PRICE_1(is_rep_prob);
+    unsigned const match_price = rc_bit_1_price(is_match_prob);
+    unsigned const rep_match_price = match_price + rc_bit_1_price(is_rep_prob);
     if (match_byte == cur_byte) {
         // Try 1-byte rep0 
         unsigned const short_rep_price = rep_match_price + lzma_rep_1_price(enc, state, pos_state);
@@ -1246,7 +1239,7 @@ lzma_init_optimizer_pos0(lzma2_rmf_encoder *const enc, lzma_data_block const blo
             }
         } while (--rep_len >= MATCH_LEN_MIN);
     }
-    unsigned const normal_match_price = match_price + GET_PRICE_0(is_rep_prob);
+    unsigned const normal_match_price = match_price + rc_bit_0_price(is_rep_prob);
     size_t const len = (rep_lens[0] >= 2) ? rep_lens[0] + 1 : 2;
     // Test the match prices 
     if (!is_hybrid) {
@@ -1262,7 +1255,7 @@ lzma_init_optimizer_pos0(lzma2_rmf_encoder *const enc, lzma_data_block const blo
 }
 
 
-FORCE_INLINE_TEMPLATE size_t
+static force_inline_template size_t
 lzma_encode_opt_sequence(lzma2_rmf_encoder *const enc, lzma_data_block const block,
     rmf_match_table* const tbl,
     int const struct_tbl,
@@ -1377,7 +1370,7 @@ reverse:
 }
 
 
-static void FORCE_NOINLINE
+static void force_noinline
 lzma_fill_align_prices(lzma2_rmf_encoder *const enc)
 {
     unsigned i;
@@ -1387,17 +1380,17 @@ lzma_fill_align_prices(lzma2_rmf_encoder *const enc)
         unsigned sym = i;
         unsigned m = 1;
         unsigned bit;
-        bit = sym & 1; sym >>= 1; price += GET_PRICE(probs[m], bit); m = (m << 1) + bit;
-        bit = sym & 1; sym >>= 1; price += GET_PRICE(probs[m], bit); m = (m << 1) + bit;
-        bit = sym & 1; sym >>= 1; price += GET_PRICE(probs[m], bit); m = (m << 1) + bit;
+        bit = sym & 1; sym >>= 1; price += rc_bit_price(probs[m], bit); m = (m << 1) + bit;
+        bit = sym & 1; sym >>= 1; price += rc_bit_price(probs[m], bit); m = (m << 1) + bit;
+        bit = sym & 1; sym >>= 1; price += rc_bit_price(probs[m], bit); m = (m << 1) + bit;
         uint32_t const prob = probs[m];
-        enc->align_prices[i] = price + GET_PRICE_0(prob);
-        enc->align_prices[i + 8] = price + GET_PRICE_1(prob);
+        enc->align_prices[i] = price + rc_bit_0_price(prob);
+        enc->align_prices[i + 8] = price + rc_bit_1_price(prob);
     }
 }
 
 
-static void FORCE_NOINLINE
+static void force_noinline
 lzma_fill_dist_prices(lzma2_rmf_encoder *const enc)
 {
     uint32_t * const temp_prices = enc->distance_prices[DIST_STATES - 1];
@@ -1419,13 +1412,13 @@ lzma_fill_dist_prices(lzma2_rmf_encoder *const enc)
         for (; footer_bits != 0; --footer_bits) {
             unsigned bit = sym & 1;
             sym >>= 1;
-            price += GET_PRICE(probs[m], bit);
+            price += rc_bit_price(probs[m], bit);
             m = (m << 1) + bit;
         };
 
         unsigned const prob = probs[m];
-        temp_prices[base] = price + GET_PRICE_0(prob);
-        temp_prices[base + offset] = price + GET_PRICE_1(prob);
+        temp_prices[base] = price + rc_bit_0_price(prob);
+        temp_prices[base + offset] = price + rc_bit_1_price(prob);
     }
 
     for (unsigned lps = 0; lps < DIST_STATES; lps++) {
@@ -1439,14 +1432,14 @@ lzma_fill_dist_prices(lzma2_rmf_encoder *const enc)
             uint32_t price;
             unsigned bit;
             unsigned sym = (unsigned)slot + (1 << (DIST_SLOT_BITS - 1));
-            bit = sym & 1; sym >>= 1; price = GET_PRICE(probs[sym], bit);
-            bit = sym & 1; sym >>= 1; price += GET_PRICE(probs[sym], bit);
-            bit = sym & 1; sym >>= 1; price += GET_PRICE(probs[sym], bit);
-            bit = sym & 1; sym >>= 1; price += GET_PRICE(probs[sym], bit);
-            bit = sym & 1; sym >>= 1; price += GET_PRICE(probs[sym], bit);
+            bit = sym & 1; sym >>= 1; price = rc_bit_price(probs[sym], bit);
+            bit = sym & 1; sym >>= 1; price += rc_bit_price(probs[sym], bit);
+            bit = sym & 1; sym >>= 1; price += rc_bit_price(probs[sym], bit);
+            bit = sym & 1; sym >>= 1; price += rc_bit_price(probs[sym], bit);
+            bit = sym & 1; sym >>= 1; price += rc_bit_price(probs[sym], bit);
             unsigned const prob = probs[slot + (1 << (DIST_SLOT_BITS - 1))];
-            dist_slot_prices[slot * 2] = price + GET_PRICE_0(prob);
-            dist_slot_prices[slot * 2 + 1] = price + GET_PRICE_1(prob);
+            dist_slot_prices[slot * 2] = price + rc_bit_0_price(prob);
+            dist_slot_prices[slot * 2 + 1] = price + rc_bit_1_price(prob);
         }
 
         {
@@ -1476,7 +1469,7 @@ lzma_fill_dist_prices(lzma2_rmf_encoder *const enc)
 }
 
 
-FORCE_INLINE_TEMPLATE size_t
+static force_inline_template size_t
 lzma_encode_chunk_best(lzma2_rmf_encoder *const enc,
     lzma_data_block const block,
     rmf_match_table* const tbl,
@@ -1874,7 +1867,8 @@ lzma2_rmf_encode(lzma2_rmf_encoder *const enc,
 				encode_properties = 0;
             }
         }
-        if (incompressible || uncompressed_size + 3 <= compressed_size + (compressed_size >> RANDOM_FILTER_MARGIN_BITS) + header_size) {
+        if (incompressible || uncompressed_size + 3 <= compressed_size
+				+ (compressed_size >> RANDOM_FILTER_MARGIN_BITS) + header_size) {
             // Test the next chunk for compressibility 
             incompressible = lzma2_is_chunk_incompressible(tbl, block, next_index, enc->strategy - 1);
         }
