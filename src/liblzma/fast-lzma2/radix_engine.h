@@ -271,7 +271,7 @@ recurse_lists_buffered(rmf_builder* const tbl,
 
 // Compare each string with all others to find the best match 
 static void
-rmf_bruteForce(rmf_builder* const tbl,
+rmf_brute_force(rmf_builder* const tbl,
 		const uint8_t* const data_block,
 		size_t const block_start,
 		size_t link,
@@ -419,7 +419,7 @@ recurse_lists_16(rmf_builder* const tbl,
         uint32_t const depth = get_match_length(link);
         if (list_count <= MAX_BRUTE_FORCE_LIST_SIZE) {
             // Quicker to use brute force, each string compared with all previous strings 
-            rmf_bruteForce(tbl, data_block,
+            rmf_brute_force(tbl, data_block,
                 block_start,
                 link,
                 list_count,
@@ -535,7 +535,7 @@ recurse_lists_unbuf_16(rmf_builder* const tbl,
         uint32_t depth = get_match_length(link);
         if (list_count <= MAX_BRUTE_FORCE_LIST_SIZE) {
             // Quicker to use brute force, each string compared with all previous strings 
-            rmf_bruteForce(tbl, data_block,
+            rmf_brute_force(tbl, data_block,
                 block_start,
                 link,
                 list_count,
@@ -648,6 +648,7 @@ recurse_lists_unbuf_16(rmf_builder* const tbl,
     }
 }
 #endif
+
 
 // Atomically take a list from the head table 
 static ptrdiff_t
