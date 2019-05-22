@@ -21,13 +21,6 @@
 #define RC_PROB_INIT_VALUE (RC_BIT_MODEL_TOTAL >> 1U)
 #define RC_PRICE_TABLE_SIZE (RC_BIT_MODEL_TOTAL >> RC_MOVE_REDUCING_BITS)
 
-#define GET_PRICE(prob, symbol) \
-  lzma_rc_prices[symbol][(prob) >> RC_MOVE_REDUCING_BITS]
-
-#define GET_PRICE_0(prob) lzma_rc_prices[0][(prob) >> RC_MOVE_REDUCING_BITS]
-
-#define GET_PRICE_1(prob) lzma_rc_prices[1][(prob) >> RC_MOVE_REDUCING_BITS]
-
 #define MIN_LITERAL_PRICE 8U
 
 
@@ -50,16 +43,16 @@ void rcf_reset(lzma_range_fast_enc* const rc);
 
 void rcf_set_output_buffer(lzma_range_fast_enc* const rc, uint8_t *const out_buffer);
 
-void FORCE_NOINLINE rcf_shift_low(lzma_range_fast_enc* const rc);
+void force_noinline rcf_shift_low(lzma_range_fast_enc* const rc);
 
 void rcf_bittree(lzma_range_fast_enc* const rc, probability *const probs, unsigned bit_count, unsigned symbol);
 
 void rcf_bittree_reverse(lzma_range_fast_enc* const rc, probability *const probs, unsigned bit_count, unsigned symbol);
 
-void FORCE_NOINLINE rcf_direct(lzma_range_fast_enc* const rc, unsigned value, unsigned bit_count);
+void force_noinline rcf_direct(lzma_range_fast_enc* const rc, unsigned value, unsigned bit_count);
 
 
-HINT_INLINE void
+static hint_inline void
 rcf_bit_0(lzma_range_fast_enc* const rc, probability *const rprob)
 {
 	unsigned prob = *rprob;
@@ -73,7 +66,7 @@ rcf_bit_0(lzma_range_fast_enc* const rc, probability *const rprob)
 }
 
 
-HINT_INLINE void
+static hint_inline void
 rcf_bit_1(lzma_range_fast_enc* const rc, probability *const rprob)
 {
 	unsigned prob = *rprob;
@@ -89,7 +82,7 @@ rcf_bit_1(lzma_range_fast_enc* const rc, probability *const rprob)
 }
 
 
-HINT_INLINE void
+static hint_inline void
 rcf_bit(lzma_range_fast_enc* const rc, probability *const rprob, unsigned const bit)
 {
 	unsigned prob = *rprob;
@@ -111,14 +104,14 @@ rcf_bit(lzma_range_fast_enc* const rc, probability *const rprob, unsigned const 
 }
 
 
-HINT_INLINE void
+static hint_inline void
 rcf_flush(lzma_range_fast_enc* const rc)
 {
     for (int i = 0; i < 5; ++i)
         rcf_shift_low(rc);
 }
 
-HINT_INLINE size_t
+static hint_inline size_t
 rc_chunk_size(const lzma_range_fast_enc* const rc)
 {
 	return rc->out_index + rc->cache_size + 5 - 1;
