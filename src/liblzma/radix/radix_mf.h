@@ -30,6 +30,16 @@
 #define RADIX8_TABLE_SIZE ((size_t)1 << 8)
 #define STACK_SIZE (RADIX16_TABLE_SIZE * 3)
 
+#define RADIX_LINK_BITS 26
+#define RADIX_LINK_MASK ((1U << RADIX_LINK_BITS) - 1)
+#define RADIX_NULL_LINK 0xFFFFFFFFU
+
+#define UNIT_BITS 2
+#define UNIT_MASK ((1U << UNIT_BITS) - 1)
+
+#define BITPACK_MAX_LENGTH 63U
+#define STRUCTURED_MAX_LENGTH 255U
+
 
 typedef struct
 {
@@ -85,6 +95,13 @@ typedef struct
 	rmf_table_head list_heads[RADIX16_TABLE_SIZE];
 	uint32_t table[1];
 } rmf_match_table;
+
+
+typedef struct
+{
+	uint32_t links[1 << UNIT_BITS];
+	uint8_t lengths[1 << UNIT_BITS];
+} rmf_unit;
 
 
 typedef struct

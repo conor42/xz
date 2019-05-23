@@ -44,7 +44,7 @@
 extern uint8_t*
 rmf_structured_output_buffer(rmf_match_table* const tbl, size_t const pos)
 {
-    return (uint8_t*)((rmf_unit*)tbl->table + (pos >> UNIT_BITS) + ((pos & UNIT_MASK) != 0));
+	return (uint8_t*)((rmf_unit*)tbl->table + (pos >> UNIT_BITS) + ((pos & UNIT_MASK) != 0));
 }
 
 
@@ -52,14 +52,14 @@ rmf_structured_output_buffer(rmf_match_table* const tbl, size_t const pos)
 extern void
 rmf_structured_limit_lengths(rmf_match_table* const tbl, size_t const pos)
 {
-    set_null(pos - 1);
-    for (size_t length = 2; length < RADIX_MAX_LENGTH && length <= pos; ++length) {
-        size_t const i = (pos - length) >> UNIT_BITS;
-        size_t const u = (pos - length) & UNIT_MASK;
-        if (((rmf_unit*)tbl->table)[i].links[u] != RADIX_NULL_LINK) {
-            ((rmf_unit*)tbl->table)[i].lengths[u] = my_min((uint8_t)length, ((rmf_unit*)tbl->table)[i].lengths[u]);
-        }
-    }
+	set_null(pos - 1);
+	for (size_t length = 2; length < RADIX_MAX_LENGTH && length <= pos; ++length) {
+		size_t const i = (pos - length) >> UNIT_BITS;
+		size_t const u = (pos - length) & UNIT_MASK;
+		if (((rmf_unit*)tbl->table)[i].links[u] != RADIX_NULL_LINK) {
+			((rmf_unit*)tbl->table)[i].lengths[u] = my_min((uint8_t)length, ((rmf_unit*)tbl->table)[i].lengths[u]);
+		}
+	}
 }
 
 

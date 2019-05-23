@@ -33,28 +33,12 @@
 #define MAX_BRUTE_FORCE_LIST_SIZE 5
 #define BUFFER_LINK_MASK 0xFFFFFFU
 #define MATCH_BUFFER_OVERLAP 6
-#define BITPACK_MAX_LENGTH 63U
-#define STRUCTURED_MAX_LENGTH 255U
 #define DEPTH_MIN 6U
 #define DEPTH_MAX 254U
 #define OVERLAP_MAX 14
 
-#define RADIX_LINK_BITS 26
-#define RADIX_LINK_MASK ((1U << RADIX_LINK_BITS) - 1)
-#define RADIX_NULL_LINK 0xFFFFFFFFU
-
-#define UNIT_BITS 2
-#define UNIT_MASK ((1U << UNIT_BITS) - 1)
-
 // Table building is stopped by adding this value to the stack atomic index.
 #define RADIX_CANCEL_INDEX (long)(RADIX16_TABLE_SIZE + LZMA_THREADS_MAX + 2)
-
-
-typedef struct
-{
-	uint32_t links[1 << UNIT_BITS];
-	uint8_t lengths[1 << UNIT_BITS];
-} rmf_unit;
 
 
 extern void rmf_bitpack_init(rmf_match_table* const tbl, const void* data, size_t const end);
