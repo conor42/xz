@@ -1,5 +1,6 @@
 ##
-## Author: Lasse Collin
+## Authors: Lasse Collin
+##          Conor McCarthy
 ##
 ## This file has been put into the public domain.
 ## You can do whatever you want with this file.
@@ -32,27 +33,31 @@ if COND_DECODER_LZMA1
 libflzma_la_SOURCES += \
 	lzma/lzma_decoder.c \
 	lzma/lzma_decoder.h
-endif
-
-if COND_ENCODER_LZMA2
-libflzma_la_SOURCES += \
-	lzma/lzma2_encoder.c \
-	lzma/lzma2_encoder.h \
-	lzma/lzma2_fast_encoder.c \
-	lzma/lzma2_fast_encoder.h
-endif
-
-if COND_DECODER_LZMA2
-libflzma_la_SOURCES += \
-	lzma/lzma2_decoder.c \
-	lzma/lzma2_decoder.h
-endif
 
 if COND_ASM_X86_64
+libflzma_la_SOURCES += lzma/lzma_dec_x86_64.S
 libflzma_la_CPPFLAGS += -DLZMA_ASM_OPT_64
 if COND_W32
 libflzma_la_CPPFLAGS += -DMS_x64_CALL=1
 else
 libflzma_la_CPPFLAGS += -DMS_x64_CALL=0
 endif
+endif
+endif
+
+if COND_ENCODER_LZMA2
+libflzma_la_SOURCES += \
+	lzma/lzma2_encoder.c \
+	lzma/lzma2_encoder.h \
+	lzma/lzma2_encoder_rmf.c \
+	lzma/lzma2_encoder_rmf.h \
+	lzma/lzma2_fast_encoder.c \
+	lzma/lzma2_fast_encoder.h \
+	lzma/data_block.h
+endif
+
+if COND_DECODER_LZMA2
+libflzma_la_SOURCES += \
+	lzma/lzma2_decoder.c \
+	lzma/lzma2_decoder.h
 endif
