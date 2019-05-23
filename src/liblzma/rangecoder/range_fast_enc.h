@@ -56,11 +56,11 @@ static hint_inline void
 rcf_bit_0(lzma_range_fast_enc* const rc, probability *const rprob)
 {
 	unsigned prob = *rprob;
-    rc->range = (rc->range >> RC_BIT_MODEL_TOTAL_BITS) * prob;
+	rc->range = (rc->range >> RC_BIT_MODEL_TOTAL_BITS) * prob;
 	prob += (RC_BIT_MODEL_TOTAL - prob) >> RC_MOVE_BITS;
 	*rprob = (probability)prob;
 	if (rc->range < RC_TOP_VALUE) {
-        rc->range <<= 8;
+		rc->range <<= 8;
 		rcf_shift_low(rc);
 	}
 }
@@ -71,12 +71,12 @@ rcf_bit_1(lzma_range_fast_enc* const rc, probability *const rprob)
 {
 	unsigned prob = *rprob;
 	uint32_t new_bound = (rc->range >> RC_BIT_MODEL_TOTAL_BITS) * prob;
-    rc->low += new_bound;
-    rc->range -= new_bound;
+	rc->low += new_bound;
+	rc->range -= new_bound;
 	prob -= prob >> RC_MOVE_BITS;
 	*rprob = (probability)prob;
 	if (rc->range < RC_TOP_VALUE) {
-        rc->range <<= 8;
+		rc->range <<= 8;
 		rcf_shift_low(rc);
 	}
 }
@@ -88,17 +88,17 @@ rcf_bit(lzma_range_fast_enc* const rc, probability *const rprob, unsigned const 
 	unsigned prob = *rprob;
 	if (bit != 0) {
 		uint32_t const new_bound = (rc->range >> RC_BIT_MODEL_TOTAL_BITS) * prob;
-        rc->low += new_bound;
-        rc->range -= new_bound;
+		rc->low += new_bound;
+		rc->range -= new_bound;
 		prob -= prob >> RC_MOVE_BITS;
 	}
 	else {
-        rc->range = (rc->range >> RC_BIT_MODEL_TOTAL_BITS) * prob;
+		rc->range = (rc->range >> RC_BIT_MODEL_TOTAL_BITS) * prob;
 		prob += (RC_BIT_MODEL_TOTAL - prob) >> RC_MOVE_BITS;
 	}
 	*rprob = (probability)prob;
 	if (rc->range < RC_TOP_VALUE) {
-        rc->range <<= 8;
+		rc->range <<= 8;
 		rcf_shift_low(rc);
 	}
 }
@@ -107,8 +107,8 @@ rcf_bit(lzma_range_fast_enc* const rc, probability *const rprob, unsigned const 
 static hint_inline void
 rcf_flush(lzma_range_fast_enc* const rc)
 {
-    for (int i = 0; i < 5; ++i)
-        rcf_shift_low(rc);
+	for (int i = 0; i < 5; ++i)
+		rcf_shift_low(rc);
 }
 
 static hint_inline size_t

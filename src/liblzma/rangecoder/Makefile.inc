@@ -1,5 +1,6 @@
 ##
-## Author: Lasse Collin
+## Authors: Lasse Collin
+##          Conor McCarthy
 ##
 ## This file has been put into the public domain.
 ## You can do whatever you want with this file.
@@ -14,6 +15,12 @@ libflzma_la_SOURCES += \
 	rangecoder/range_encoder.h \
 	rangecoder/price.h \
 	rangecoder/price_table.c
+endif
+
+if COND_ENCODER_LZMA2
+libflzma_la_SOURCES += \
+	rangecoder/range_fast_enc.h \
+	rangecoder/range_fast_enc.c
 endif
 
 if COND_DECODER_LZMA1
