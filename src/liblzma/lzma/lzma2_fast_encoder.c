@@ -353,6 +353,10 @@ working(lzma2_fast_coder *coder)
 #else // MYTHREAD_ENABLED
 
 
+#undef LZMA_THREADS_MAX
+#define LZMA_THREADS_MAX 1
+
+
 static inline lzma_ret
 thread_initialize(lzma2_fast_coder *coder lzma_attribute((__unused__)),
 		size_t i lzma_attribute((__unused__)))
@@ -360,6 +364,7 @@ thread_initialize(lzma2_fast_coder *coder lzma_attribute((__unused__)),
 	assert(i == 0);
 	coder->threads[i].coder = coder;
 	coder->threads[i].builder = NULL;
+	lzma2_rmf_enc_construct(&coder->threads[i].enc);
 	return LZMA_OK;
 }
 
