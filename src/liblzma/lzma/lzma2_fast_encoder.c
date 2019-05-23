@@ -13,7 +13,7 @@
 
 #include "lzma2_fast_encoder.h"
 #include "radix_mf.h"
-#include "lzma2_enc.h"
+#include "lzma2_encoder_rmf.h"
 #include "tuklib_cpucores.h"
 #include "mythread.h"
 
@@ -452,10 +452,9 @@ compress(lzma2_fast_coder *coder)
 	if(!encode_size)
 		return LZMA_OK;
 
-	// Fill the overrun area with minimally matchable data to silence valgrind.
+	// Fill the overrun area to silence valgrind.
 	// Any matches that extend beyond dict_block.end are trimmed by the encoder.
-	for (uint32_t i = 0; i < coder->opt_cur.depth; ++i)
-		coder->dict_block.data[coder->dict_block.end + i] = 0xE1 ^ (uint8_t)i;
+	memset(coder->dict_block.data + coder->dict_block.end, 0xDB, coder->opt_cur.depth);
 	assert(coder->opt_cur.depth <= MAX_READ_BEYOND_DEPTH);
 
 	assert(coder->out_thread >= coder->thread_count);
