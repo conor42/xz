@@ -340,6 +340,16 @@ threads_wait(lzma2_fast_coder *coder)
 }
 
 
+static bool
+working(lzma2_fast_coder *coder)
+{
+	for (size_t i = 0; i < coder->thread_count; ++i)
+		if (coder->threads[i].state != THR_IDLE)
+			return true;
+	return false;
+}
+
+
 #else // MYTHREAD_ENABLED
 
 
@@ -350,7 +360,6 @@ thread_initialize(lzma2_fast_coder *coder lzma_attribute((__unused__)),
 	assert(i == 0);
 	coder->threads[i].coder = coder;
 	coder->threads[i].builder = NULL;
-	coder->threads[i].state = THR_IDLE;
 	return LZMA_OK;
 }
 
@@ -400,6 +409,13 @@ static inline lzma_ret
 threads_wait(lzma2_fast_coder *coder lzma_attribute((__unused__)))
 {
 	return LZMA_OK;
+}
+
+
+static bool
+working(lzma2_fast_coder *coder lzma_attribute((__unused__)))
+{
+	return false;
 }
 
 
@@ -631,15 +647,6 @@ end_stream(lzma2_fast_coder *coder,
 }
 
 
-static bool working(lzma2_fast_coder *coder)
-{
-	for (size_t i = 0; i < coder->thread_count; ++i)
-		if (coder->threads[i].state != THR_IDLE)
-			return true;
-	return false;
-}
-
-
 static lzma_ret
 flzma2_encode(void *coder_ptr,
 		const lzma_allocator *allocator,
@@ -826,7 +833,8 @@ flzma2_encoder_options_update(void *coder_ptr, const lzma_allocator *allocator,
 }
 
 
-static lzma_ret lzma2_fast_encoder_create(lzma2_fast_coder *coder,
+static lzma_ret
+lzma2_fast_encoder_create(lzma2_fast_coder *coder,
 		const lzma_allocator *allocator)
 {
 	return_if_error(create_threads(coder, allocator));
