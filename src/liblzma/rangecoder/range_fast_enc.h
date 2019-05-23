@@ -15,7 +15,6 @@
 #define RANGE_FAST_ENC_H
 
 #include "range_common.h"
-#include "price.h"
 
 
 #define RC_PROB_INIT_VALUE (RC_BIT_MODEL_TOTAL >> 1U)
@@ -23,10 +22,6 @@
 
 #define MIN_LITERAL_PRICE 8U
 
-
-#if 0
-extern void rc_print_price_table();
-#endif
 
 // This range encoder cannot be used with lzma_encoder because cache_size is not uint64_t.
 typedef struct
