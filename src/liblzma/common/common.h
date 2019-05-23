@@ -33,7 +33,15 @@
 
 #define LZMA_API(type) LZMA_API_EXPORT type LZMA_API_CALL
 
+
 // force inlining
+
+#ifdef HAVE_SMALL
+
+#define force_inline_template
+#define hint_inline
+
+#else
 
 #if defined(__GNUC__)
 #  define force_inline_attr __attribute__((always_inline))
@@ -42,7 +50,6 @@
 #else
 #  define force_inline_attr
 #endif
-
 
 // force_inline_template is used to define C "templates", which take constant
 // parameters. They must be inlined for the compiler to eliminate the constant
@@ -64,6 +71,8 @@
 #  define hint_inline inline force_inline_attr
 #endif
 
+#endif // HAVE_SMALL
+
 // Force no inlining
 #ifdef _MSC_VER
 #  define force_noinline __declspec(noinline)
@@ -74,6 +83,7 @@
 #    define force_noinline
 #  endif
 #endif
+
 
 #include "flzma.h"
 
