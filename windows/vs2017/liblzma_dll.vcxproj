@@ -147,11 +147,12 @@
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;../../src/liblzma/check;../../src/liblzma/delta;../../src/liblzma/lz;../../src/liblzma/lzma;../../src/liblzma/fast-lzma2;../../src/liblzma/rangecoder;../../src/liblzma/simple</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;../../src/liblzma/check;../../src/liblzma/delta;../../src/liblzma/lz;../../src/liblzma/lzma;../../src/liblzma/fast-lzma2;../../src/liblzma/radix;../../src/liblzma/rangecoder;../../src/liblzma/simple</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
+      <AdditionalDependencies>..\..\src\liblzma\lzma\lzma_dec_x86_64.obj;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <ResourceCompile>
       <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
@@ -189,6 +190,7 @@
       <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalDependencies>..\..\src\liblzma\lzma\lzma_dec_x86_64.obj;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <ResourceCompile>
       <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
@@ -226,6 +228,7 @@
       <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalDependencies>..\..\src\liblzma\lzma\lzma_dec_x86_64.obj;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <ResourceCompile>
       <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
@@ -285,14 +288,10 @@
     <ClCompile Include="..\..\src\liblzma\delta\delta_common.c" />
     <ClCompile Include="..\..\src\liblzma\delta\delta_decoder.c" />
     <ClCompile Include="..\..\src\liblzma\delta\delta_encoder.c" />
-    <ClCompile Include="..\..\src\liblzma\fast-lzma2\lzma2_enc.c" />
-    <ClCompile Include="..\..\src\liblzma\fast-lzma2\radix_bitpack.c" />
-    <ClCompile Include="..\..\src\liblzma\fast-lzma2\radix_mf.c" />
-    <ClCompile Include="..\..\src\liblzma\fast-lzma2\radix_struct.c" />
-    <ClCompile Include="..\..\src\liblzma\fast-lzma2\range_enc.c" />
     <ClCompile Include="..\..\src\liblzma\lzma\fastpos_table.c" />
     <ClCompile Include="..\..\src\liblzma\lzma\lzma2_decoder.c" />
     <ClCompile Include="..\..\src\liblzma\lzma\lzma2_encoder.c" />
+    <ClCompile Include="..\..\src\liblzma\lzma\lzma2_encoder_rmf.c" />
     <ClCompile Include="..\..\src\liblzma\lzma\lzma2_fast_encoder.c" />
     <ClCompile Include="..\..\src\liblzma\lzma\lzma_decoder.c" />
     <ClCompile Include="..\..\src\liblzma\lzma\lzma_encoder.c" />
@@ -302,7 +301,11 @@
     <ClCompile Include="..\..\src\liblzma\lz\lz_decoder.c" />
     <ClCompile Include="..\..\src\liblzma\lz\lz_encoder.c" />
     <ClCompile Include="..\..\src\liblzma\lz\lz_encoder_mf.c" />
+    <ClCompile Include="..\..\src\liblzma\radix\radix_bitpack.c" />
+    <ClCompile Include="..\..\src\liblzma\radix\radix_mf.c" />
+    <ClCompile Include="..\..\src\liblzma\radix\radix_struct.c" />
     <ClCompile Include="..\..\src\liblzma\rangecoder\price_table.c" />
+    <ClCompile Include="..\..\src\liblzma\rangecoder\range_fast_enc.c" />
     <ClCompile Include="..\..\src\liblzma\simple\arm.c" />
     <ClCompile Include="..\..\src\liblzma\simple\armthumb.c" />
     <ClCompile Include="..\..\src\liblzma\simple\ia64.c" />
@@ -314,6 +317,7 @@
     <ClCompile Include="..\..\src\liblzma\simple\x86.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\src\common\atomic.h" />
     <ClInclude Include="..\..\src\common\mythread.h" />
     <ClInclude Include="..\..\src\common\sysdefs.h" />
     <ClInclude Include="..\..\src\common\tuklib_common.h" />
@@ -362,18 +366,16 @@
     <ClInclude Include="..\..\src\liblzma\delta\delta_decoder.h" />
     <ClInclude Include="..\..\src\liblzma\delta\delta_encoder.h" />
     <ClInclude Include="..\..\src\liblzma\delta\delta_private.h" />
-    <ClInclude Include="..\..\src\liblzma\fast-lzma2\atomic.h" />
-    <ClInclude Include="..\..\src\liblzma\fast-lzma2\data_block.h" />
-    <ClInclude Include="..\..\src\liblzma\fast-lzma2\fastpos_table.h" />
-    <ClInclude Include="..\..\src\liblzma\fast-lzma2\lzma2_enc.h" />
-    <ClInclude Include="..\..\src\liblzma\fast-lzma2\radix_engine.h" />
-    <ClInclude Include="..\..\src\liblzma\fast-lzma2\radix_get.h" />
-    <ClInclude Include="..\..\src\liblzma\fast-lzma2\radix_internal.h" />
-    <ClInclude Include="..\..\src\liblzma\fast-lzma2\radix_mf.h" />
-    <ClInclude Include="..\..\src\liblzma\fast-lzma2\range_enc.h" />
+    <ClInclude Include="..\..\src\liblzma\radix\radix_engine.h" />
+    <ClInclude Include="..\..\src\liblzma\radix\radix_get.h" />
+    <ClInclude Include="..\..\src\liblzma\radix\radix_internal.h" />
+    <ClInclude Include="..\..\src\liblzma\radix\radix_mf.h" />
+    <ClInclude Include="..\..\src\liblzma\rangecoder\range_fast_enc.h" />
     <ClInclude Include="..\..\src\liblzma\lzma\fastpos.h" />
+    <ClInclude Include="..\..\src\liblzma\lzma\data_block.h" />
     <ClInclude Include="..\..\src\liblzma\lzma\lzma2_decoder.h" />
     <ClInclude Include="..\..\src\liblzma\lzma\lzma2_encoder.h" />
+    <ClInclude Include="..\..\src\liblzma\lzma\lzma2_encoder_rmf.h" />
     <ClInclude Include="..\..\src\liblzma\lzma\lzma2_fast_encoder.h" />
     <ClInclude Include="..\..\src\liblzma\lzma\lzma_common.h" />
     <ClInclude Include="..\..\src\liblzma\lzma\lzma_decoder.h" />
@@ -397,9 +399,7 @@
     <ResourceCompile Include="..\..\src\liblzma\liblzma_w32res.rc" />
   </ItemGroup>
   <ItemGroup>
-    <MASM Include="..\..\src\liblzma\fast-lzma2\lzma_dec_x86_64.asm">
-      <FileType>Document</FileType>
-    </MASM>
+    <None Include="..\..\src\liblzma\lzma\lzma_dec_x86_64.S" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
