@@ -7,11 +7,11 @@
 
 if COND_ENCODER_LZMA2
 libflzma_la_SOURCES += \
-    radix/radix_bitpack.c \
-    radix/radix_engine.h \
+	radix/radix_bitpack.c \
+	radix/radix_engine.h \
 	radix/radix_get.h \
-    radix/radix_internal.h \
-    radix/radix_mf.c \
-    radix/radix_mf.h \
-    radix/radix_struct.c
+	radix/radix_internal.h \
+	radix/radix_mf.c \
+	radix/radix_mf.h \
+	radix/radix_struct.c
 endif
