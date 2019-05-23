@@ -1395,12 +1395,12 @@ lzma_fill_dist_prices(lzma2_rmf_encoder *const enc)
 	enc->match_price_count = 0;
 
 	for (size_t i = DIST_MODEL_START / 2; i < FULL_DISTANCES / 2; i++) {
-		unsigned const dist_slot = lzma_fastpos[i];
+		unsigned const dist_slot = price_dist_slot(i);
 		unsigned footer_bits = (dist_slot >> 1) - 1;
 		size_t base = ((2 | (dist_slot & 1)) << footer_bits);
 		const probability *probs = enc->states.dist_encoders + base * 2U;
 		base += i;
-		probs = probs - lzma_fastpos[base] - 1;
+		probs = probs - price_dist_slot(base) - 1;
 		uint32_t price = 0;
 		unsigned m = 1;
 		unsigned sym = (unsigned)i;
@@ -1457,7 +1457,7 @@ lzma_fill_dist_prices(lzma2_rmf_encoder *const enc)
 			dp[3] = dist_slot_prices[3];
 
 			for (size_t i = 4; i < FULL_DISTANCES; i += 2) {
-				uint32_t slot_price = dist_slot_prices[lzma_fastpos[i]];
+				uint32_t slot_price = dist_slot_prices[price_dist_slot(i)];
 				dp[i] = slot_price + temp_prices[i];
 				dp[i + 1] = slot_price + temp_prices[i + 1];
 			}
