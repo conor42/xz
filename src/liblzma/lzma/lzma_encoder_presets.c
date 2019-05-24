@@ -68,7 +68,7 @@ lzma_lzma_preset(lzma_options_lzma *options, uint32_t preset)
 	if (level > 9 || (flags & ~supported_flags))
 		return true;
 
-	options->threads = 0;
+	options->threads = 1;
 
 	options->preset_dict = NULL;
 	options->preset_dict_size = 0;
