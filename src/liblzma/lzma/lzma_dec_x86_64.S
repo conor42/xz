@@ -1036,6 +1036,9 @@ IsRep0Short_label:
         add     t0_R, [LOC + dicBufSize]
 1:
         movzx   sym, byte ptr[dic + t0_R * 1]
+        cmp     [LOC + full], dicPos
+        jae     lz_end_match
+        mov     [LOC + full], dicPos
         jmp     lz_end_match
   
         
