@@ -757,8 +757,11 @@ static void
 free_threads(lzma2_fast_coder *coder, const lzma_allocator *allocator)
 {
 	threads_stop(coder);
-	for (size_t i = 0; i < coder->thread_count; ++i)
+	for (size_t i = 0; i < coder->thread_count; ++i) {
 		thread_free(coder, i);
+		lzma_free(coder->threads[i].builder, allocator);
+		lzma2_rmf_enc_free(&coder->threads[i].enc);
+	}
 	coder->thread_count = 0;
 	lzma_free(coder->threads, allocator);
 	coder->threads = NULL;
@@ -772,9 +775,6 @@ flzma2_encoder_end(void *coder_ptr, const lzma_allocator *allocator)
 
 	lzma_next_end(&coder->next, allocator);
 
-	free_builders(coder, allocator);
-	for (size_t i = 0; i < coder->thread_count; ++i)
-		lzma2_rmf_enc_free(&coder->threads[i].enc);
 	free_threads(coder, allocator);
 
 	lzma_free(coder->dict_block.data, allocator);
