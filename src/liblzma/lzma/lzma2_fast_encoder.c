@@ -555,7 +555,7 @@ dict_shift(lzma2_fast_coder *coder)
 	if (coder->dict_block.start < coder->dict_block.end)
 		return;
 
-	size_t overlap = OVERLAP_FROM_DICT_SIZE(coder->dict_size, coder->opt_cur.overlap_fraction);
+	size_t overlap = OVERLAP_FROM_DICT_SIZE(coder->opt_cur.dict_size, coder->opt_cur.overlap_fraction);
 
 	if (overlap == 0) {
 		coder->dict_block.start = 0;
@@ -599,7 +599,7 @@ fill_window(lzma2_fast_coder *coder, const lzma_allocator *allocator,
 	if (coder->next.code == NULL) {
 		// Not using a filter, simply memcpy() as much as possible.
 		lzma_bufcpy(in, in_pos, in_size, coder->dict_block.data,
-				&coder->dict_block.end, coder->dict_size);
+				&coder->dict_block.end, coder->opt_cur.dict_size);
 
 		ret = action != LZMA_RUN && *in_pos == in_size
 			? LZMA_STREAM_END : LZMA_OK;
@@ -608,13 +608,13 @@ fill_window(lzma2_fast_coder *coder, const lzma_allocator *allocator,
 		ret = coder->next.code(coder->next.coder, allocator,
 				in, in_pos, in_size,
 				coder->dict_block.data, &coder->dict_block.end,
-				coder->dict_size, action);
+				coder->opt_cur.dict_size, action);
 	}
 
 	coder->ending = (ret == LZMA_STREAM_END);
 
-	assert(coder->dict_block.end <= coder->dict_size);
-	if (!have_output(coder) && coder->dict_block.end == coder->dict_size) {
+	assert(coder->dict_block.end <= coder->opt_cur.dict_size);
+	if (!have_output(coder) && coder->dict_block.end == coder->opt_cur.dict_size) {
 		return_if_error(compress(coder));
 		copy_output(coder, out, out_pos, out_size);
 	}
@@ -946,6 +946,7 @@ lzma_flzma2_encoder_init(lzma_next_coder *next,
 	coder->progress_out = 0;
 	coder->total_in = 0;
 	coder->total_out = 0;
+	coder->match_table->progress = 0;
 
 	// Initialize the next filter in the chain, if any.
 	return lzma_next_filter_init(&coder->next, allocator, filters + 1);
