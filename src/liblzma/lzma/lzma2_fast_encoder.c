@@ -681,17 +681,6 @@ flzma2_encode(void *coder_ptr,
 		break;
 
 	case LZMA_SYNC_FLUSH:
-		// Return LZMA_OK if output or input not done
-		if (!coder->ending)
-			break;
-
-		return_if_error(flush_stream(coder, out, out_pos, out_size));
-
-		if (!have_output(coder))
-			ret = LZMA_STREAM_END;
-
-		break;
-
 	case LZMA_FULL_FLUSH:
 	case LZMA_FULL_BARRIER:
 		// Return LZMA_OK if input not done.
@@ -702,8 +691,10 @@ flzma2_encode(void *coder_ptr,
 
 		if (!have_output(coder)) {
 			ret = LZMA_STREAM_END;
-			// Re-initialize for next block
-			reset_dict(coder);
+			if (action != LZMA_SYNC_FLUSH) {
+				// Re-initialize for next block
+				reset_dict(coder);
+			}
 			coder->ending = false;
 		}
 
@@ -932,6 +923,10 @@ lzma_flzma2_encoder_init(lzma_next_coder *next,
 
 		coder->next = LZMA_NEXT_CODER_INIT;
 	}
+	else if (next->code != &flzma2_encode) {
+		// An lz_encoder has been initialized and switching over is messy.
+		return LZMA_PROG_ERROR;
+	}
 
 	coder->opt_cur = *options;
 	if (options->depth == 0)
@@ -957,6 +952,6 @@ extern uint64_t
 lzma_flzma2_encoder_memusage(const void *options)
 {
 	const lzma_options_lzma *const opt = options;
-	return rmf_memory_usage(opt->dict_size, opt->threads)
+	return opt->dict_size + rmf_memory_usage(opt->dict_size, opt->threads)
 		+ lzma2_enc_rmf_mem_usage(opt->near_dict_size_log, opt->mode, opt->threads);
 }
