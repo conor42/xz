@@ -189,16 +189,14 @@ worker_start(void *thr_ptr)
 
 	while (true) {
 		// Wait for work.
-		mythread_sync(thr->mutex)
-		{
-			while (true) {
-				state = thr->state;
-				if (state != THR_IDLE)
-					break;
-
-				mythread_cond_wait(&thr->cond, &thr->mutex);
-			}
+		mythread_mutex_lock(&thr->mutex);
+		while (true) {
+			state = thr->state;
+			if (state != THR_IDLE)
+				break;
+			mythread_cond_wait(&thr->cond, &thr->mutex);
 		}
+		mythread_mutex_unlock(&thr->mutex);
 
 		assert(state != THR_IDLE);
 
@@ -221,13 +219,12 @@ worker_start(void *thr_ptr)
 		// Mark the thread as idle unless the main thread has
 		// told us to exit. Signal is needed for the case
 		// where the main thread is waiting for the threads to stop.
-		mythread_sync(thr->mutex)
-		{
-			if (thr->state != THR_EXIT) {
-				thr->state = THR_IDLE;
-				mythread_cond_signal(&thr->cond);
-			}
+		mythread_mutex_lock(&thr->mutex);
+		if (thr->state != THR_EXIT) {
+			thr->state = THR_IDLE;
+			mythread_cond_signal(&thr->cond);
 		}
+		mythread_mutex_unlock(&thr->mutex);
 	}
 
 	// Exiting, free the resources.
@@ -264,10 +261,10 @@ error_cond:
 static void
 thread_free(lzma2_fast_coder *coder, size_t i)
 {
-	mythread_sync(coder->threads[i].mutex) {
-		coder->threads[i].state = THR_EXIT;
-		mythread_cond_signal(&coder->threads[i].cond);
-	}
+	mythread_mutex_lock(&coder->threads[i].mutex);
+	coder->threads[i].state = THR_EXIT;
+	mythread_cond_signal(&coder->threads[i].cond);
+	mythread_mutex_unlock(&coder->threads[i].mutex);
 	int ret = mythread_join(coder->threads[i].thread_id);
 	assert(ret == MYTHREAD_RET_VALUE);
 	(void)ret;
@@ -299,40 +296,56 @@ enc_thread_count(lzma2_fast_coder *coder)
 static inline void
 builder_run(lzma2_fast_coder *coder, size_t i)
 {
-	mythread_sync(coder->threads[i].mutex)
-	{
-		coder->threads[i].state = THR_BUILD;
-		mythread_cond_signal(&coder->threads[i].cond);
-	}
+	mythread_mutex_lock(&coder->threads[i].mutex);
+	coder->threads[i].state = THR_BUILD;
+	mythread_cond_signal(&coder->threads[i].cond);
+	mythread_mutex_unlock(&coder->threads[i].mutex);
 }
 
 
 static inline void
 encoder_run(lzma2_fast_coder *coder, size_t i)
 {
-	mythread_sync(coder->threads[i].mutex)
-	{
-		coder->threads[i].state = THR_ENC;
-		mythread_cond_signal(&coder->threads[i].cond);
+	mythread_mutex_lock(&coder->threads[i].mutex);
+	coder->threads[i].state = THR_ENC;
+	mythread_cond_signal(&coder->threads[i].cond);
+	mythread_mutex_unlock(&coder->threads[i].mutex);
+}
+
+
+static void
+threads_wait(lzma2_fast_coder *coder)
+{
+	// Wait for the threads to settle in the idle state.
+	for (uint32_t i = 0; i < coder->thread_count; ++i) {
+		mythread_mutex_lock(&coder->threads[i].mutex);
+		while (coder->threads[i].state != THR_IDLE)
+			mythread_cond_wait(&coder->threads[i].cond,
+					&coder->threads[i].mutex);
+		mythread_mutex_unlock(&coder->threads[i].mutex);
 	}
 }
 
 
 static lzma_ret
-threads_wait(lzma2_fast_coder *coder)
+threads_timed_wait(lzma2_fast_coder *coder)
 {
 	// Wait for the threads to settle in the idle state.
 	for (uint32_t i = 0; i < coder->thread_count; ++i) {
-		if (coder->threads[i].state == THR_IDLE)
-			continue;
+		mythread_mutex_lock(&coder->threads[i].mutex);
 		bool timed_out = false;
-		mythread_condtime wait_abs;
-		mythread_condtime_set(&wait_abs, &coder->threads[i].cond, LZMA2_TIMEOUT);
-		mythread_sync(coder->threads[i].mutex) {
+		if (coder->threads[i].state != THR_IDLE) {
+			mythread_condtime wait_abs;
+			mythread_condtime_set(&wait_abs, &coder->threads[i].cond, LZMA2_TIMEOUT);
+#ifdef MYTHREAD_WIN95
+			// Prevent possible deadlock due to non-atomic unlock-wait-lock in mythread_cond_wait()
+			mythread_cond_signal(&coder->threads[i].cond);
+#endif
 			while (coder->threads[i].state != THR_IDLE && !timed_out)
 				timed_out = mythread_cond_timedwait(&coder->threads[i].cond,
-						&coder->threads[i].mutex, &wait_abs) != 0;
+					&coder->threads[i].mutex, &wait_abs) != 0;
 		}
+		mythread_mutex_unlock(&coder->threads[i].mutex);
 		if(timed_out)
 			return LZMA_TIMED_OUT;
 	}
@@ -343,9 +356,14 @@ threads_wait(lzma2_fast_coder *coder)
 static bool
 working(lzma2_fast_coder *coder)
 {
-	for (size_t i = 0; i < coder->thread_count; ++i)
-		if (coder->threads[i].state != THR_IDLE)
+	for (size_t i = 0; i < coder->thread_count; ++i) {
+		size_t state;
+		mythread_mutex_lock(&coder->threads[i].mutex);
+		state = coder->threads[i].state;
+		mythread_mutex_unlock(&coder->threads[i].mutex);
+		if (state != THR_IDLE)
 			return true;
+	}
 	return false;
 }
 
@@ -410,8 +428,14 @@ encoder_run(lzma2_fast_coder *coder, size_t i)
 }
 
 
-static inline lzma_ret
+static void
 threads_wait(lzma2_fast_coder *coder lzma_attribute((__unused__)))
+{
+}
+
+
+static inline lzma_ret
+threads_timed_wait(lzma2_fast_coder *coder lzma_attribute((__unused__)))
 {
 	return LZMA_OK;
 }
@@ -430,7 +454,7 @@ working(lzma2_fast_coder *coder lzma_attribute((__unused__)))
 static lzma_ret
 threads_run_sequence(lzma2_fast_coder *coder)
 {
-	return_if_error(threads_wait(coder));
+	return_if_error(threads_timed_wait(coder));
 
 	assert(coder->dict_block.start < coder->dict_block.end);
 
@@ -439,13 +463,13 @@ threads_run_sequence(lzma2_fast_coder *coder)
 		for (size_t i = 0; i < rmf_threads; ++i)
 			builder_run(coder, i);
 		coder->sequence = CODER_ENC;
-		return_if_error(threads_wait(coder));
+		return_if_error(threads_timed_wait(coder));
 	}
 	if (coder->sequence == CODER_ENC) {
 		for (size_t i = 0; i < coder->thread_count && coder->threads[i].block.end != 0; ++i)
 			encoder_run(coder, i);
 		coder->sequence = CODER_WRITE;
-		return_if_error(threads_wait(coder));
+		return_if_error(threads_timed_wait(coder));
 	}
 
 	assert(coder->sequence == CODER_WRITE);
