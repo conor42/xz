@@ -76,19 +76,7 @@ static const uint8_t short_rep_next_tbl[STATES] = { 9, 9, 9, 9, 9, 9, 9, 11, 11,
 extern void
 lzma2_rmf_enc_construct(lzma2_rmf_encoder *const enc)
 {
-	enc->lc = 3;
-	enc->lp = 0;
-	enc->pb = 2;
-	enc->fast_length = 48;
-	enc->len_end_max = OPT_BUF_SIZE - 1;
-	enc->match_cycles = 1;
-	enc->strategy = LZMA_MODE_ULTRA;
-	enc->match_price_count = 0;
-	enc->rep_len_price_count = 0;
-	enc->dist_price_table_size = 0;
 	enc->hash_buf = NULL;
-	enc->hash_dict_3 = 0;
-	enc->chain_mask_3 = 0;
 	enc->hash_alloc_3 = 0;
 }
 
@@ -653,8 +641,6 @@ lzma_hash_create(lzma2_rmf_encoder *const enc, unsigned const dictionary_bits_3)
 
 	if (enc->hash_buf == NULL)
 		return 1;
-
-	lzma_hash_reset(enc, dictionary_bits_3);
 
 	return 0;
 }
@@ -1481,7 +1467,7 @@ lzma_encode_chunk_best(lzma2_rmf_encoder *const enc,
 	lzma_len_update_prices(enc, &enc->states.len_states);
 	lzma_len_update_prices(enc, &enc->states.rep_len_states);
 
-	while (pos < uncompressed_end && enc->rc.out_index < enc->chunk_size)
+	while (pos < uncompressed_end && rc_chunk_size(&enc->rc) < enc->chunk_size)
 	{
 		rmf_match const match = rmf_get_match(block, tbl, search_depth, struct_tbl, pos);
 		if (match.length > 1) {
@@ -1533,15 +1519,16 @@ lzma_len_probs_reset(lzma2_len_states* const ls, unsigned const fast_length)
 
 
 static void
-lzma_probs_reset(lzma2_enc_states* const es, unsigned const lc, unsigned const lp, unsigned fast_length)
+lzma_probs_reset(lzma2_rmf_encoder *const enc)
 {
-	es->state = 0;
+	lzma2_enc_states* const es = &enc->states;
 
+	es->state = 0;
 	for (size_t i = 0; i < REPS; ++i)
 		es->reps[i] = 0;
 
 	for (size_t i = 0; i < STATES; ++i) {
-		for (size_t j = 0; j < POS_STATES_MAX; ++j) {
+		for (size_t j = 0; j <= enc->pos_mask; ++j) {
 			es->is_match[i][j] = RC_PROB_INIT_VALUE;
 			es->is_rep0_long[i][j] = RC_PROB_INIT_VALUE;
 		}
@@ -1550,9 +1537,11 @@ lzma_probs_reset(lzma2_enc_states* const es, unsigned const lc, unsigned const l
 		es->is_rep_G1[i] = RC_PROB_INIT_VALUE;
 		es->is_rep_G2[i] = RC_PROB_INIT_VALUE;
 	}
-	size_t const num = (size_t)LITERAL_CODER_SIZE << (lp + lc);
-	for (size_t i = 0; i < num; ++i)
+	size_t const num = (size_t)LITERAL_CODER_SIZE << (enc->lp + enc->lc);
+	for (size_t i = 0; i < num; i += 2) {
 		es->literal_probs[i] = RC_PROB_INIT_VALUE;
+		es->literal_probs[i + 1] = RC_PROB_INIT_VALUE;
+	}
 
 	for (size_t i = 0; i < DIST_STATES; ++i) {
 		probability *probs = es->dist_slot_encoders[i];
@@ -1562,8 +1551,8 @@ lzma_probs_reset(lzma2_enc_states* const es, unsigned const lc, unsigned const l
 	for (size_t i = 0; i < FULL_DISTANCES - DIST_MODEL_END; ++i)
 		es->dist_encoders[i] = RC_PROB_INIT_VALUE;
 
-	lzma_len_probs_reset(&es->len_states, fast_length);
-	lzma_len_probs_reset(&es->rep_len_states, fast_length);
+	lzma_len_probs_reset(&es->len_states, enc->fast_length);
+	lzma_len_probs_reset(&es->rep_len_states, enc->fast_length);
 
 	for (size_t i = 0; i < (1 << ALIGN_BITS); ++i)
 		es->dist_align_encoders[i] = RC_PROB_INIT_VALUE;
@@ -1584,9 +1573,9 @@ static void
 lzma2_reset(lzma2_rmf_encoder *const enc, size_t const max_distance)
 {
 	rcf_reset(&enc->rc);
-	lzma_probs_reset(&enc->states, enc->lc, enc->lp, enc->fast_length);
 	enc->pos_mask = (1 << enc->pb) - 1;
 	enc->lit_pos_mask = ((size_t)0x100 << enc->lp) - ((size_t)0x100 >> enc->lc);
+	lzma_probs_reset(enc);
 	uint32_t i = 0;
 	for (; max_distance > (size_t)1 << i; ++i) {
 	}
