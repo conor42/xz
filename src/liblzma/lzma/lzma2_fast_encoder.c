@@ -110,7 +110,8 @@ struct lzma2_fast_coder_s {
 	enum {
 		CODER_BUILD,
 		CODER_ENC,
-		CODER_WRITE
+		CODER_WRITE,
+		CODER_IDLE
 	} sequence;
 
 	/// Flag to stop async encoder
@@ -485,6 +486,7 @@ threads_run_sequence(lzma2_fast_coder *coder)
 
 	coder->out_thread = 0;
 	coder->dict_block.start = coder->dict_block.end;
+	coder->sequence = CODER_IDLE;
 
 	return LZMA_OK;
 }
@@ -689,7 +691,7 @@ flzma2_encode(void *coder_ptr,
 	lzma_ret ret = LZMA_OK;
 
 	// Continue compression if called after a timeout.
-	if (working(coder))
+	if (coder->sequence != CODER_IDLE)
 		return_if_error(threads_run_sequence(coder));
 
 	// Copy any output pending in the internal buffer
@@ -764,6 +766,7 @@ threads_stop(lzma2_fast_coder *coder)
 		threads_wait(coder);
 		rmf_reset_incomplete_build(coder->match_table);
 		coder->canceled = false;
+		assert(!working(coder));
 	}
 }
 
@@ -960,6 +963,7 @@ lzma_flzma2_encoder_init(lzma_next_coder *next,
 
 	return_if_error(lzma2_fast_encoder_create(coder, allocator));
 
+	coder->sequence = CODER_IDLE;
 	coder->ending = false;
 	coder->progress_in = 0;
 	coder->progress_out = 0;
