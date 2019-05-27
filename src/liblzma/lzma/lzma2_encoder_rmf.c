@@ -666,7 +666,8 @@ lzma_hash_create(lzma2_rmf_encoder *const enc, unsigned const dictionary_bits_3)
 extern int
 lzma2_rmf_hash_alloc(lzma2_rmf_encoder *const enc, const lzma_options_lzma* const options)
 {
-	if (enc->strategy == LZMA_MODE_ULTRA && enc->hash_alloc_3 < ((ptrdiff_t)1 << options->near_dict_size_log))
+	enc->strategy = options->mode;
+	if (options->mode == LZMA_MODE_ULTRA && enc->hash_alloc_3 < ((ptrdiff_t)1 << options->near_dict_size_log))
 		return lzma_hash_create(enc, options->near_dict_size_log);
 
 	return 0;
@@ -1745,6 +1746,12 @@ lzma2_rmf_encode(lzma2_rmf_encoder *const enc,
 		lzma_atomic *const progress_out,
 		bool *const canceled)
 {
+	if (enc->strategy != options->mode)
+		return (size_t)-1;
+	assert(block.end > block.start);
+	if (block.end <= block.start)
+		return 0;
+
 	size_t const start = block.start;
 
 	// Output starts in the temp buffer 
@@ -1757,14 +1764,9 @@ lzma2_rmf_encode(lzma2_rmf_encoder *const enc,
 	uint8_t encode_properties = 1;
 	uint8_t incompressible = 0;
 
-	assert(block.end > block.start);
-	if (block.end <= block.start)
-		return 0;
-
 	enc->lc = options->lc;
 	enc->lp = options->lp;
 	enc->pb = options->pb;
-	enc->strategy = options->mode;
 	enc->fast_length = my_min(options->nice_len, MATCH_LEN_MAX);
 	enc->match_cycles = my_min(options->near_depth, MATCHES_MAX - 1);
 
