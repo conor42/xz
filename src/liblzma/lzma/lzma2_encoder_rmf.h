@@ -144,7 +144,6 @@ typedef struct
 	lzma2_node opt_buf[OPT_BUF_SIZE];
 
 	lzma2_hc3* hash_buf;
-	ptrdiff_t chain_mask_2;
 	ptrdiff_t chain_mask_3;
 	ptrdiff_t hash_dict_3;
 	ptrdiff_t hash_prev_index;
