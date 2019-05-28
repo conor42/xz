@@ -3,24 +3,18 @@ FXZ Utils To-Do List
 ===================
 
 
-FXZ was made by nesting the Fast LZMA2 library within liblzma to create
-a two-headed monster, libflzma. It would be better to adapt the necessary
-components from fast-lzma2 and fit them neatly into the rest of the
-liblzma code.
-
-So far the only tested build environments are x86-64 Ubuntu Linux and
-Windows/MSYS2. fxz is the only tool currently enabled to build.
+So far the only tested build environments are i386 Ubuntu 16.04, x86-64
+Arch Linux, and Windows/MSYS2. In particular, the code has not been
+tested on a big-endian CPU, though it is designed to work on one.
 
 
 Known bugs
 ----------
 
-    Fast LZMA2 has no custom allocator support, so it will ignore any
-    custom allocator passed to libflzma.
-
-    The xz test suite is too incomplete. However the Fast LZMA2 code has
-    a thorough fuzz tester derived from the ZStandard project. It has
-    also been tested on random file collections using the Radyx archiver.
+    The xz test suite is too incomplete. However, libflzma has passed
+    heavy fuzz testing using code derived from the ZStandard project.
+    It has also been tested on several hundred thousand files in two
+    Linux systems.
 
     If the memory usage limit is less than about 8 MiB, fxz is unable to
     automatically scale down the compression settings enough even though
@@ -43,20 +37,6 @@ Known bugs
 Missing features
 ----------------
 
-    The Fast LZMA2 library already supports multi-threaded
-    decompression, but it doesn't use info from .xz block headers.
-    Instead it speculatively reads compressed data into memory and
-    parses it searching for dictionary resets. This is based on the
-    scheme Igor Pavlov introduced in 7-Zip 18.03. It is not enabled in
-    fxz because the new api function it requires is not done, and
-    because use of block headers is a better system for .xz files. To
-    enable it, remove the line in lzma2_fast_encoder.c which sets
-    FL2_p_resetInterval to 0, and change FL2_createDStream() in
-    lzma2_fast_decoder.c to FL2_createDStreamMt(nbThreads), where
-    nbThreads is 0 or some fixed number. The decoder could use more
-    than 5 * dict_size of memory per thread and the limiter is NOT
-    enabled.
-
     Add support for storing metadata in .xz files. A preliminary
     idea is to create a new Stream type for metadata. When both
     metadata and data are wanted in the same .xz file, two or more
@@ -74,6 +54,8 @@ Missing features
 
     xz doesn't support copying extended attributes, access control
     lists etc. from source to target file.
+
+    Multithreaded decompression.
 
     Buffer-to-buffer coding could use less RAM (especially when
     decompressing LZMA1 or LZMA2).
