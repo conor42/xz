@@ -15,14 +15,14 @@
 
 
 void
-rcf_set_output_buffer(lzma_range_fast_enc* const rc, uint8_t *const out_buffer)
+rcf_set_output_buffer(lzma_range_fast_enc *const rc, uint8_t *const out_buffer)
 {
 	rc->out_buffer = out_buffer;
 	rc->out_index = 0;
 }
 
 void
-rcf_reset(lzma_range_fast_enc* const rc)
+rcf_reset(lzma_range_fast_enc *const rc)
 {
 	rc->low = 0;
 	rc->range = (uint32_t)-1;
@@ -34,7 +34,7 @@ rcf_reset(lzma_range_fast_enc* const rc)
 #if defined(__x86_64__) || defined(_M_X64) || SIZEOF_SIZE_T >= 8
 
 void force_noinline
-rcf_shift_low(lzma_range_fast_enc* const rc)
+rcf_shift_low(lzma_range_fast_enc *const restrict rc)
 {
 	uint64_t low = rc->low;
 	rc->low = (uint32_t)(low << 8);
@@ -58,7 +58,7 @@ rcf_shift_low(lzma_range_fast_enc* const rc)
 #else
 
 void force_noinline
-rcf_shift_low(lzma_range_fast_enc* const rc)
+rcf_shift_low(lzma_range_fast_enc *const restrict rc)
 {
 	uint32_t low = (uint32_t)rc->low;
 	unsigned high = (unsigned)(rc->low >> 32);
@@ -82,7 +82,7 @@ rcf_shift_low(lzma_range_fast_enc* const rc)
 
 
 void
-rcf_bittree(lzma_range_fast_enc* const rc, probability *const probs, unsigned bit_count, unsigned symbol)
+rcf_bittree(lzma_range_fast_enc *const restrict rc, probability *const restrict probs, unsigned bit_count, unsigned symbol)
 {
 	assert(bit_count > 1);
 	--bit_count;
@@ -99,7 +99,7 @@ rcf_bittree(lzma_range_fast_enc* const rc, probability *const probs, unsigned bi
 
 
 void
-rcf_bittree_reverse(lzma_range_fast_enc* const rc, probability *const probs, unsigned bit_count, unsigned symbol)
+rcf_bittree_reverse(lzma_range_fast_enc *const restrict rc, probability *const restrict probs, unsigned bit_count, unsigned symbol)
 {
 	assert(bit_count != 0);
 	unsigned bit = symbol & 1;
@@ -115,7 +115,7 @@ rcf_bittree_reverse(lzma_range_fast_enc* const rc, probability *const probs, uns
 
 
 void force_noinline
-rcf_direct(lzma_range_fast_enc* const rc, unsigned value, unsigned bit_count)
+rcf_direct(lzma_range_fast_enc *const restrict rc, unsigned value, unsigned bit_count)
 {
 	assert(bit_count > 0);
 	do {

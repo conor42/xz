@@ -15,7 +15,7 @@
 
 // If a repeating byte is found, fill that section of the table with matches of distance 1.
 static size_t
-handle_byte_repeat(rmf_builder* const tbl, const uint8_t* const data_block,
+handle_byte_repeat(rmf_builder* const restrict tbl, const uint8_t* const restrict data_block,
 		size_t const start, ptrdiff_t i, uint32_t depth)
 {
 	// Normally the last 2 bytes, but may be 4 if depth == 4 
@@ -48,7 +48,7 @@ handle_byte_repeat(rmf_builder* const tbl, const uint8_t* const data_block,
 
 // If a 2-byte repeat is found, fill that section of the table with matches of distance 2 
 static size_t
-handle_2byte_repeat(rmf_builder* const tbl, const uint8_t* const data_block,
+handle_2byte_repeat(rmf_builder* const restrict tbl, const uint8_t* const restrict data_block,
 		size_t const start, ptrdiff_t i, uint32_t depth)
 {
 	// Normally the last 2 bytes, but may be 4 if depth == 4 
@@ -87,7 +87,7 @@ rmf_bitpack_init
 #else
 rmf_structured_init
 #endif
-(rmf_match_table* const tbl, const void* const data, size_t const end)
+(rmf_match_table* const restrict tbl, const void* const restrict data, size_t const end)
 {
 	if (end <= 2) {
 		for (size_t i = 0; i < end; ++i)
@@ -147,8 +147,8 @@ rmf_structured_init
 // Copy the list into a buffer and recurse it there. This decreases cache misses and allows 
 // data characters to be loaded every fourth pass and stored for use in the next 4 passes 
 static void
-recurse_lists_buffered(rmf_builder* const tbl,
-		const uint8_t* const data_block,
+recurse_lists_buffered(rmf_builder* const restrict tbl,
+		const uint8_t* const restrict data_block,
 		size_t const block_start,
 		size_t link,
 		uint32_t depth,
@@ -271,8 +271,8 @@ recurse_lists_buffered(rmf_builder* const tbl,
 
 // Compare each string with all others to find the best match 
 static void
-rmf_brute_force(rmf_builder* const tbl,
-		const uint8_t* const data_block,
+rmf_brute_force(rmf_builder* const restrict tbl,
+		const uint8_t* const restrict data_block,
 		size_t const block_start,
 		size_t link,
 		size_t const list_count,
@@ -322,8 +322,8 @@ rmf_brute_force(rmf_builder* const tbl,
 
 // Match strings at depth 2 using a 16-bit radix to lengthen to depth 4
 static void
-recurse_lists_16(rmf_builder* const tbl,
-		const uint8_t* const data_block,
+recurse_lists_16(rmf_builder* const restrict tbl,
+		const uint8_t* const restrict data_block,
 		size_t const block_start,
 		size_t link,
 		uint32_t count,

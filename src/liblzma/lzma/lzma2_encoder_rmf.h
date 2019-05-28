@@ -159,10 +159,10 @@ extern void lzma2_rmf_enc_free(lzma2_rmf_encoder *const enc);
 
 extern int lzma2_rmf_hash_alloc(lzma2_rmf_encoder *const enc, const lzma_options_lzma* const options);
 
-extern size_t lzma2_rmf_encode(lzma2_rmf_encoder *const enc,
-		rmf_match_table* const tbl,
+extern size_t lzma2_rmf_encode(lzma2_rmf_encoder *const restrict enc,
+		rmf_match_table *const restrict tbl,
 		lzma_data_block const block,
-		const lzma_options_lzma* const options,
+		const lzma_options_lzma *const options,
 		lzma_atomic *const progress_in,
 		lzma_atomic *const progress_out,
 		bool *const canceled);

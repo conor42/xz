@@ -224,8 +224,8 @@ typedef struct
 } brute_force_match;
 
 static void
-brute_force_buffered(rmf_builder* const tbl,
-		const uint8_t* const data_block,
+brute_force_buffered(rmf_builder* const restrict tbl,
+		const uint8_t* const restrict data_block,
 		size_t const block_start,
 		size_t pos,
 		size_t const list_count,
@@ -288,8 +288,8 @@ brute_force_buffered(rmf_builder* const tbl,
 // Lengthen and divide buffered chains into smaller chains, save them on a stack and process in turn. 
 // The match finder spends most of its time here.
 static force_inline_template void
-recurse_list_chunk_generic(rmf_builder* const tbl,
-		const uint8_t* const data_block,
+recurse_list_chunk_generic(rmf_builder* const restrict tbl,
+		const uint8_t* const restrict data_block,
 		size_t const block_start,
 		uint32_t depth,
 		uint32_t const max_depth,

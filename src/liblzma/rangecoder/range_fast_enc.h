@@ -34,21 +34,21 @@ typedef struct
 	uint8_t cache;
 } lzma_range_fast_enc;
 
-void rcf_reset(lzma_range_fast_enc* const rc);
+void rcf_reset(lzma_range_fast_enc *const rc);
 
-void rcf_set_output_buffer(lzma_range_fast_enc* const rc, uint8_t *const out_buffer);
+void rcf_set_output_buffer(lzma_range_fast_enc *const rc, uint8_t *const out_buffer);
 
-void force_noinline rcf_shift_low(lzma_range_fast_enc* const rc);
+void force_noinline rcf_shift_low(lzma_range_fast_enc *const restrict rc);
 
-void rcf_bittree(lzma_range_fast_enc* const rc, probability *const probs, unsigned bit_count, unsigned symbol);
+void rcf_bittree(lzma_range_fast_enc *const restrict rc, probability *const restrict probs, unsigned bit_count, unsigned symbol);
 
-void rcf_bittree_reverse(lzma_range_fast_enc* const rc, probability *const probs, unsigned bit_count, unsigned symbol);
+void rcf_bittree_reverse(lzma_range_fast_enc *const restrict rc, probability *const restrict probs, unsigned bit_count, unsigned symbol);
 
-void force_noinline rcf_direct(lzma_range_fast_enc* const rc, unsigned value, unsigned bit_count);
+void force_noinline rcf_direct(lzma_range_fast_enc *const restrict rc, unsigned value, unsigned bit_count);
 
 
 static hint_inline void
-rcf_bit_0(lzma_range_fast_enc* const rc, probability *const rprob)
+rcf_bit_0(lzma_range_fast_enc *const restrict rc, probability *const restrict rprob)
 {
 	unsigned prob = *rprob;
 	rc->range = (rc->range >> RC_BIT_MODEL_TOTAL_BITS) * prob;
@@ -62,7 +62,7 @@ rcf_bit_0(lzma_range_fast_enc* const rc, probability *const rprob)
 
 
 static hint_inline void
-rcf_bit_1(lzma_range_fast_enc* const rc, probability *const rprob)
+rcf_bit_1(lzma_range_fast_enc *const restrict rc, probability *const restrict rprob)
 {
 	unsigned prob = *rprob;
 	uint32_t new_bound = (rc->range >> RC_BIT_MODEL_TOTAL_BITS) * prob;
@@ -78,7 +78,7 @@ rcf_bit_1(lzma_range_fast_enc* const rc, probability *const rprob)
 
 
 static hint_inline void
-rcf_bit(lzma_range_fast_enc* const rc, probability *const rprob, unsigned const bit)
+rcf_bit(lzma_range_fast_enc *const restrict rc, probability *const restrict rprob, unsigned const bit)
 {
 	unsigned prob = *rprob;
 	if (bit != 0) {
@@ -100,14 +100,14 @@ rcf_bit(lzma_range_fast_enc* const rc, probability *const rprob, unsigned const 
 
 
 static hint_inline void
-rcf_flush(lzma_range_fast_enc* const rc)
+rcf_flush(lzma_range_fast_enc *const rc)
 {
 	for (int i = 0; i < 5; ++i)
 		rcf_shift_low(rc);
 }
 
 static hint_inline size_t
-rc_chunk_size(const lzma_range_fast_enc* const rc)
+rc_chunk_size(const lzma_range_fast_enc *const restrict rc)
 {
 	return rc->out_index + rc->cache_size + 5 - 1;
 }
