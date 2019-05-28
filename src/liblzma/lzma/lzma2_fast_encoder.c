@@ -39,17 +39,17 @@ typedef enum {
 typedef struct lzma2_fast_coder_s lzma2_fast_coder;
 
 typedef struct {
-	lzma2_fast_coder *coder;
-	rmf_builder *builder;
-	lzma2_rmf_encoder enc;
-	lzma_data_block block;
-	size_t out_size;
 #ifdef MYTHREAD_ENABLED
 	mythread thread_id;
 	mythread_mutex mutex;
 	mythread_cond cond;
 	worker_state state;
 #endif
+	lzma2_fast_coder *coder;
+	rmf_builder *builder;
+	lzma_data_block block;
+	size_t out_size;
+	lzma2_rmf_encoder enc;
 } worker_thread;
 
 
@@ -108,10 +108,10 @@ struct lzma2_fast_coder_s {
 
 	/// Worker thread sequence.
 	enum {
+		CODER_IDLE,
 		CODER_BUILD,
 		CODER_ENC,
-		CODER_WRITE,
-		CODER_IDLE
+		CODER_WRITE
 	} sequence;
 
 	/// Flag to stop async encoder
