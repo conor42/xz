@@ -73,14 +73,9 @@ FXZ Utils
     Similarly, it is possible that some day there is a filter that will
     compress better than LZMA2.
 
-    FXZ Utils doesn't support multithreaded decompression yet (sort-of -
-    see TODO). It has been planned though and taken into account when
-    designing the .xz file format.
+    FXZ Utils doesn't support multithreaded decompression yet. It has been
+    planned though and taken into account when designing the .xz file format.
 
-    Of the tool builds, only fxz is enabled in configure.ac. The others,
-    including fxzdec, are disabled and untested. The original xzdec tool
-    is intended to be size optimized, and this is not yet organized in the
-    fxzdec build.
 
 1. Documentation
 ----------------
