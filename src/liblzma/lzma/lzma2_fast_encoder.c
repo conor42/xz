@@ -267,7 +267,7 @@ thread_free(lzma2_fast_coder *coder, size_t i)
 	mythread_cond_signal(&coder->threads[i].cond);
 	mythread_mutex_unlock(&coder->threads[i].mutex);
 	int ret = mythread_join(coder->threads[i].thread_id);
-	assert(ret == MYTHREAD_RET_VALUE);
+	assert(ret == 0);
 	(void)ret;
 }
 
