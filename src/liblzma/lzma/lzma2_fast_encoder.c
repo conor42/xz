@@ -967,8 +967,6 @@ lzma_flzma2_encoder_init(lzma_next_coder *next,
 	coder->ending = false;
 	coder->progress_in = 0;
 	coder->progress_out = 0;
-	coder->total_in = 0;
-	coder->total_out = 0;
 	coder->match_table->progress = 0;
 
 	// Initialize the next filter in the chain, if any.
