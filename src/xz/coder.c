@@ -664,7 +664,7 @@ coder_normal(file_pair *pair)
 	// only a single block is created.
 	uint64_t block_remaining = UINT64_MAX;
 
-	// next_block_remining for when we are in single-threaded mode and
+	// next_block_remaining for when we are in single-threaded mode and
 	// the Block in --block-list is larger than the --block-size=SIZE.
 	uint64_t next_block_remaining = 0;
 

@@ -58,7 +58,7 @@ typedef struct {
 
 
 /// Strings ending in a colon. These are used for lines like
-/// "  Foo:   123 MiB". These are groupped because translated strings
+/// "  Foo:   123 MiB". These are grouped because translated strings
 /// may have different maximum string length, and we want to pad all
 /// strings so that the values are aligned nicely.
 static const char *colon_strs[] = {
