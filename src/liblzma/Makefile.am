@@ -25,7 +25,7 @@ libflzma_la_CPPFLAGS = \
 	-I$(top_srcdir)/src/liblzma/simple \
 	-I$(top_srcdir)/src/common \
 	-DTUKLIB_SYMBOL_PREFIX=lzma_
-libflzma_la_LDFLAGS = -no-undefined -version-info 8:99:3
+libflzma_la_LDFLAGS = -no-undefined -version-info 0:0:0
 
 EXTRA_DIST += liblzma.map validate_map.sh
 if COND_SYMVERS
