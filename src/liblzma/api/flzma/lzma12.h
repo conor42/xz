@@ -109,11 +109,11 @@ typedef enum {
 		 *  - dict_size > 32 MiB: dict_size * 10.5
 		 */
 
-	LZMA_MF_RAD     = 0x16
+	LZMA_MF_RAD     = 0x22
 		/**<
 		 * \brief       Match table built with radix search
 		 *
-		 * Minimum nice_len: 6
+		 * Minimum nice_len: 2
 		 *
 		 * Memory usage:
 		 *  - dict_size <= 64 MiB: dict_size * 5
