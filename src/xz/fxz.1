@@ -5,7 +5,7 @@
 .\" This file has been put into the public domain.
 .\" You can do whatever you want with this file.
 .\"
-.TH FXZ 1 "2019-03-26" "Tukaani & C.McCarthy" "FXZ Utils"
+.TH FXZ 1 "2019-05-31" "Tukaani & C.McCarthy" "FXZ Utils"
 .
 .SH NAME
 fxz, funxz, fxzcat, flzma, funlzma, flzcat \- Compress or decompress .xz and .lzma files
@@ -799,8 +799,8 @@ When compressing to the
 format, split the input data into blocks of
 .I size
 bytes.
-At level 0, the blocks are compressed independently from each other,
-which helps with multi-threading and
+The blocks are compressed independently from each other,
+which allows multi-threading at preset 0, and
 makes limited random-access decompression possible.
 This option is typically used to override the default
 block size in multi-threaded mode,
@@ -1392,7 +1392,7 @@ Radix match finder plus additional hc3 in hybrid (ultra) mode
 .br
 Minimum value for
 .IR nice :
-6
+2
 .br
 Memory usage:
 .br
@@ -1431,7 +1431,7 @@ for
 .B ultra
 for
 .I presets
-4\-9.
+6\-9.
 .IP ""
 Usually
 .B fast
@@ -1483,8 +1483,8 @@ provide some dictionary for the next block.
 .I ov
 is specified in sixteenths of the dictionary size. The minimum is 0 and the maximum is 14. The default is 2, but
 .B \-\-extreme
-changes it to 4. Large overlaps do not always yield greater compression, especially on
-small dictionary sizes.
+changes it to 4. Large overlaps do not always yield greater compression, especially when
+running many threads on a small dictionary.
 .TP
 .BI dc= divide_chains
 Long chains of 2-byte matches can be broken up by the Radix match finder and searched
