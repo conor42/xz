@@ -107,7 +107,7 @@ rcf_flush(lzma_range_fast_enc *const rc)
 }
 
 static hint_inline size_t
-rc_chunk_size(const lzma_range_fast_enc *const restrict rc)
+rcf_chunk_size(const lzma_range_fast_enc *const restrict rc)
 {
 	return rc->out_index + rc->cache_size + 5 - 1;
 }

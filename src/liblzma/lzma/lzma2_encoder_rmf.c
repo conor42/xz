@@ -380,7 +380,7 @@ lzma_encode_chunk_fast(lzma2_rmf_encoder *const restrict enc,
 	size_t prev = pos;
 	unsigned const search_depth = tbl->depth;
 
-	while (pos < uncompressed_end && rc_chunk_size(&enc->rc) < enc->chunk_size) {
+	while (pos < uncompressed_end && rcf_chunk_size(&enc->rc) < enc->chunk_size) {
 		size_t max_len;
 		const uint8_t* data;
 		// Table of distance restrictions for short matches 
@@ -1346,7 +1346,7 @@ reverse:
 		// because the reps must be checked and the match encoded.
 	} while (match.length >= enc->fast_length
 		&& start_index < uncompressed_end
-		&& rc_chunk_size(&enc->rc) < enc->chunk_size);
+		&& rcf_chunk_size(&enc->rc) < enc->chunk_size);
 
 	enc->len_end_max = len_end;
 
@@ -1467,7 +1467,7 @@ lzma_encode_chunk_best(lzma2_rmf_encoder *const restrict enc,
 	lzma_len_update_prices(enc, &enc->states.len_states);
 	lzma_len_update_prices(enc, &enc->states.rep_len_states);
 
-	while (pos < uncompressed_end && rc_chunk_size(&enc->rc) < enc->chunk_size)
+	while (pos < uncompressed_end && rcf_chunk_size(&enc->rc) < enc->chunk_size)
 	{
 		rmf_match const match = rmf_get_match(block, tbl, search_depth, struct_tbl, pos);
 		if (match.length > 1) {
