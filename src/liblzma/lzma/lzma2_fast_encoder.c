@@ -16,6 +16,7 @@
 #include "lzma2_encoder_rmf.h"
 #include "tuklib_cpucores.h"
 #include "mythread.h"
+#include "memcmplen.h"
 
 #define LZMA2_TIMEOUT 300
 
@@ -501,7 +502,8 @@ compress(lzma2_fast_coder *coder)
 
 	// Fill the overrun area to silence valgrind.
 	// Any matches that extend beyond dict_block.end are trimmed by the encoder.
-	memset(coder->dict_block.data + coder->dict_block.end, 0xDB, coder->opt_cur.depth);
+	memset(coder->dict_block.data + coder->dict_block.end, 0xDB,
+		my_max(coder->opt_cur.depth, LZMA_MEMCMPLEN_EXTRA));
 	assert(coder->opt_cur.depth <= MAX_READ_BEYOND_DEPTH);
 
 	assert(coder->out_thread >= coder->thread_count);
