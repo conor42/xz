@@ -36,13 +36,6 @@
 
 // force inlining
 
-#ifdef HAVE_SMALL
-
-#define force_inline_template
-#define hint_inline
-
-#else
-
 #if defined(__GNUC__)
 #  define force_inline_attr __attribute__((always_inline))
 #elif defined(_MSC_VER)
@@ -51,10 +44,18 @@
 #  define force_inline_attr
 #endif
 
+#ifdef HAVE_SMALL
+
+#define force_inline_template
+
+#else
+
 // force_inline_template is used to define C "templates", which take constant
 // parameters. They must be inlined for the compiler to eliminate the constant
 // branches.
 #define force_inline_template inline force_inline_attr
+
+#endif // HAVE_SMALL
 
 // hint_inline is used to help the compiler generate better code. It is//not*
 // used for "templates", so it can be tweaked based on the compilers
@@ -70,8 +71,6 @@
 #else
 #  define hint_inline inline force_inline_attr
 #endif
-
-#endif // HAVE_SMALL
 
 // Force no inlining
 #ifdef _MSC_VER
