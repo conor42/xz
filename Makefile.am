@@ -48,7 +48,6 @@ endif
 
 EXTRA_DIST = \
 	extra \
-	dos \
 	windows \
 	macosx \
 	autogen.sh \
