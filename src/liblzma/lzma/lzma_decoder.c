@@ -344,9 +344,13 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 
 	if (*in_pos + LZMA_REQUIRED_INPUT_MAX * 2 < in_size && dict.pos < dict.limit) {
 		if (coder->sequence == SEQ_IS_MATCH) {
-			if (lzma_decode_asm_5(coder, &dict, in, in_pos, in_size - LZMA_REQUIRED_INPUT_MAX))
+			int res = lzma_decode_asm_5(coder, &dict, in, in_pos, in_size - LZMA_REQUIRED_INPUT_MAX);
+			if(res > 0)
 				return LZMA_DATA_ERROR;
-			coder->sequence = (coder->len != 0) ? SEQ_COPY : SEQ_IS_MATCH;
+			if (res < 0)
+				coder->sequence = SEQ_EOPM;
+			else
+				coder->sequence = (coder->len != 0) ? SEQ_COPY : SEQ_IS_MATCH;
 		}
 		else {
 			loop_count = 1;
@@ -828,10 +832,13 @@ out:
 #ifdef LZMA_ASM_OPT_64
 	if (*in_pos + LZMA_REQUIRED_INPUT_MAX * 2 < in_size && dict.pos < dict.limit
 			&& coder->sequence == SEQ_IS_MATCH) {
-		if (lzma_decode_asm_5(coder, &dict, in, in_pos,
-				in_size - LZMA_REQUIRED_INPUT_MAX))
+		int res = lzma_decode_asm_5(coder, &dict, in, in_pos, in_size - LZMA_REQUIRED_INPUT_MAX);
+		if (res > 0)
 			return LZMA_DATA_ERROR;
-		coder->sequence = (coder->len != 0) ? SEQ_COPY : SEQ_IS_MATCH;
+		if (res < 0)
+			coder->sequence = SEQ_EOPM;
+		else
+			coder->sequence = (coder->len != 0) ? SEQ_COPY : SEQ_IS_MATCH;
 		dictptr->pos = dict.pos;
 		dictptr->full = dict.full;
 	}

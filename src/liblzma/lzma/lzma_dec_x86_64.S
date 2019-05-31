@@ -1144,16 +1144,13 @@ copy_match_cross:
 
 fin_ERROR:
         mov     [LOC + remainLen_Loc], len_temp
-# fin_ERROR_2:
         mov     sym, 1
         jmp     fin
 
 end_of_payload:
         cmp     sym, 0xFFFFFFFF # -1
-        jne     fin_ERROR
-
-        mov     dword ptr[LOC + remainLen_Loc], kMatchSpecLenStart
-        sub     state, kNumStates * PMULT
+        je      fin
+        jmp     fin_ERROR
 
 fin_OK:
         xor     sym, sym
