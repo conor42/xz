@@ -295,10 +295,26 @@ typedef struct {
 
 #define LZMA_REQUIRED_INPUT_MAX 20
 
+
 extern int
 lzma_decode_asm_5(void *coder_ptr, lzma_dict *dictptr,
 	const uint8_t *in,
 	size_t *in_pos, size_t in_size);
+
+
+static bool lzma_decode_opt(lzma_lzma1_decoder *coder, lzma_dict *dictptr,
+	const uint8_t *in,
+	size_t *in_pos, size_t in_size)
+{
+	int res = lzma_decode_asm_5(coder, dictptr, in, in_pos, in_size - LZMA_REQUIRED_INPUT_MAX);
+	if (res > 0)
+		return true;
+	else if (res < 0)
+		coder->sequence = SEQ_EOPM;
+	else
+		coder->sequence = (coder->len != 0) ? SEQ_COPY : SEQ_IS_MATCH;
+	return false;
+}
 
 #endif
 
@@ -344,13 +360,8 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 
 	if (*in_pos + LZMA_REQUIRED_INPUT_MAX * 2 < in_size && dict.pos < dict.limit) {
 		if (coder->sequence == SEQ_IS_MATCH) {
-			int res = lzma_decode_asm_5(coder, &dict, in, in_pos, in_size - LZMA_REQUIRED_INPUT_MAX);
-			if(res > 0)
+			if(lzma_decode_opt(coder, &dict, in, in_pos, in_size))
 				return LZMA_DATA_ERROR;
-			if (res < 0)
-				coder->sequence = SEQ_EOPM;
-			else
-				coder->sequence = (coder->len != 0) ? SEQ_COPY : SEQ_IS_MATCH;
 		}
 		else {
 			loop_count = 1;
@@ -832,13 +843,8 @@ out:
 #ifdef LZMA_ASM_OPT_64
 	if (*in_pos + LZMA_REQUIRED_INPUT_MAX * 2 < in_size && dict.pos < dict.limit
 			&& coder->sequence == SEQ_IS_MATCH) {
-		int res = lzma_decode_asm_5(coder, &dict, in, in_pos, in_size - LZMA_REQUIRED_INPUT_MAX);
-		if (res > 0)
+		if(lzma_decode_opt(coder, &dict, in, in_pos, in_size))
 			return LZMA_DATA_ERROR;
-		if (res < 0)
-			coder->sequence = SEQ_EOPM;
-		else
-			coder->sequence = (coder->len != 0) ? SEQ_COPY : SEQ_IS_MATCH;
 		dictptr->pos = dict.pos;
 		dictptr->full = dict.full;
 	}
