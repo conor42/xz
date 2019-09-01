@@ -445,7 +445,7 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 				// ("match byte") to "len" to minimize the
 				// number of variables we need to store
 				// between decoder calls.
-				len = dict_get(&dict, rep0) << 1;
+				len = (uint32_t)(dict_get(&dict, rep0)) << 1;
 
 				// The usage of "offset" allows omitting some
 				// branches, which should give tiny speed
@@ -647,7 +647,7 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 					do {
 						rc_bit(coder->pos_align[
 								symbol], ,
-							rep0 += 1 << offset,
+							rep0 += 1U << offset,
 							SEQ_ALIGN);
 					} while (++offset < ALIGN_BITS);
 #else

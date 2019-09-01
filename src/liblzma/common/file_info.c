@@ -828,7 +828,7 @@ lzma_file_info_decoder_init(lzma_next_coder *next,
 	// won't return 0 (which would indicate an error).
 	coder->memlimit = my_max(1, memlimit);
 
-	// Preprare these for reading the first Stream Header into coder->temp.
+	// Prepare these for reading the first Stream Header into coder->temp.
 	coder->temp_pos = 0;
 	coder->temp_size = LZMA_STREAM_HEADER_SIZE;
 

@@ -101,7 +101,7 @@ static int colon_strs_fw[ARRAY_SIZE(colon_strs)];
 
 
 /// Column headings
-struct {
+static struct {
 	/// Table column heading string
 	const char *str;
 
@@ -292,7 +292,7 @@ init_headings(void)
 
 		// Calculate the field width for printf("%*s") so that
 		// the string uses .columns number of columns on a terminal.
-		headings[i].fw = (int)(len + headings[i].columns - w);
+		headings[i].fw = (int)(len + (size_t)headings[i].columns - w);
 	}
 
 	return;
@@ -382,12 +382,11 @@ parse_indexes(xz_file_info *xfi, file_pair *pair)
 			break;
 
 		case LZMA_SEEK_NEEDED:
-			// The cast is safe because liblzma won't ask us to
-			// seek past the known size of the input file which
-			// did fit into off_t.
+			// liblzma won't ask us to seek past the known size
+			// of the input file.
 			assert(strm.seek_pos
 					<= (uint64_t)(pair->src_st.st_size));
-			if (io_seek_src(pair, (off_t)(strm.seek_pos)))
+			if (io_seek_src(pair, strm.seek_pos))
 				goto error;
 
 			// avail_in must be zero so that we will read new
@@ -589,7 +588,7 @@ parse_check_value(file_pair *pair, const lzma_index_iter *iter)
 
 	// Locate and read the Check field.
 	const uint32_t size = lzma_check_size(iter->stream.flags->check);
-	const off_t offset = iter->block.compressed_file_offset
+	const uint64_t offset = iter->block.compressed_file_offset
 			+ iter->block.total_size - size;
 	io_buf buf;
 	if (io_pread(pair, &buf, size, offset))
@@ -870,9 +869,10 @@ print_info_adv(xz_file_info *xfi, file_pair *pair)
 		// the actual check value as it is hexadecimal. However, to
 		// print the column heading, further calculation is needed
 		// to handle a translated string (it's done a few lines later).
+		assert(check_max <= LZMA_CHECK_SIZE_MAX);
 		const int checkval_width = my_max(
-			(uint32_t)(headings[HEADING_CHECKVAL].columns),
-			2 * check_max);
+				headings[HEADING_CHECKVAL].columns,
+				(int)(2 * check_max));
 
 		// All except Check are right aligned; Check is left aligned.
 		printf("  %s\n    %*s %*s %*s %*s %*s %*s  %*s  %-*s",

@@ -686,7 +686,7 @@ TUKLIB_PHYSMEM
 TUKLIB_CPUCORES
 TUKLIB_MBSTR
 
-# If requsted, check for system-provided SHA-256. At least the following
+# If requested, check for system-provided SHA-256. At least the following
 # implementations are supported:
 #
 # OS       Headers                     Library  Type           Function
