@@ -179,7 +179,7 @@ recurse_lists_buffered(rmf_builder* const restrict tbl,
 			size_t dist = prev_link - link;
 			if (dist > 2) {
 				// Get 4 data characters for later. This doesn't block on a cache miss. 
-				memcpy32(tbl->match_buffer[count].src.u32, data_src + link);
+				tbl->match_buffer[count].src.u32 = unaligned_read32ne(data_src + link);
 				// Record the actual location of this suffix 
 				tbl->match_buffer[count].from = (uint32_t)link;
 				// Initialize the next link 
@@ -194,7 +194,7 @@ recurse_lists_buffered(rmf_builder* const restrict tbl,
 				// Do the usual if the repeat is too short 
 				if (rpt < MAX_REPEAT - 2) {
 					// Get 4 data characters for later. This doesn't block on a cache miss. 
-					memcpy32(tbl->match_buffer[count].src.u32, data_src + link);
+					tbl->match_buffer[count].src.u32 = unaligned_read32ne(data_src + link);
 					// Record the actual location of this suffix 
 					tbl->match_buffer[count].from = (uint32_t)link;
 					// Initialize the next link 
@@ -259,7 +259,7 @@ recurse_lists_buffered(rmf_builder* const restrict tbl,
 			size_t dest = 0;
 			for (size_t src = list_count - overlap; src < list_count; ++src) {
 				tbl->match_buffer[dest].from = tbl->match_buffer[src].from;
-				memcpy32(tbl->match_buffer[dest].src.u32, data_src + tbl->match_buffer[src].from);
+				tbl->match_buffer[dest].src.u32 = unaligned_read32ne(data_src + tbl->match_buffer[src].from);
 				tbl->match_buffer[dest].next = (uint32_t)(dest + 1) | (depth << 24);
 				++dest;
 			}

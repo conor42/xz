@@ -391,7 +391,7 @@ recurse_list_chunk_generic(rmf_builder* const restrict tbl,
 				size_t const next_index = tbl->match_buffer[pos].next & BUFFER_LINK_MASK;
 				// Pre-load the next link and data bytes. On some hardware execution can continue
 				// ahead while the data is retrieved if no operations except move are done on the data.
-				memcpy32(tbl->match_buffer[pos].src.u32, data_src + link);
+				tbl->match_buffer[pos].src.u32 = unaligned_read32ne(data_src + link);
 				size_t const next_link = tbl->match_buffer[next_index].from;
 				uint32_t const prev = tbl->tails_8[radix_8].prev_index;
 				tbl->tails_8[radix_8].prev_index = (uint32_t)pos;
@@ -436,7 +436,7 @@ recurse_list_chunk_generic(rmf_builder* const restrict tbl,
 			uint32_t const prev = tbl->tails_8[radix_8].prev_index;
 			if (prev != RADIX_NULL_LINK) {
 				if (slot == 3)
-					memcpy32(tbl->match_buffer[pos].src.u32, data_src + link);
+					tbl->match_buffer[pos].src.u32 = unaligned_read32ne(data_src + link);
 
 				++tbl->tails_8[radix_8].list_count;
 				tbl->match_buffer[prev].next = (uint32_t)pos | (depth << 24);
@@ -515,7 +515,7 @@ recurse_list_chunk_generic(rmf_builder* const restrict tbl,
 			uint32_t const prev = tbl->tails_8[radix_8].prev_index;
 			if (prev != RADIX_NULL_LINK) {
 				if (slot == 3) {
-					memcpy32(tbl->match_buffer[pos].src.u32, data_src + link);
+					tbl->match_buffer[pos].src.u32 = unaligned_read32ne(data_src + link);
 				}
 				++tbl->tails_8[radix_8].list_count;
 				tbl->match_buffer[prev].next = (uint32_t)pos | (depth << 24);

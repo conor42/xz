@@ -20,13 +20,6 @@
 #include "lzma_encoder_private.h"
 
 
-#if defined(TUKLIB_FAST_UNALIGNED_ACCESS)
-#  define memcpy32(d, s) d = *(const uint32_t*)(s)
-#else
-#  define memcpy32(d, s) memcpy(&d, s, 4)
-#endif
-
-
 #define DICTIONARY_SIZE_MIN (1U << 12)
 #define DICTIONARY_SIZE_MAX (UINT32_C(3) << 29)
 #define MAX_REPEAT 24
