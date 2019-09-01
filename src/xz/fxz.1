@@ -1,11 +1,12 @@
 '\" t
 .\"
-.\" Author: Lasse Collin
+.\" Authors: Lasse Collin
+.\"          Conor McCarthy
 .\"
 .\" This file has been put into the public domain.
 .\" You can do whatever you want with this file.
 .\"
-.TH FXZ 1 "2019-05-31" "Tukaani & C.McCarthy" "FXZ Utils"
+.TH FXZ 1 "2019-07-14" "Tukaani & C.McCarthy" "FXZ Utils"
 .
 .SH NAME
 fxz, funxz, fxzcat, flzma, funlzma, flzcat \- Compress or decompress .xz and .lzma files
@@ -59,7 +60,9 @@ These allow
 .B xz
 's single-threaded mode to run in parallel, enabling multi-threaded
 operation without splitting the input into large blocks or scaling the memory usage
-with the thread count.
+with the thread count. On x64-64 systems,
+.B fxz
+also adds an assembler-optimized LZMA decoder based on the one in 7-Zip.
 .B Note:
 in this document, 'multi-threaded mode' refers to the old liblzma multi-block
 method for multi-threading. Multi-threading with the Radix match finder works
@@ -1134,7 +1137,7 @@ The modifier
 matches
 .BR \-\-extreme .
 .B fxz
-adds a new option
+adds a new modifier
 .BR o ,
 which matches
 .BR \-\-original .
@@ -1452,6 +1455,9 @@ Higher values tend to give better compression ratio
 at the expense of speed.
 The default depends on the
 .IR preset .
+In most cases a value of
+.I nice
+below 16 is not an efficient way to speed up compression.
 .TP
 .BI depth= depth
 Specify the maximum search depth in the match finder.
@@ -1477,7 +1483,7 @@ the compression in case it is taking far too long.
 .TP
 .BI ov= overlap
 The Radix match finder is a block algorithm which cannot use a
-sliding window. A portion of each completed block must be copied to
+sliding window. The overlap is a portion of each completed block which must be copied to
 provide some dictionary for the next block.
 .IP ""
 .I ov
