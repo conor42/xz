@@ -20,12 +20,12 @@ libflzma_la_CPPFLAGS = \
 	-I$(top_srcdir)/src/liblzma/lz \
 	-I$(top_srcdir)/src/liblzma/rangecoder \
 	-I$(top_srcdir)/src/liblzma/lzma \
-	-I$(top_srcdir)/src/liblzma/fast-lzma2 \
+	-I$(top_srcdir)/src/liblzma/radix \
 	-I$(top_srcdir)/src/liblzma/delta \
 	-I$(top_srcdir)/src/liblzma/simple \
 	-I$(top_srcdir)/src/common \
 	-DTUKLIB_SYMBOL_PREFIX=lzma_
-libflzma_la_LDFLAGS = -no-undefined -version-info 8:99:3
+libflzma_la_LDFLAGS = -no-undefined -version-info 0:0:0
 
 EXTRA_DIST += liblzma.map validate_map.sh
 if COND_SYMVERS
@@ -49,7 +49,10 @@ endif
 if COND_FILTER_LZMA1
 include $(srcdir)/lzma/Makefile.inc
 include $(srcdir)/rangecoder/Makefile.inc
-include $(srcdir)/fast-lzma2/Makefile.inc
+endif
+
+if COND_FILTER_LZMA2
+include $(srcdir)/radix/Makefile.inc
 endif
 
 if COND_FILTER_DELTA

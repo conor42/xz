@@ -52,7 +52,7 @@ static lzma_check check;
 static bool check_default = true;
 
 /// Radix match finder will be used (alters threading behavior)
-static bool use_rmf = false;
+bool use_rmf = false;
 
 #if defined(HAVE_ENCODERS) && defined(MYTHREAD_ENABLED)
 static lzma_mt mt_options = {
@@ -664,7 +664,7 @@ coder_normal(file_pair *pair)
 	// only a single block is created.
 	uint64_t block_remaining = UINT64_MAX;
 
-	// next_block_remining for when we are in single-threaded mode and
+	// next_block_remaining for when we are in single-threaded mode and
 	// the Block in --block-list is larger than the --block-size=SIZE.
 	uint64_t next_block_remaining = 0;
 
@@ -747,7 +747,7 @@ coder_normal(file_pair *pair)
 				|| action == LZMA_FULL_BARRIER)) {
 			if (action == LZMA_SYNC_FLUSH) {
 				// Flushing completed. Write the pending data
-				// out immediatelly so that the reading side
+				// out immediately so that the reading side
 				// can decompress everything compressed so far.
 				if (io_write(pair, &out_buf, IO_BUFFER_SIZE
 						- strm.avail_out))
@@ -934,8 +934,8 @@ coder_run(const char *filename)
 				const bool is_passthru = init_ret
 						== CODER_INIT_PASSTHRU;
 				const uint64_t in_size
-						= pair->src_st.st_size <= 0
-						? 0 : pair->src_st.st_size;
+					= pair->src_st.st_size <= 0
+					? 0 : (uint64_t)(pair->src_st.st_size);
 				message_progress_start(&strm,
 						is_passthru, in_size);
 

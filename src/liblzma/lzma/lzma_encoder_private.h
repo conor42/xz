@@ -26,7 +26,7 @@
 // reason to not use it when it is supported.
 #ifdef TUKLIB_FAST_UNALIGNED_ACCESS
 #	define not_equal_16(a, b) \
-		(*(const uint16_t *)(a) != *(const uint16_t *)(b))
+		(unaligned_read16ne(a) != unaligned_read16ne(b))
 #else
 #	define not_equal_16(a, b) \
 		((a)[0] != (b)[0] || (a)[1] != (b)[1])
@@ -105,7 +105,7 @@ struct lzma_lzma1_encoder_s {
 	uint32_t literal_pos_mask;
 
 	// These are the same as in lzma_decoder.c. See comments there.
-	probability literal[LITERAL_CODERS_MAX][LITERAL_CODER_SIZE];
+	probability literal[LITERAL_CODERS_MAX * LITERAL_CODER_SIZE];
 	probability is_match[STATES][POS_STATES_MAX];
 	probability is_rep[STATES];
 	probability is_rep0[STATES];

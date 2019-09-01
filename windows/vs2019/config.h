@@ -1,5 +1,10 @@
+/* config.h for compiling liblzma (*not* the whole XZ Utils) with MSVC 2019 */
+
+/* Prefix for symbols exported by tuklib_*.c files */
+#define TUKLIB_SYMBOL_PREFIX lzma_
+
 /* How many MiB of RAM to assume if the real amount cannot be determined. */
-#define ASSUME_RAM 32
+#define ASSUME_RAM 128
 
 /* Define to 1 if crc32 integrity check is enabled. */
 #define HAVE_CHECK_CRC32 1
@@ -103,12 +108,6 @@
 /* Define to 1 if you have the <string.h> header file. */
 #define HAVE_STRING_H 1
 
-/* Define to 1 if you have the <sys/time.h> header file. */
-#define HAVE_SYS_TIME_H 1
-
-/* Define to 1 if you have the `utimes' function. */
-#define HAVE_UTIMES 1
-
 /* Define to 1 or 0, depending whether the compiler supports simple visibility
    declarations. */
 #define HAVE_VISIBILITY 0
@@ -116,20 +115,33 @@
 /* Define to 1 if the system has the type `_Bool'. */
 #define HAVE__BOOL 1
 
+#ifdef _M_IX86
+/* Define to 1 when using Windows 95 (and thus XP) compatible threads. This
+   avoids use of features that were added in Windows Vista.
+   This is used for 32-bit x86 builds for compatibility reasons since it
+   makes no measurable difference in performance compared to Vista threads. */
+#define MYTHREAD_WIN95 1
+#else
+/* Define to 1 when using Windows Vista compatible threads. This uses features
+   that are not available on Windows XP. */
+#define MYTHREAD_VISTA 1
+#endif
+
 /* Define to 1 to disable debugging code. */
 #define NDEBUG 1
 
-/* Define to the address where bug reports for this package should be sent. */
-#define PACKAGE_BUGREPORT "conor.mccarthy.444@gmail.com"
-
 /* Define to the full name of this package. */
-#define PACKAGE_NAME "FXZ Utils"
+#define PACKAGE_NAME "XZ Utils"
 
 /* Define to the home page for this package. */
-#define PACKAGE_URL "https://github.com/conor42/fxz"
+#define PACKAGE_URL "https://tukaani.org/xz/"
 
 /* The size of `size_t', as computed by sizeof. */
+#ifdef _WIN64
+#define SIZEOF_SIZE_T 8
+#else
 #define SIZEOF_SIZE_T 4
+#endif
 
 /* Define to 1 if the system supports fast unaligned access to 16-bit and
    32-bit integers. */

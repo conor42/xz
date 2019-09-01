@@ -360,13 +360,14 @@ io_copy_attrs(const file_pair *pair)
 	// Try changing the owner of the file. If we aren't root or the owner
 	// isn't already us, fchown() probably doesn't succeed. We warn
 	// about failing fchown() only if we are root.
-	if (fchown(pair->dest_fd, pair->src_st.st_uid, -1) && warn_fchown)
+	if (fchown(pair->dest_fd, pair->src_st.st_uid, (gid_t)(-1))
+			&& warn_fchown)
 		message_warning(_("%s: Cannot set the file owner: %s"),
 				pair->dest_name, strerror(errno));
 
 	mode_t mode;
 
-	if (fchown(pair->dest_fd, -1, pair->src_st.st_gid)) {
+	if (fchown(pair->dest_fd, (uid_t)(-1), pair->src_st.st_gid)) {
 		message_warning(_("%s: Cannot set the file group: %s"),
 				pair->dest_name, strerror(errno));
 		// We can still safely copy some additional permissions:
@@ -1169,11 +1170,17 @@ io_read(file_pair *pair, io_buf *buf_union, size_t size)
 
 
 extern bool
-io_seek_src(file_pair *pair, off_t pos)
+io_seek_src(file_pair *pair, uint64_t pos)
 {
-	assert(pos >= 0);
+	// Caller must not attempt to seek past the end of the input file
+	// (seeking to 100 in a 100-byte file is seeking to the end of
+	// the file, not past the end of the file, and thus that is allowed).
+	//
+	// This also validates that pos can be safely cast to off_t.
+	if (pos > (uint64_t)(pair->src_st.st_size))
+		message_bug();
 
-	if (lseek(pair->src_fd, pos, SEEK_SET) != pos) {
+	if (lseek(pair->src_fd, (off_t)(pos), SEEK_SET) == -1) {
 		message_error(_("%s: Error seeking the file: %s"),
 				pair->src_name, strerror(errno));
 		return true;
@@ -1186,7 +1193,7 @@ io_seek_src(file_pair *pair, off_t pos)
 
 
 extern bool
-io_pread(file_pair *pair, io_buf *buf, size_t size, off_t pos)
+io_pread(file_pair *pair, io_buf *buf, size_t size, uint64_t pos)
 {
 	// Using lseek() and read() is more portable than pread() and
 	// for us it is as good as real pread().
@@ -1286,8 +1293,15 @@ io_write(file_pair *pair, const io_buf *buf, size_t size)
 		// if the file ends with sparse block, we must also return
 		// if size == 0 to avoid doing the lseek().
 		if (size == IO_BUFFER_SIZE) {
-			if (is_sparse(buf)) {
-				pair->dest_pending_sparse += size;
+			// Even if the block was sparse, treat it as non-sparse
+			// if the pending sparse amount is large compared to
+			// the size of off_t. In practice this only matters
+			// on 32-bit systems where off_t isn't always 64 bits.
+			const off_t pending_max
+				= (off_t)(1) << (sizeof(off_t) * CHAR_BIT - 2);
+			if (is_sparse(buf) && pair->dest_pending_sparse
+					< pending_max) {
+				pair->dest_pending_sparse += (off_t)(size);
 				return false;
 			}
 		} else if (size == 0) {

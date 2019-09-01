@@ -282,7 +282,7 @@ encode_init(lzma_lzma1_encoder *coder, lzma_mf *mf)
 		mf_skip(mf, 1);
 		mf->read_ahead = 0;
 		rc_bit(&coder->rc, &coder->is_match[0][0], 0);
-		rc_bittree(&coder->rc, coder->literal[0], 8, mf->buffer[0]);
+		rc_bittree(&coder->rc, coder->literal, 8, mf->buffer[0]);
 	}
 
 	// Initialization is done (except if empty file).
@@ -481,7 +481,7 @@ lzma_lzma_encoder_reset(lzma_lzma1_encoder *coder,
 
 	coder->pos_mask = (1U << options->pb) - 1;
 	coder->literal_context_bits = options->lc;
-	coder->literal_pos_mask = (1U << options->lp) - 1;
+	coder->literal_pos_mask = ((unsigned)0x100 << options->lp) - ((unsigned)0x100 >> options->lc);
 
 	// Range coder
 	rc_reset(&coder->rc);

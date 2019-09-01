@@ -561,6 +561,10 @@ lzma_lz_encoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 
 		coder->next = LZMA_NEXT_CODER_INIT;
 	}
+	else if (next->code != &lz_encode) {
+		// An lzma2_fast_coder has been initialized and switching over is messy.
+		return LZMA_PROG_ERROR;
+	}
 
 	// Initialize the LZ-based encoder.
 	lzma_lz_options lz_options;

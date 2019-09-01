@@ -102,8 +102,8 @@ extern void lzma_lz_decoder_uncompressed(
 static inline uint8_t
 dict_get(const lzma_dict *const dict, const uint32_t distance)
 {
-	return dict->buf[dict->pos - distance - 1
-			+ (distance < dict->pos ? 0 : dict->size)];
+	return dict->buf[dict->pos - distance
+			+ (distance <= dict->pos ? 0 : dict->size)];
 }
 
 
@@ -135,7 +135,7 @@ dict_repeat(lzma_dict *dict, uint32_t distance, uint32_t *len)
 	// Repeat a block of data from the history. Because memcpy() is faster
 	// than copying byte by byte in a loop, the copying process gets split
 	// into three cases.
-	if (distance < left) {
+	if (distance <= left) {
 		// Source and target areas overlap, thus we can't use
 		// memcpy() nor even memmove() safely.
 		do {
@@ -143,10 +143,10 @@ dict_repeat(lzma_dict *dict, uint32_t distance, uint32_t *len)
 			++dict->pos;
 		} while (--left > 0);
 
-	} else if (distance < dict->pos) {
+	} else if (distance <= dict->pos) {
 		// The easiest and fastest case
 		memcpy(dict->buf + dict->pos,
-				dict->buf + dict->pos - distance - 1,
+				dict->buf + dict->pos - distance,
 				left);
 		dict->pos += left;
 
@@ -156,7 +156,7 @@ dict_repeat(lzma_dict *dict, uint32_t distance, uint32_t *len)
 		// we might need two memcpy() to copy all the data.
 		assert(dict->full == dict->size);
 		const uint32_t copy_pos
-				= dict->pos - distance - 1 + dict->size;
+				= dict->pos - distance + dict->size;
 		uint32_t copy_size = dict->size - copy_pos;
 
 		if (copy_size < left) {

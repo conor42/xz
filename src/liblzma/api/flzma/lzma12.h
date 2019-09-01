@@ -109,11 +109,11 @@ typedef enum {
 		 *  - dict_size > 32 MiB: dict_size * 10.5
 		 */
 
-	LZMA_MF_RAD     = 0x16
+	LZMA_MF_RAD     = 0x22
 		/**<
 		 * \brief       Match table built with radix search
 		 *
-		 * Minimum nice_len: 6
+		 * Minimum nice_len: 2
 		 *
 		 * Memory usage:
 		 *  - dict_size <= 64 MiB: dict_size * 5
@@ -323,7 +323,7 @@ typedef struct {
 	 * (2^ pb =2^2=4), which is often a good choice when there's
 	 * no better guess.
 	 *
-	 * When the aligment is known, setting pb accordingly may reduce
+	 * When the alignment is known, setting pb accordingly may reduce
 	 * the file size a little. E.g. with text files having one-byte
 	 * alignment (US-ASCII, ISO-8859-*, UTF-8), setting pb=0 can
 	 * improve compression slightly. For UTF-16 text, pb=1 is a good

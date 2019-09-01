@@ -14,7 +14,16 @@
 #ifndef LZMA_RANGE_COMMON_H
 #define LZMA_RANGE_COMMON_H
 
-#include "common.h"
+#ifdef HAVE_CONFIG_H
+#	include "common.h"
+#else
+#	define hint_inline
+#	define force_noinline
+#	define assert(a)
+#	define bool _Bool
+#	define true 1
+#	define false 0
+#endif
 
 
 ///////////////

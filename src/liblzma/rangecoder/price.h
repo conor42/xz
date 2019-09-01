@@ -15,36 +15,34 @@
 
 
 #define RC_MOVE_REDUCING_BITS 4
-#define RC_BIT_PRICE_SHIFT_BITS 4
+#define RC_BIT_PRICE_SHIFT_BITS 5
 #define RC_PRICE_TABLE_SIZE (RC_BIT_MODEL_TOTAL >> RC_MOVE_REDUCING_BITS)
 
 #define RC_INFINITY_PRICE (UINT32_C(1) << 30)
 
 
 /// Lookup table for the inline functions defined in this file.
-extern const uint8_t lzma_rc_prices[RC_PRICE_TABLE_SIZE];
+extern const uint8_t lzma_rc_prices[2][RC_PRICE_TABLE_SIZE];
 
 
 static inline uint32_t
 rc_bit_price(const probability prob, const uint32_t bit)
 {
-	return lzma_rc_prices[(prob ^ ((UINT32_C(0) - bit)
-			& (RC_BIT_MODEL_TOTAL - 1))) >> RC_MOVE_REDUCING_BITS];
+	return lzma_rc_prices[bit][prob >> RC_MOVE_REDUCING_BITS];
 }
 
 
 static inline uint32_t
 rc_bit_0_price(const probability prob)
 {
-	return lzma_rc_prices[prob >> RC_MOVE_REDUCING_BITS];
+	return lzma_rc_prices[0][prob >> RC_MOVE_REDUCING_BITS];
 }
 
 
 static inline uint32_t
 rc_bit_1_price(const probability prob)
 {
-	return lzma_rc_prices[(prob ^ (RC_BIT_MODEL_TOTAL - 1))
-			>> RC_MOVE_REDUCING_BITS];
+	return lzma_rc_prices[1][prob >> RC_MOVE_REDUCING_BITS];
 }
 
 

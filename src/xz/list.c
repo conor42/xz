@@ -58,7 +58,7 @@ typedef struct {
 
 
 /// Strings ending in a colon. These are used for lines like
-/// "  Foo:   123 MiB". These are groupped because translated strings
+/// "  Foo:   123 MiB". These are grouped because translated strings
 /// may have different maximum string length, and we want to pad all
 /// strings so that the values are aligned nicely.
 static const char *colon_strs[] = {
@@ -101,7 +101,7 @@ static int colon_strs_fw[ARRAY_SIZE(colon_strs)];
 
 
 /// Column headings
-struct {
+static struct {
 	/// Table column heading string
 	const char *str;
 
@@ -160,15 +160,15 @@ enum {
 /// Check ID to string mapping
 static const char check_names[LZMA_CHECK_ID_MAX + 1][12] = {
 	// TRANSLATORS: Indicates that there is no integrity check.
-	// This string is used in tables, so the width must not
-	// exceed ten columns with a fixed-width font.
+	// This string is used in tables. In older xz version this
+	// string was limited to ten columns in a fixed-width font, but
+	// nowadays there is no strict length restriction anymore.
 	N_("None"),
 	"CRC32",
 	// TRANSLATORS: Indicates that integrity check name is not known,
-	// but the Check ID is known (here 2). This and other "Unknown-N"
-	// strings are used in tables, so the width must not exceed ten
-	// columns with a fixed-width font. It's OK to omit the dash if
-	// you need space for one extra letter, but don't use spaces.
+	// but the Check ID is known (here 2). In older xz version these
+	// strings were limited to ten columns in a fixed-width font, but
+	// nowadays there is no strict length restriction anymore.
 	N_("Unknown-2"),
 	N_("Unknown-3"),
 	"CRC64",
@@ -226,7 +226,7 @@ init_colon_strs(void)
 	size_t width_max = 0;
 
 	for (unsigned i = 0; i < ARRAY_SIZE(colon_strs); ++i) {
-		widths[i] = tuklib_mbstr_width(colon_strs[i], &lens[i]);
+		widths[i] = tuklib_mbstr_width(_(colon_strs[i]), &lens[i]);
 
 		// If debugging is enabled, catch invalid strings with
 		// an assertion. However, when not debugging, use the
@@ -256,9 +256,29 @@ init_colon_strs(void)
 static void
 init_headings(void)
 {
+	// Before going through the heading strings themselves, treat
+	// the Check heading specially: Look at the widths of the various
+	// check names and increase the width of the Check column if needed.
+	// The width of the heading name "Check" will then be handled normally
+	// with other heading names in the second loop in this function.
+	for (unsigned i = 0; i < ARRAY_SIZE(check_names); ++i) {
+		size_t len;
+		size_t w = tuklib_mbstr_width(_(check_names[i]), &len);
+
+		// Error handling like in init_colon_strs().
+		assert(w != (size_t)-1);
+		if (w == (size_t)-1)
+			w = len;
+
+		// If the translated string is wider than the minimum width
+		// set at compile time, increase the width.
+		if ((size_t)(headings[HEADING_CHECK].columns) < w)
+			headings[HEADING_CHECK].columns = w;
+	}
+
 	for (unsigned i = 0; i < ARRAY_SIZE(headings); ++i) {
 		size_t len;
-		size_t w = tuklib_mbstr_width(headings[i].str, &len);
+		size_t w = tuklib_mbstr_width(_(headings[i].str), &len);
 
 		// Error handling like in init_colon_strs().
 		assert(w != (size_t)-1);
@@ -272,7 +292,7 @@ init_headings(void)
 
 		// Calculate the field width for printf("%*s") so that
 		// the string uses .columns number of columns on a terminal.
-		headings[i].fw = (int)(len + headings[i].columns - w);
+		headings[i].fw = (int)(len + (size_t)headings[i].columns - w);
 	}
 
 	return;
@@ -362,12 +382,11 @@ parse_indexes(xz_file_info *xfi, file_pair *pair)
 			break;
 
 		case LZMA_SEEK_NEEDED:
-			// The cast is safe because liblzma won't ask us to
-			// seek past the known size of the input file which
-			// did fit into off_t.
+			// liblzma won't ask us to seek past the known size
+			// of the input file.
 			assert(strm.seek_pos
 					<= (uint64_t)(pair->src_st.st_size));
-			if (io_seek_src(pair, (off_t)(strm.seek_pos)))
+			if (io_seek_src(pair, strm.seek_pos))
 				goto error;
 
 			// avail_in must be zero so that we will read new
@@ -569,7 +588,7 @@ parse_check_value(file_pair *pair, const lzma_index_iter *iter)
 
 	// Locate and read the Check field.
 	const uint32_t size = lzma_check_size(iter->stream.flags->check);
-	const off_t offset = iter->block.compressed_file_offset
+	const uint64_t offset = iter->block.compressed_file_offset
 			+ iter->block.total_size - size;
 	io_buf buf;
 	if (io_pread(pair, &buf, size, offset))
@@ -850,9 +869,10 @@ print_info_adv(xz_file_info *xfi, file_pair *pair)
 		// the actual check value as it is hexadecimal. However, to
 		// print the column heading, further calculation is needed
 		// to handle a translated string (it's done a few lines later).
+		assert(check_max <= LZMA_CHECK_SIZE_MAX);
 		const int checkval_width = my_max(
-			(uint32_t)(headings[HEADING_CHECKVAL].columns),
-			2 * check_max);
+				headings[HEADING_CHECKVAL].columns,
+				(int)(2 * check_max));
 
 		// All except Check are right aligned; Check is left aligned.
 		printf("  %s\n    %*s %*s %*s %*s %*s %*s  %*s  %-*s",

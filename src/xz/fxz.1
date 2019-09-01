@@ -1,11 +1,12 @@
 '\" t
 .\"
-.\" Author: Lasse Collin
+.\" Authors: Lasse Collin
+.\"          Conor McCarthy
 .\"
 .\" This file has been put into the public domain.
 .\" You can do whatever you want with this file.
 .\"
-.TH FXZ 1 "2019-03-26" "Tukaani & C.McCarthy" "FXZ Utils"
+.TH FXZ 1 "2019-07-14" "Tukaani & C.McCarthy" "FXZ Utils"
 .
 .SH NAME
 fxz, funxz, fxzcat, flzma, funlzma, flzcat \- Compress or decompress .xz and .lzma files
@@ -59,7 +60,9 @@ These allow
 .B xz
 's single-threaded mode to run in parallel, enabling multi-threaded
 operation without splitting the input into large blocks or scaling the memory usage
-with the thread count.
+with the thread count. On x64-64 systems,
+.B fxz
+also adds an assembler-optimized LZMA decoder based on the one in 7-Zip.
 .B Note:
 in this document, 'multi-threaded mode' refers to the old liblzma multi-block
 method for multi-threading. Multi-threading with the Radix match finder works
@@ -799,8 +802,8 @@ When compressing to the
 format, split the input data into blocks of
 .I size
 bytes.
-At level 0, the blocks are compressed independently from each other,
-which helps with multi-threading and
+The blocks are compressed independently from each other,
+which allows multi-threading at preset 0, and
 makes limited random-access decompression possible.
 This option is typically used to override the default
 block size in multi-threaded mode,
@@ -1022,7 +1025,7 @@ for multi-threading will be used at preset 0, or if
 was specified. 
 .IP ""
 The default block size depends on the compression level and
-can be overriden with the
+can be overridden with the
 .BI \-\-block\-size= size
 option.
 .IP ""
@@ -1134,7 +1137,7 @@ The modifier
 matches
 .BR \-\-extreme .
 .B fxz
-adds a new option
+adds a new modifier
 .BR o ,
 which matches
 .BR \-\-original .
@@ -1392,7 +1395,7 @@ Radix match finder plus additional hc3 in hybrid (ultra) mode
 .br
 Minimum value for
 .IR nice :
-6
+2
 .br
 Memory usage:
 .br
@@ -1431,7 +1434,7 @@ for
 .B ultra
 for
 .I presets
-4\-9.
+6\-9.
 .IP ""
 Usually
 .B fast
@@ -1452,6 +1455,9 @@ Higher values tend to give better compression ratio
 at the expense of speed.
 The default depends on the
 .IR preset .
+In most cases a value of
+.I nice
+below 16 is not an efficient way to speed up compression.
 .TP
 .BI depth= depth
 Specify the maximum search depth in the match finder.
@@ -1477,14 +1483,14 @@ the compression in case it is taking far too long.
 .TP
 .BI ov= overlap
 The Radix match finder is a block algorithm which cannot use a
-sliding window. A portion of each completed block must be copied to
+sliding window. The overlap is a portion of each completed block which must be copied to
 provide some dictionary for the next block.
 .IP ""
 .I ov
 is specified in sixteenths of the dictionary size. The minimum is 0 and the maximum is 14. The default is 2, but
 .B \-\-extreme
-changes it to 4. Large overlaps do not always yield greater compression, especially on
-small dictionary sizes.
+changes it to 4. Large overlaps do not always yield greater compression, especially when
+running many threads on a small dictionary.
 .TP
 .BI dc= divide_chains
 Long chains of 2-byte matches can be broken up by the Radix match finder and searched

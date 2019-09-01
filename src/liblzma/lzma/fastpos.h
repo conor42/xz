@@ -87,6 +87,13 @@ get_dist_slot_2(uint32_t dist)
 }
 
 
+static inline uint32_t
+price_dist_slot(size_t dist)
+{
+	return get_dist_slot(dist);
+}
+
+
 #else
 
 #define FASTPOS_BITS 13
@@ -101,7 +108,7 @@ extern const uint8_t lzma_fastpos[1 << FASTPOS_BITS];
 	(UINT32_C(1) << (FASTPOS_BITS + fastpos_shift(extra, n)))
 
 #define fastpos_result(dist, extra, n) \
-	lzma_fastpos[(dist) >> fastpos_shift(extra, n)] \
+	(uint32_t)(lzma_fastpos[(dist) >> fastpos_shift(extra, n)]) \
 			+ 2 * fastpos_shift(extra, n)
 
 
@@ -135,6 +142,13 @@ get_dist_slot_2(uint32_t dist)
 	return fastpos_result(dist, FULL_DISTANCES_BITS - 1, 2);
 }
 #endif
+
+
+static inline uint32_t
+price_dist_slot(size_t dist)
+{
+	return lzma_fastpos[dist];
+}
 
 #endif
 

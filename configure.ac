@@ -429,33 +429,33 @@ AM_CONDITIONAL([COND_XZ], [test x$enable_fxz != xno])
 
 AC_ARG_ENABLE([fxzdec], [AS_HELP_STRING([--disable-fxzdec],
 		[do not build fxzdec])],
-	[], [enable_fxzdec=no])
+	[], [enable_fxzdec=yes])
 test "x$enable_decoders" = xno && enable_fxzdec=no
 AM_CONDITIONAL([COND_XZDEC], [test x$enable_fxzdec != xno])
 
 AC_ARG_ENABLE([flzmadec], [AS_HELP_STRING([--disable-flzmadec],
 		[do not build flzmadec
 		(it exists primarily for LZMA Utils compatibility)])],
-	[], [enable_flzmadec=no])
+	[], [enable_flzmadec=yes])
 test "x$enable_decoder_lzma1" = xno && enable_flzmadec=no
 AM_CONDITIONAL([COND_LZMADEC], [test x$enable_flzmadec != xno])
 
 AC_ARG_ENABLE([flzmainfo], [AS_HELP_STRING([--disable-flzmainfo],
 		[do not build flzmainfo
 		(it exists primarily for LZMA Utils compatibility)])],
-	[], [enable_flzmainfo=no])
+	[], [enable_flzmainfo=yes])
 test "x$enable_decoder_lzma1" = xno && enable_flzmainfo=no
 AM_CONDITIONAL([COND_LZMAINFO], [test x$enable_flzmainfo != xno])
 
 AC_ARG_ENABLE([flzma-links], [AS_HELP_STRING([--disable-flzma-links],
 		[do not create symlinks for LZMA Utils compatibility])],
-	[], [enable_flzma_links=no])
+	[], [enable_flzma_links=yes])
 AM_CONDITIONAL([COND_LZMALINKS], [test x$enable_flzma_links != xno])
 
 AC_ARG_ENABLE([scripts], [AS_HELP_STRING([--disable-scripts],
 		[do not install the scripts fxzdiff, fxzgrep, fxzless, fxzmore,
 		and their symlinks])],
-	[], [enable_scripts=no])
+	[], [enable_scripts=yes])
 AM_CONDITIONAL([COND_SCRIPTS], [test x$enable_scripts != xno])
 
 AC_ARG_ENABLE([doc], [AS_HELP_STRING([--disable-doc],
@@ -629,6 +629,9 @@ AC_CHECK_HEADERS([fcntl.h limits.h sys/time.h],
 # This allows the use of the intrinsic functions if they are available.
 AC_CHECK_HEADERS([immintrin.h])
 
+# This allows the use of C11 atomic_fetch_add if no alternative is available.
+AC_CHECK_HEADERS([stdatomic.h])
+
 
 ###############################################################################
 # Checks for typedefs, structures, and compiler characteristics.
@@ -683,7 +686,7 @@ TUKLIB_PHYSMEM
 TUKLIB_CPUCORES
 TUKLIB_MBSTR
 
-# If requsted, check for system-provided SHA-256. At least the following
+# If requested, check for system-provided SHA-256. At least the following
 # implementations are supported:
 #
 # OS       Headers                     Library  Type           Function

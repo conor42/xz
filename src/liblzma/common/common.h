@@ -17,6 +17,7 @@
 #include "mythread.h"
 #include "tuklib_integer.h"
 
+
 #if defined(_WIN32) || defined(__CYGWIN__)
 #	ifdef DLL_EXPORT
 #		define LZMA_API_EXPORT __declspec(dllexport)
@@ -31,6 +32,57 @@
 #endif
 
 #define LZMA_API(type) LZMA_API_EXPORT type LZMA_API_CALL
+
+
+// force inlining
+
+#if defined(__GNUC__)
+#  define force_inline_attr __attribute__((always_inline))
+#elif defined(_MSC_VER)
+#  define force_inline_attr __forceinline
+#else
+#  define force_inline_attr
+#endif
+
+#ifdef HAVE_SMALL
+
+#define force_inline_template
+
+#else
+
+// force_inline_template is used to define C "templates", which take constant
+// parameters. They must be inlined for the compiler to eliminate the constant
+// branches.
+#define force_inline_template inline force_inline_attr
+
+#endif // HAVE_SMALL
+
+// hint_inline is used to help the compiler generate better code. It is//not*
+// used for "templates", so it can be tweaked based on the compilers
+// performance.
+//
+// gcc-4.8 and gcc-4.9 have been shown to benefit from leaving off the
+// always_inline attribute.
+//
+// clang up to 5.0.0 (trunk) benefit tremendously from the always_inline
+// attribute.
+#if !defined(__clang__) && defined(__GNUC__) && __GNUC__ >= 4 && __GNUC_MINOR__ >= 8 && __GNUC__ < 5
+#  define hint_inline inline
+#else
+#  define hint_inline inline force_inline_attr
+#endif
+
+// Force no inlining
+#ifdef _MSC_VER
+#  define force_noinline __declspec(noinline)
+#else
+#  ifdef __GNUC__
+#    define force_noinline __attribute__((__noinline__))
+#  else
+#    define force_noinline
+#  endif
+#endif
+
 
 #include "flzma.h"
 
@@ -83,9 +135,8 @@
 
 /// Special return value (lzma_ret) to indicate that a timeout was reached
 /// and lzma_code() must not return LZMA_BUF_ERROR. This is converted to
-/// LZMA_OK in lzma_code(). This is not in the lzma_ret enumeration because
-/// there's no need to have it in the public API.
-#define LZMA_TIMED_OUT 32
+/// LZMA_OK in lzma_code().
+#define LZMA_TIMED_OUT LZMA_RET_INTERNAL1
 
 
 typedef struct lzma_next_coder_s lzma_next_coder;

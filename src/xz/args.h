@@ -38,6 +38,8 @@ extern bool opt_keep_original;
 extern bool opt_robot;
 extern bool opt_ignore_check;
 
+extern bool use_rmf;
+
 extern const char stdin_filename[];
 
 extern void args_parse(args_info *args, int argc, char **argv);

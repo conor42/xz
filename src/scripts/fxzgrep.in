@@ -24,7 +24,7 @@
 # autodetection. This way memory usage limit and thread limit can be
 # specified via XZ_OPT. With gzip, bzip2, and lzop it's OK to just unset the
 # environment variables.
-xz='@xz@ --format=auto'
+xz='@fxz@ --format=auto'
 unset GZIP BZIP BZIP2 LZOP
 
 case ${0##*/} in
@@ -200,7 +200,7 @@ for i; do
   )
   r=$?
 
-  # fail occured previously, nothing worse can happen
+  # fail occurred previously, nothing worse can happen
   test $res -gt 1 && continue
 
   test "$xz_status" -eq 0 || test "$xz_status" -eq 2 \

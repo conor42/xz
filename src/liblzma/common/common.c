@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-/// \file       common.h
+/// \file       common.c
 /// \brief      Common functions needed in many places in liblzma
 //
 //  Author:     Lasse Collin
@@ -99,7 +99,11 @@ lzma_bufcpy(const uint8_t *restrict in, size_t *restrict in_pos,
 	const size_t out_avail = out_size - *out_pos;
 	const size_t copy_size = my_min(in_avail, out_avail);
 
-	memcpy(out + *out_pos, in + *in_pos, copy_size);
+	// Call memcpy() only if there is something to copy. If there is
+	// nothing to copy, in or out might be NULL and then the memcpy()
+	// call would trigger undefined behavior.
+	if (copy_size > 0)
+		memcpy(out + *out_pos, in + *in_pos, copy_size);
 
 	*in_pos += copy_size;
 	*out_pos += copy_size;
@@ -294,9 +298,7 @@ lzma_code(lzma_stream *strm, lzma_action action)
 
 	strm->internal->avail_in = strm->avail_in;
 
-	// Cast is needed to silence a warning about LZMA_TIMED_OUT, which
-	// isn't part of lzma_ret enumeration.
-	switch ((unsigned int)(ret)) {
+	switch (ret) {
 	case LZMA_OK:
 		// Don't return LZMA_BUF_ERROR when it happens the first time.
 		// This is to avoid returning LZMA_BUF_ERROR when avail_out

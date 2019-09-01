@@ -5,6 +5,7 @@
 ///
 //  Authors:    Igor Pavlov
 //              Lasse Collin
+//              Conor McCarthy
 //
 //  This file has been put into the public domain.
 //  You can do whatever you want with this file.
@@ -22,8 +23,10 @@
 #	pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
 #endif
 
-
 #ifdef HAVE_SMALL
+
+// Assembler decoder is an extra function which enlarges the code
+#undef LZMA_ASM_OPT_64
 
 // Macros for (somewhat) size-optimized code.
 #define seq_4(seq) seq
@@ -40,21 +43,21 @@
 #define len_decode(target, ld, pos_state, seq) \
 do { \
 case seq ## _CHOICE: \
-	rc_if_0(ld.choice, seq ## _CHOICE) { \
-		rc_update_0(ld.choice); \
+	rc_if_0(ld.low[0][0], seq ## _CHOICE) { \
+		rc_update_0(ld.low[0][0]); \
 		probs = ld.low[pos_state];\
 		limit = LEN_LOW_SYMBOLS; \
 		target = MATCH_LEN_MIN; \
 	} else { \
-		rc_update_1(ld.choice); \
+		rc_update_1(ld.low[0][0]); \
 case seq ## _CHOICE2: \
-		rc_if_0(ld.choice2, seq ## _CHOICE2) { \
-			rc_update_0(ld.choice2); \
-			probs = ld.mid[pos_state]; \
-			limit = LEN_MID_SYMBOLS; \
+		rc_if_0(ld.low[0][LEN_LOW_SYMBOLS], seq ## _CHOICE2) { \
+			rc_update_0(ld.low[0][LEN_LOW_SYMBOLS]); \
+			probs = ld.low[pos_state] + LEN_LOW_SYMBOLS; \
+			limit = LEN_LOW_SYMBOLS; \
 			target = MATCH_LEN_MIN + LEN_LOW_SYMBOLS; \
 		} else { \
-			rc_update_1(ld.choice2); \
+			rc_update_1(ld.low[0][LEN_LOW_SYMBOLS]); \
 			probs = ld.high; \
 			limit = LEN_HIGH_SYMBOLS; \
 			target = MATCH_LEN_MIN + LEN_LOW_SYMBOLS \
@@ -118,27 +121,27 @@ case seq ## _BITTREE: \
 do { \
 	symbol = 1; \
 case seq ## _CHOICE: \
-	rc_if_0(ld.choice, seq ## _CHOICE) { \
-		rc_update_0(ld.choice); \
+	rc_if_0(ld.low[0][0], seq ## _CHOICE) { \
+		rc_update_0(ld.low[0][0]); \
 		rc_bit_case(ld.low[pos_state][symbol], , , seq ## _LOW0); \
 		rc_bit_case(ld.low[pos_state][symbol], , , seq ## _LOW1); \
 		rc_bit_case(ld.low[pos_state][symbol], , , seq ## _LOW2); \
 		target = symbol - LEN_LOW_SYMBOLS + MATCH_LEN_MIN; \
 	} else { \
-		rc_update_1(ld.choice); \
+		rc_update_1(ld.low[0][0]); \
 case seq ## _CHOICE2: \
-		rc_if_0(ld.choice2, seq ## _CHOICE2) { \
-			rc_update_0(ld.choice2); \
-			rc_bit_case(ld.mid[pos_state][symbol], , , \
+		rc_if_0(ld.low[0][LEN_LOW_SYMBOLS], seq ## _CHOICE2) { \
+			rc_update_0(ld.low[0][LEN_LOW_SYMBOLS]); \
+			rc_bit_case(ld.low[pos_state][symbol + LEN_LOW_SYMBOLS], , , \
 					seq ## _MID0); \
-			rc_bit_case(ld.mid[pos_state][symbol], , , \
+			rc_bit_case(ld.low[pos_state][symbol + LEN_LOW_SYMBOLS], , , \
 					seq ## _MID1); \
-			rc_bit_case(ld.mid[pos_state][symbol], , , \
+			rc_bit_case(ld.low[pos_state][symbol + LEN_LOW_SYMBOLS], , , \
 					seq ## _MID2); \
 			target = symbol - LEN_MID_SYMBOLS \
 					+ MATCH_LEN_MIN + LEN_LOW_SYMBOLS; \
 		} else { \
-			rc_update_1(ld.choice2); \
+			rc_update_1(ld.low[0][LEN_LOW_SYMBOLS]); \
 			rc_bit_case(ld.high[symbol], , , seq ## _HIGH0); \
 			rc_bit_case(ld.high[symbol], , , seq ## _HIGH1); \
 			rc_bit_case(ld.high[symbol], , , seq ## _HIGH2); \
@@ -156,13 +159,11 @@ case seq ## _CHOICE2: \
 
 #endif // HAVE_SMALL
 
+#define STATES2 16
 
 /// Length decoder probabilities; see comments in lzma_common.h.
 typedef struct {
-	probability choice;
-	probability choice2;
-	probability low[POS_STATES_MAX][LEN_LOW_SYMBOLS];
-	probability mid[POS_STATES_MAX][LEN_MID_SYMBOLS];
+	probability low[POS_STATES_MAX][LEN_LOW_SYMBOLS * 2];
 	probability high[LEN_HIGH_SYMBOLS];
 } lzma_length_decoder;
 
@@ -172,11 +173,26 @@ typedef struct {
 	// Probabilities //
 	///////////////////
 
-	/// Literals; see comments in lzma_common.h.
-	probability literal[LITERAL_CODERS_MAX][LITERAL_CODER_SIZE];
+	/// Probability trees for additional bits for match distance when the
+	/// distance is in the range [4, 127].
+	probability pos_special[FULL_DISTANCES];
+
+	/// If 1, the repeated match has length of one byte. Otherwise
+	/// the length is decoded from rep_len_decoder.
+	probability is_rep0_long[POS_STATES_MAX][STATES2];
+
+	/// Length of a repeated match
+	lzma_length_decoder rep_len_decoder;
+
+	/// Length of a normal match
+	lzma_length_decoder match_len_decoder;
 
 	/// If 1, it's a match. Otherwise it's a single 8-bit literal.
-	probability is_match[STATES][POS_STATES_MAX];
+	probability is_match[POS_STATES_MAX][STATES2];
+
+	/// Probability tree for the lowest four bits of a match distance
+	/// that is equal to or greater than 128.
+	probability pos_align[ALIGN_SIZE];
 
 	/// If 1, it's a repeated match. The distance is one of rep0 .. rep3.
 	probability is_rep[STATES];
@@ -192,28 +208,13 @@ typedef struct {
 	/// If 0, distance of a repeated match is rep2. Otherwise it is rep3.
 	probability is_rep2[STATES];
 
-	/// If 1, the repeated match has length of one byte. Otherwise
-	/// the length is decoded from rep_len_decoder.
-	probability is_rep0_long[STATES][POS_STATES_MAX];
-
 	/// Probability tree for the highest two bits of the match distance.
 	/// There is a separate probability tree for match lengths of
 	/// 2 (i.e. MATCH_LEN_MIN), 3, 4, and [5, 273].
 	probability dist_slot[DIST_STATES][DIST_SLOTS];
 
-	/// Probability trees for additional bits for match distance when the
-	/// distance is in the range [4, 127].
-	probability pos_special[FULL_DISTANCES - DIST_MODEL_END];
-
-	/// Probability tree for the lowest four bits of a match distance
-	/// that is equal to or greater than 128.
-	probability pos_align[ALIGN_SIZE];
-
-	/// Length of a normal match
-	lzma_length_decoder match_len_decoder;
-
-	/// Length of a repeated match
-	lzma_length_decoder rep_len_decoder;
+	/// Literals; see comments in lzma_common.h.
+	probability literal[LITERAL_CODERS_MAX * LITERAL_CODER_SIZE];
 
 	///////////////////
 	// Decoder state //
@@ -233,10 +234,6 @@ typedef struct {
 	uint32_t pos_mask; // (1U << pb) - 1
 	uint32_t literal_context_bits;
 	uint32_t literal_pos_mask;
-
-	/// Uncompressed size as bytes, or LZMA_VLI_UNKNOWN if end of
-	/// payload marker is expected.
-	lzma_vli uncompressed_size;
 
 	////////////////////////////////
 	// State of incomplete symbol //
@@ -265,8 +262,9 @@ typedef struct {
 		SEQ_COPY,
 	} sequence;
 
-	/// Base of the current probability tree
-	probability *probs;
+	/// If decoding a literal: match byte.
+	/// If decoding a match: length of the match.
+	uint32_t len;
 
 	/// Symbol being decoded. This is also used as an index variable in
 	/// bittree decoders: probs[symbol]
@@ -280,16 +278,51 @@ typedef struct {
 	/// Bittree reverse decoders: Offset of the next bit: 1 << offset
 	uint32_t offset;
 
-	/// If decoding a literal: match byte.
-	/// If decoding a match: length of the match.
-	uint32_t len;
+	/// Base of the current probability tree
+	probability *probs;
+
+	/// Uncompressed size as bytes, or LZMA_VLI_UNKNOWN if end of
+	/// payload marker is expected.
+	lzma_vli uncompressed_size;
 } lzma_lzma1_decoder;
+
+
+#ifdef LZMA_ASM_OPT_64
+
+////////////////////////////////
+// External assembler decoder //
+////////////////////////////////
+
+#define LZMA_REQUIRED_INPUT_MAX 20
+
+
+extern int
+lzma_decode_asm_5(void *coder_ptr, lzma_dict *dictptr,
+	const uint8_t *in,
+	size_t *in_pos, size_t in_size);
+
+
+static bool lzma_decode_opt(lzma_lzma1_decoder *coder, lzma_dict *dictptr,
+	const uint8_t *in,
+	size_t *in_pos, size_t in_size)
+{
+	int res = lzma_decode_asm_5(coder, dictptr, in, in_pos, in_size - LZMA_REQUIRED_INPUT_MAX);
+	if (res > 0)
+		return true;
+	else if (res < 0)
+		coder->sequence = SEQ_EOPM;
+	else
+		coder->sequence = (coder->len != 0) ? SEQ_COPY : SEQ_IS_MATCH;
+	return false;
+}
+
+#endif
 
 
 static lzma_ret
 lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
-		const uint8_t *restrict in,
-		size_t *restrict in_pos, size_t in_size)
+	const uint8_t *restrict in,
+	size_t *restrict in_pos, size_t in_size)
 {
 	lzma_lzma1_decoder *restrict coder = coder_ptr;
 
@@ -299,7 +332,7 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 
 	{
 		const lzma_ret ret = rc_read_init(
-				&coder->rc, in, in_pos, in_size);
+			&coder->rc, in, in_pos, in_size);
 		if (ret != LZMA_STREAM_END)
 			return ret;
 	}
@@ -313,7 +346,28 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 
 	lzma_dict dict = *dictptr;
 
+	// If uncompressed size is known, there must be no end of payload
+	// marker.
+	const bool no_eopm = coder->uncompressed_size
+		!= LZMA_VLI_UNKNOWN;
+	if (no_eopm && coder->uncompressed_size < dict.limit - dict.pos)
+		dict.limit = dict.pos + (size_t)(coder->uncompressed_size);
+
 	const size_t dict_start = dict.pos;
+
+#ifdef LZMA_ASM_OPT_64
+	size_t loop_count = (size_t)-1;
+
+	if (*in_pos + LZMA_REQUIRED_INPUT_MAX * 2 < in_size && dict.pos < dict.limit) {
+		if (coder->sequence == SEQ_IS_MATCH) {
+			if(lzma_decode_opt(coder, &dict, in, in_pos, in_size))
+				return LZMA_DATA_ERROR;
+		}
+		else {
+			loop_count = 1;
+		}
+	}
+#endif
 
 	// Range decoder
 	rc_to_local(coder->rc, *in_pos);
@@ -343,17 +397,10 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 
 	lzma_ret ret = LZMA_OK;
 
-	// If uncompressed size is known, there must be no end of payload
-	// marker.
-	const bool no_eopm = coder->uncompressed_size
-			!= LZMA_VLI_UNKNOWN;
-	if (no_eopm && coder->uncompressed_size < dict.limit - dict.pos)
-		dict.limit = dict.pos + (size_t)(coder->uncompressed_size);
-
 	// The main decoder loop. The "switch" is used to restart the decoder at
 	// correct location. Once restarted, the "switch" is no longer used.
 	switch (coder->sequence)
-	while (true) {
+	do {
 		// Calculate new pos_state. This is skipped on the first loop
 		// since we already calculated it when setting up the local
 		// variables.
@@ -364,14 +411,14 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 		if (unlikely(no_eopm && dict.pos == dict.limit))
 			break;
 
-		rc_if_0(coder->is_match[state][pos_state], SEQ_IS_MATCH) {
-			rc_update_0(coder->is_match[state][pos_state]);
+		rc_if_0(coder->is_match[pos_state][state], SEQ_IS_MATCH) {
+			rc_update_0(coder->is_match[pos_state][state]);
 
 			// It's a literal i.e. a single 8-bit byte.
 
 			probs = literal_subcoder(coder->literal,
 					literal_context_bits, literal_pos_mask,
-					dict.pos, dict_get(&dict, 0));
+					dict.pos, dict_get(&dict, 1));
 			symbol = 1;
 
 			if (is_literal_state(state)) {
@@ -398,7 +445,7 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 				// ("match byte") to "len" to minimize the
 				// number of variables we need to store
 				// between decoder calls.
-				len = dict_get(&dict, rep0) << 1;
+				len = (uint32_t)(dict_get(&dict, rep0)) << 1;
 
 				// The usage of "offset" allows omitting some
 				// branches, which should give tiny speed
@@ -494,7 +541,7 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 		// (distance and length) which will be repeated from our
 		// output history.
 
-		rc_update_1(coder->is_match[state][pos_state]);
+		rc_update_1(coder->is_match[pos_state][state]);
 
 	case SEQ_IS_REP:
 		rc_if_0(coder->is_rep[state], SEQ_IS_REP) {
@@ -561,56 +608,21 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 							>= -1);
 					assert((int32_t)(rep0 - symbol - 1)
 							<= 82);
-					probs = coder->pos_special + rep0
-							- symbol - 1;
-					symbol = 1;
-					offset = 0;
+					probs = coder->pos_special;
+					symbol = rep0 + 1;
+					offset = 1;
 	case SEQ_DIST_MODEL:
-#ifdef HAVE_SMALL
 					do {
-						rc_bit(probs[symbol], ,
-							rep0 += 1 << offset,
+						assert(symbol < FULL_DISTANCES);
+						rc_bit_last(probs[symbol],
+							symbol += offset,
+							symbol += offset << 1,
 							SEQ_DIST_MODEL);
-					} while (++offset < limit);
-#else
-					switch (limit) {
-					case 5:
-						assert(offset == 0);
-						rc_bit(probs[symbol], ,
-							rep0 += 1,
-							SEQ_DIST_MODEL);
-						++offset;
-						--limit;
-					case 4:
-						rc_bit(probs[symbol], ,
-							rep0 += 1 << offset,
-							SEQ_DIST_MODEL);
-						++offset;
-						--limit;
-					case 3:
-						rc_bit(probs[symbol], ,
-							rep0 += 1 << offset,
-							SEQ_DIST_MODEL);
-						++offset;
-						--limit;
-					case 2:
-						rc_bit(probs[symbol], ,
-							rep0 += 1 << offset,
-							SEQ_DIST_MODEL);
-						++offset;
-						--limit;
-					case 1:
-						// We need "symbol" only for
-						// indexing the probability
-						// array, thus we can use
-						// rc_bit_last() here to omit
-						// the unneeded updating of
-						// "symbol".
-						rc_bit_last(probs[symbol], ,
-							rep0 += 1 << offset,
-							SEQ_DIST_MODEL);
-					}
-#endif
+						offset <<= 1;
+					} while (--limit);
+
+					rep0 = symbol - offset;
+
 				} else {
 					// The distance is >= 128. Decode the
 					// lower bits without probabilities
@@ -635,25 +647,30 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 					do {
 						rc_bit(coder->pos_align[
 								symbol], ,
-							rep0 += 1 << offset,
+							rep0 += 1U << offset,
 							SEQ_ALIGN);
 					} while (++offset < ALIGN_BITS);
 #else
 	case SEQ_ALIGN0:
-					rc_bit(coder->pos_align[symbol], ,
-							rep0 += 1, SEQ_ALIGN0);
+					rc_bit_last(coder->pos_align[symbol],
+							symbol += 1,
+							symbol += 2, SEQ_ALIGN0);
 	case SEQ_ALIGN1:
-					rc_bit(coder->pos_align[symbol], ,
-							rep0 += 2, SEQ_ALIGN1);
+					rc_bit_last(coder->pos_align[symbol],
+							symbol += 2,
+							symbol += 4, SEQ_ALIGN1);
 	case SEQ_ALIGN2:
-					rc_bit(coder->pos_align[symbol], ,
-							rep0 += 4, SEQ_ALIGN2);
+					rc_bit_last(coder->pos_align[symbol],
+							symbol += 4,
+							symbol += 8, SEQ_ALIGN2);
 	case SEQ_ALIGN3:
 					// Like in SEQ_DIST_MODEL, we don't
 					// need "symbol" for anything else
 					// than indexing the probability array.
-					rc_bit_last(coder->pos_align[symbol], ,
-							rep0 += 8, SEQ_ALIGN3);
+					rc_bit_last(coder->pos_align[symbol],
+							rep0 -= 8,
+							, SEQ_ALIGN3);
+					rep0 += symbol;
 #endif
 
 					if (rep0 == UINT32_MAX) {
@@ -683,6 +700,8 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 				goto out;
 			}
 
+			++rep0;
+
 		} else {
 			rc_update_1(coder->is_rep[state]);
 
@@ -706,10 +725,10 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 				// The distance is rep0.
 
 	case SEQ_IS_REP0_LONG:
-				rc_if_0(coder->is_rep0_long[state][pos_state],
+				rc_if_0(coder->is_rep0_long[pos_state][state],
 						SEQ_IS_REP0_LONG) {
 					rc_update_0(coder->is_rep0_long[
-							state][pos_state]);
+							pos_state][state]);
 
 					update_short_rep(state);
 
@@ -726,7 +745,7 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 				// Repeating more than one byte at
 				// distance of rep0.
 				rc_update_1(coder->is_rep0_long[
-						state][pos_state]);
+						pos_state][state]);
 
 			} else {
 				rc_update_1(coder->is_rep0[state]);
@@ -791,7 +810,11 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 			coder->sequence = SEQ_COPY;
 			goto out;
 		}
-	}
+#ifdef LZMA_ASM_OPT_64
+	} while (--loop_count);
+#else
+	} while (true);
+#endif
 
 	rc_normalize(SEQ_NORMALIZE);
 	coder->sequence = SEQ_IS_MATCH;
@@ -816,6 +839,16 @@ out:
 	coder->limit = limit;
 	coder->offset = offset;
 	coder->len = len;
+
+#ifdef LZMA_ASM_OPT_64
+	if (*in_pos + LZMA_REQUIRED_INPUT_MAX * 2 < in_size && dict.pos < dict.limit
+			&& coder->sequence == SEQ_IS_MATCH) {
+		if(lzma_decode_opt(coder, &dict, in, in_pos, in_size))
+			return LZMA_DATA_ERROR;
+		dictptr->pos = dict.pos;
+		dictptr->full = dict.full;
+	}
+#endif
 
 	// Update the remaining amount of uncompressed data if uncompressed
 	// size was known.
@@ -871,26 +904,27 @@ lzma_decoder_reset(void *coder_ptr, const void *opt)
 	literal_init(coder->literal, options->lc, options->lp);
 
 	coder->literal_context_bits = options->lc;
-	coder->literal_pos_mask = (1U << options->lp) - 1;
+	coder->literal_pos_mask = ((unsigned)0x100 << options->lp) - ((unsigned)0x100 >> options->lc);
 
 	// State
 	coder->state = STATE_LIT_LIT;
-	coder->rep0 = 0;
-	coder->rep1 = 0;
-	coder->rep2 = 0;
-	coder->rep3 = 0;
+	coder->rep0 = 1;
+	coder->rep1 = 1;
+	coder->rep2 = 1;
+	coder->rep3 = 1;
 	coder->pos_mask = (1U << options->pb) - 1;
 
 	// Range decoder
 	rc_reset(coder->rc);
 
 	// Bit and bittree decoders
-	for (uint32_t i = 0; i < STATES; ++i) {
+	for (uint32_t i = 0; i < STATES2; ++i) {
 		for (uint32_t j = 0; j <= coder->pos_mask; ++j) {
-			bit_reset(coder->is_match[i][j]);
-			bit_reset(coder->is_rep0_long[i][j]);
+			bit_reset(coder->is_match[j][i]);
+			bit_reset(coder->is_rep0_long[j][i]);
 		}
-
+	}
+	for (uint32_t i = 0; i < STATES; ++i) {
 		bit_reset(coder->is_rep[i]);
 		bit_reset(coder->is_rep0[i]);
 		bit_reset(coder->is_rep1[i]);
@@ -900,28 +934,20 @@ lzma_decoder_reset(void *coder_ptr, const void *opt)
 	for (uint32_t i = 0; i < DIST_STATES; ++i)
 		bittree_reset(coder->dist_slot[i], DIST_SLOT_BITS);
 
-	for (uint32_t i = 0; i < FULL_DISTANCES - DIST_MODEL_END; ++i)
+	for (uint32_t i = 0; i < FULL_DISTANCES; ++i)
 		bit_reset(coder->pos_special[i]);
 
 	bittree_reset(coder->pos_align, ALIGN_BITS);
 
 	// Len decoders (also bit/bittree)
 	const uint32_t num_pos_states = 1U << options->pb;
-	bit_reset(coder->match_len_decoder.choice);
-	bit_reset(coder->match_len_decoder.choice2);
-	bit_reset(coder->rep_len_decoder.choice);
-	bit_reset(coder->rep_len_decoder.choice2);
 
 	for (uint32_t pos_state = 0; pos_state < num_pos_states; ++pos_state) {
 		bittree_reset(coder->match_len_decoder.low[pos_state],
-				LEN_LOW_BITS);
-		bittree_reset(coder->match_len_decoder.mid[pos_state],
-				LEN_MID_BITS);
+				LEN_LOW_BITS + 1);
 
 		bittree_reset(coder->rep_len_decoder.low[pos_state],
-				LEN_LOW_BITS);
-		bittree_reset(coder->rep_len_decoder.mid[pos_state],
-				LEN_MID_BITS);
+				LEN_LOW_BITS + 1);
 	}
 
 	bittree_reset(coder->match_len_decoder.high, LEN_HIGH_BITS);
