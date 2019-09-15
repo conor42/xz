@@ -660,15 +660,11 @@ lzma2_rmf_hash_alloc(lzma2_rmf_encoder *const enc, const lzma_options_lzma* cons
 }
 
 
-#ifdef TUKLIB_FAST_UNALIGNED_ACCESS
 #  ifdef WORDS_BIGENDIAN
-#    define GET_HASH_3(data) (((*(uint32_t*)(data) & 0xFFFFFF00) * 506832829U) >> (32 - HC3_BITS))
+#    define GET_HASH_3(data) (((unaligned_read32ne(data) & 0xFFFFFF00) * 506832829U) >> (32 - HC3_BITS))
 #  else
-#    define GET_HASH_3(data) (((*(uint32_t*)(data) << 8) * 506832829U) >> (32 - HC3_BITS))
+#    define GET_HASH_3(data) (((unaligned_read32ne(data) << 8) * 506832829U) >> (32 - HC3_BITS))
 #  endif
-#else
-#  define GET_HASH_3(data) (((((unsigned)((data)[0]) << 8) | ((data)[1] << 16) | ((data)[2] << 24)) * 506832829U) >> (32 - HC3_BITS))
-#endif
 
 // Find matches nearer than the match from the RMF. If none is at least as long as
 // the RMF match (most likely), insert that match at the end of the list.
